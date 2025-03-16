@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Analytics } from '@vercel/analytics/next';
+import { Providers } from "./providers";
 
 // Load the ABCDiatype font (Regular and Bold only)
 const abcdDiatype = localFont({
@@ -31,7 +32,7 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "https://demo.exa.ai/answer/opengraph-image.jpg",
+        url: "https://demo.exa.ai/opengraph-image.jpg",
         width: 1200,
         height: 630,
         alt: "Exa Answer Chat App"
@@ -42,9 +43,9 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Exa Answer Chat App",
     description: "An opensource chat application built with Exa Answer endpoint.",
-    images: ["https://demo.exa.ai/answer/opengraph-image.jpg"]
+    images: ["https://demo.exa.ai/opengraph-image.jpg"]
   },
-  metadataBase: new URL("https://demo.exa.ai/answer"),
+  metadataBase: new URL("https://demo.exa.ai"),
   robots: {
     index: true,
     follow: true
@@ -64,8 +65,10 @@ export default function RootLayout({
       <body
         className={`${abcdDiatype.variable} ${reckless.variable} antialiased`}
       >
-        {children}
-        <Analytics />
+        <Providers>
+          {children}
+          <Analytics />
+        </Providers>
       </body>
     </html>
   );

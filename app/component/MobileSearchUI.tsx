@@ -1,0 +1,169 @@
+import React, { useRef, useEffect } from 'react';
+import { Model } from '../types';
+
+interface MobileSearchUIProps {
+  input: string;
+  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => void;
+  handleSubmit: (e: React.FormEvent) => void;
+  isLoading: boolean;
+  selectedModel: string;
+  handleModelChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  models: Model[];
+  autoprompt: boolean;
+  toggleAutoprompt: () => void;
+  setInput: (input: string) => void;
+}
+
+const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
+  input,
+  handleInputChange,
+  handleSubmit,
+  isLoading,
+  selectedModel,
+  handleModelChange,
+  models,
+  autoprompt,
+  toggleAutoprompt,
+  setInput
+}) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea based on content
+  useEffect(() => {
+    if (textareaRef.current) {
+      // Reset height to auto to get the correct scrollHeight
+      textareaRef.current.style.height = 'auto';
+      
+      // Calculate new height
+      const newHeight = textareaRef.current.scrollHeight;
+      const maxHeight = 120; // Max height before scrolling (in pixels)
+      
+      if (newHeight > maxHeight) {
+        // If content exceeds max height, set fixed height and enable scrolling
+        textareaRef.current.style.height = `${maxHeight}px`;
+        textareaRef.current.style.overflowY = 'auto';
+      } else {
+        // Otherwise, expand to fit content
+        textareaRef.current.style.height = `${newHeight}px`;
+        textareaRef.current.style.overflowY = 'hidden';
+      }
+    }
+  }, [input]);
+
+  return (
+    <div className="md:hidden min-h-screen bg-[#fffdf5] pt-16">
+      <div className="max-w-xl mx-auto px-4 py-8">
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold mb-2">
+            The web, <span className="text-blue-600">organized</span>
+          </h1>
+          <p className="text-base text-gray-700 mb-2">
+            Exa search uses embeddings to understand meaning.
+          </p>
+          <p className="text-base text-gray-700 underline">
+            Learn more
+          </p>
+        </div>
+        
+        {/* Search box */}
+        <div className="border border-blue-600 rounded-lg bg-white shadow-sm overflow-hidden mb-8">
+          <form onSubmit={handleSubmit} className="relative">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleInputChange}
+              autoFocus
+              placeholder="Try a search or paste a link to find similar"
+              rows={1}
+              className="w-full p-4 bg-white border-0 
+              focus:outline-none focus:ring-0 text-base
+              placeholder:text-gray-400 resize-none min-h-[46px] max-h-[120px]
+              scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"
+              style={{ lineHeight: '1.5' }}
+            />
+            
+            <div className="border-t border-gray-200 px-4 py-2">
+              <div className="flex items-center gap-1 mb-2 mt-2">
+                <svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <select
+                  id="mobile-model-selector"
+                  value={selectedModel}
+                  onChange={handleModelChange}
+                  className="text-sm border-0 focus:outline-none focus:ring-0 bg-transparent text-gray-800 font-medium max-w-[120px] truncate"
+                >
+                  {models.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button 
+                  type="button"
+                  onClick={toggleAutoprompt}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${autoprompt ? 'bg-blue-600' : 'bg-gray-200'}`}
+                >
+                  <span 
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoprompt ? 'translate-x-6' : 'translate-x-1'}`} 
+                  />
+                </button>
+                <span className="text-sm text-gray-500">Autoprompt</span>
+                <div className="relative group">
+                  <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M12 16V12M12 8H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
+            <button
+              type="submit"
+              disabled={!input.trim() || isLoading}
+              className="w-full bg-blue-600 text-white py-3 font-medium
+              disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 4L12 12M12 12L20 4M12 12L4 20M12 12L20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                <span>SEARCH</span>
+              </div>
+            </button>
+          </form>
+        </div>
+        
+        {/* Popular searches */}
+        <div className="mb-8">
+          <h3 className="text-sm font-medium text-gray-500 mb-3">POPULAR SEARCHES</h3>
+          <div className="space-y-2">
+            <button 
+              onClick={() => setInput("a short article about the early days of Google")}
+              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm hover:border-gray-300 transition-colors text-left"
+            >
+              a short article about the early days of Google
+            </button>
+            <button 
+              onClick={() => setInput("Start ups working on genetic sequencing")}
+              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm hover:border-gray-300 transition-colors text-left"
+            >
+              Start ups working on genetic sequencing
+            </button>
+            <button 
+              onClick={() => setInput("Similar to https://waitbutwhy.com")}
+              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm hover:border-gray-300 transition-colors text-left"
+            >
+              Similar to https://waitbutwhy.com
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default MobileSearchUI; 
