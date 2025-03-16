@@ -37,8 +37,8 @@ Exa Answer Chat App is a free and open-source application that shows how to use 
 
 1. Clone the repository
 ```bash
-git clone https://github.com/exa-labs/answer-chat-app.git
-cd answer-chat-app
+git clone https://github.com/Vinitj088/ExaChat.git
+cd ExaChat
 ```
 
 2. Install dependencies
