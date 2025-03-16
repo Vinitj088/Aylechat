@@ -9,16 +9,12 @@ import MobileSearchUI from './component/MobileSearchUI';
 import DesktopSearchUI from './component/DesktopSearchUI';
 import { fetchResponse } from './api/apiService';
 import modelsData from '../models.json';
-import { useSession } from 'next-auth/react';
-import { AuthDialog } from './component/AuthDialog';
 
 export default function Page() {
-  const { data: session } = useSession();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelType>('exa');
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [models, setModels] = useState<Model[]>([
     {
       id: 'exa',
@@ -53,12 +49,6 @@ export default function Page() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!session) {
-      setShowAuthDialog(true);
-      return;
-    }
-
     if (!input.trim() || isLoading) return;
 
     // Cancel any ongoing request
@@ -119,10 +109,6 @@ export default function Page() {
   const selectedModelObj = models.find(model => model.id === selectedModel);
   const isExa = selectedModel === 'exa';
   const providerName = isExa ? 'Exa' : selectedModelObj?.provider || '';
-
-  const handleAuthSuccess = () => {
-    setShowAuthDialog(false);
-  };
 
   return (
     <>
@@ -185,12 +171,6 @@ export default function Page() {
           isExa={isExa}
         />
       )}
-
-      <AuthDialog 
-        isOpen={showAuthDialog} 
-        onClose={() => setShowAuthDialog(false)}
-        onSuccess={handleAuthSuccess}
-      />
     </>
   );
 }

@@ -1,21 +1,16 @@
-import { withAuth } from "next-auth/middleware"
-import { NextResponse } from "next/server"
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-export default withAuth(
-  function middleware(req) {
-    // Add custom middleware logic here if needed
-    return NextResponse.next()
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token
-    },
+export function middleware(request: NextRequest) {
+  if (request.headers.get('host') === 'https://answer-chat-app.vercel.app/') {
+    return NextResponse.redirect('https://demo.exa.ai', {
+      status: 301
+    })
   }
-)
+  
+  return NextResponse.next()
+}
 
 export const config = {
-  matcher: [
-    "/api/chat/:path*",
-    "/chat/:path*",
-  ]
+  matcher: ['/:path*']
 } 

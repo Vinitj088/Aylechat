@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Analytics } from '@vercel/analytics/next';
-import { Providers } from "./providers";
 
 // Load the ABCDiatype font (Regular and Bold only)
 const abcdDiatype = localFont({
@@ -65,10 +64,8 @@ export default function RootLayout({
       <body
         className={`${abcdDiatype.variable} ${reckless.variable} antialiased`}
       >
-        <Providers>
-          {children}
-          <Analytics />
-        </Providers>
+        {children}
+        <Analytics />
       </body>
     </html>
   );
