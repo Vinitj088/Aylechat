@@ -12,6 +12,7 @@ import { fetchResponse } from './api/apiService';
 import modelsData from '../models.json';
 import AuthDialog from '@/components/AuthDialog';
 import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function Page() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -34,6 +35,7 @@ export default function Page() {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { user, isAuthenticated, login, signup } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     // Add Exa as the first option and then add all Groq models
@@ -142,6 +144,12 @@ export default function Page() {
     setShowAuthDialog(false);
   };
 
+  const handleNewChat = () => {
+    setMessages([]);
+    setInput('');
+    router.push('/');
+  };
+
   return (
     <main className="flex min-h-screen flex-col">
       <Header toggleSidebar={toggleSidebar} />
@@ -205,6 +213,7 @@ export default function Page() {
               handleModelChange={handleModelChange}
               models={models}
               isExa={isExa}
+              onNewChat={handleNewChat}
             />
           )}
         </>

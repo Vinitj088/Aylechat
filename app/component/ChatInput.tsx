@@ -1,5 +1,4 @@
 import React, { useRef, useEffect } from 'react';
-import Link from 'next/link';
 import { Model } from '../types';
 import { 
   DropdownMenu,
@@ -20,6 +19,7 @@ interface ChatInputProps {
   handleModelChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   models: Model[];
   isExa: boolean;
+  onNewChat: () => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -30,7 +30,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   selectedModel,
   handleModelChange,
   models,
-  isExa
+  isExa,
+  onNewChat
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -104,14 +105,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">New chat</span>
-              <Link
-                href="/"
+              <button
+                onClick={onNewChat}
                 className="text-blue-600 hover:text-blue-700"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-              </Link>
+              </button>
             </div>
           </div>
           <div className="relative flex w-full">
