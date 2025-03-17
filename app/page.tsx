@@ -124,7 +124,8 @@ export default function Page() {
             const updateResponse = await fetch(`/api/chat/threads/${currentThreadId}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ messages: updatedMessages })
+              body: JSON.stringify({ messages: updatedMessages }),
+              credentials: 'include'
             });
             
             if (!updateResponse.ok) {
@@ -137,7 +138,8 @@ export default function Page() {
             const response = await fetch('/api/chat/threads', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title, messages: updatedMessages })
+              body: JSON.stringify({ title, messages: updatedMessages }),
+              credentials: 'include'
             });
             
             const data = await response.json();
@@ -148,10 +150,8 @@ export default function Page() {
             
             if (data.success) {
               setCurrentThreadId(data.thread.id);
-              // Only trigger refresh if the sidebar is open
-              if (document.querySelector('.sidebar-open')) {
-                setRefreshSidebar(prev => prev + 1);
-              }
+              // When a thread is created, always trigger a refresh regardless of sidebar state
+              setRefreshSidebar(prev => prev + 1);
             } else {
               console.error('Failed to create thread:', data);
               throw new Error('Failed to create chat thread');
@@ -193,14 +193,54 @@ export default function Page() {
   const providerName = selectedModelObj?.provider || 'AI';
 
   const handleLogin = async (email: string, password: string) => {
-    await login(email, password);
-    setShowAuthDialog(false);
+    try {
+      await login(email, password);
+      setShowAuthDialog(false);
+      
+      // Wait for authentication to complete, then open sidebar and trigger refresh
+      setTimeout(() => {
+        setIsSidebarOpen(true);
+        setRefreshSidebar(prev => prev + 1);
+        
+        // If there was an input when auth dialog opened, submit it
+        if (input.trim()) {
+          handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
+    }
   };
 
   const handleSignup = async (email: string, password: string, name: string) => {
-    await signup(email, password, name);
-    setShowAuthDialog(false);
+    try {
+      await signup(email, password, name);
+      setShowAuthDialog(false);
+      
+      // Wait for authentication to complete, then open sidebar and trigger refresh
+      setTimeout(() => {
+        setIsSidebarOpen(true);
+        setRefreshSidebar(prev => prev + 1);
+        
+        // If there was an input when auth dialog opened, submit it
+        if (input.trim()) {
+          handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Signup failed:', error);
+      throw error;
+    }
   };
+
+  // Add an effect to monitor authentication state
+  useEffect(() => {
+    // When auth state changes to authenticated, trigger sidebar refresh
+    if (isAuthenticated && user) {
+      setRefreshSidebar(prev => prev + 1);
+    }
+  }, [isAuthenticated, user]);
 
   const handleNewChat = () => {
     setMessages([]);

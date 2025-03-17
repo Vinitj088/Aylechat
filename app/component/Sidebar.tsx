@@ -85,6 +85,14 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
     }
   }, [isOpen, user]);
 
+  // Add an effect to handle auth state changes
+  useEffect(() => {
+    // When authentication state changes (user logs in via dialog), reset the fetch state
+    if (isAuthenticated && user && !hasFetched && isOpen) {
+      fetchThreads();
+    }
+  }, [isAuthenticated, user, hasFetched, isOpen, fetchThreads]);
+
   const handleHomeClick = (e: React.MouseEvent) => {
     e.preventDefault();
     router.push('/');
