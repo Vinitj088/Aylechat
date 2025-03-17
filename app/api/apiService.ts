@@ -23,11 +23,14 @@ export const fetchResponse = async (
   let response;
   
   if (selectedModel === 'exa') {
-    // Use Exa API
+    // Use Exa API - send the messages array instead of the full conversation history
     response = await fetch(getAssetPath('/api/exaanswer'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: fullQuery }),
+      body: JSON.stringify({ 
+        query: input, // Send just the current input as the query
+        messages: messages // Send the full messages array
+      }),
       signal: abortController.signal,
     });
   } else {

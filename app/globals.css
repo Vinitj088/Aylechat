@@ -54,12 +54,6 @@
   --accent-pink-light: #fce7f3;
   --accent-maroon-dark: #991b1b;
   --accent-maroon-light: #fee2e2;
-
-  /* Exa Colors */
-  --exa-blue: #254bf1;
-  --exa-blue-hover: #1a3cd2;
-  --exa-background: #fffdf5;
-  --exa-text: #333333;
 }
 
 body {
@@ -113,57 +107,80 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Custom select styling */
-select {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 0.5rem center;
-  background-size: 1em;
-  padding-right: 1.5rem;
+/* Custom prose styling to reduce spacing */
+.prose {
+  max-width: none;
+  line-height: 1.4;
 }
 
-/* Remove scrollbar from select */
-select::-webkit-scrollbar {
-  display: none;
+.prose > * {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
 }
 
-/* Style select dropdown */
-select option {
-  background-color: #fffdf5;
-  color: #333;
-  padding: 8px;
+.prose p {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
 }
 
-/* Firefox specific styling */
-@-moz-document url-prefix() {
-  select {
-    text-overflow: ellipsis;
-  }
-  
-  select option {
-    background-color: #fffdf5;
-  }
+.prose h1, 
+.prose h2, 
+.prose h3, 
+.prose h4, 
+.prose h5, 
+.prose h6 {
+  margin-top: 0.6em !important;
+  margin-bottom: 0.3em !important;
+  line-height: 1.2;
 }
 
-/* Custom scrollbar styling */
-.scrollbar-thin::-webkit-scrollbar {
-  width: 4px;
+.prose ul, 
+.prose ol {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
+  padding-left: 1.5em;
 }
 
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
+.prose li {
+  margin-top: 0.1em !important;
+  margin-bottom: 0.1em !important;
+  padding-left: 0.2em;
 }
 
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: #d1d5db;
-  border-radius: 20px;
+.prose li p {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
-/* Firefox scrollbar styling */
-.scrollbar-thin {
-  scrollbar-width: thin;
-  scrollbar-color: #d1d5db transparent;
+.prose pre {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
+}
+
+.prose blockquote {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
+  padding-left: 1em;
+}
+
+.prose hr {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
+}
+
+.prose a {
+  color: var(--brand-default);
+  text-decoration: underline;
+}
+
+.prose code {
+  background-color: var(--gray-100);
+  padding: 0.2em 0.4em;
+  border-radius: 0.25em;
+  font-size: 0.875em;
+}
+
+.prose pre code {
+  background-color: transparent;
+  padding: 0;
 }

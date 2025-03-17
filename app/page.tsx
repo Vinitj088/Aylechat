@@ -128,33 +128,31 @@ export default function Page() {
         <>
           {/* Mobile Search UI */}
           <MobileSearchUI 
-            input={input}
-            handleInputChange={handleInputChange}
-            handleSubmit={handleSubmit}
-            isLoading={isLoading}
-            selectedModel={selectedModel}
-            handleModelChange={handleModelChange}
-            models={models}
-            autoprompt={autoprompt}
-            toggleAutoprompt={toggleAutoprompt}
-            setInput={setInput}
-          />
+              input={input}
+              handleInputChange={handleInputChange}
+              handleSubmit={handleSubmit}
+              isLoading={isLoading}
+              selectedModel={selectedModel}
+              handleModelChange={handleModelChange}
+              models={models}
+              autoprompt={autoprompt}
+              toggleAutoprompt={toggleAutoprompt}
+              setInput={setInput} messages={[]}          />
 
           {/* Desktop Search UI */}
           <DesktopSearchUI 
-            input={input}
-            handleInputChange={handleInputChange}
-            handleSubmit={handleSubmit}
-            isLoading={isLoading}
-            selectedModel={selectedModel}
-            handleModelChange={handleModelChange}
-            models={models}
-            autoprompt={autoprompt}
-            toggleAutoprompt={toggleAutoprompt}
-            setInput={setInput}
-            isExa={isExa}
-            providerName={providerName}
-          />
+              input={input}
+              handleInputChange={handleInputChange}
+              handleSubmit={handleSubmit}
+              isLoading={isLoading}
+              selectedModel={selectedModel}
+              handleModelChange={handleModelChange}
+              models={models}
+              autoprompt={autoprompt}
+              toggleAutoprompt={toggleAutoprompt}
+              setInput={setInput}
+              isExa={isExa}
+              providerName={providerName} messages={[]}          />
         </>
       )}
 
