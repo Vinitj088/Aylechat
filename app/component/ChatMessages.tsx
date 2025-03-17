@@ -36,7 +36,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                 }`}
               >
                 <div className="whitespace-pre-wrap text-[15px]">
-                  <MessageContent content={message.content} />
+                  <MessageContent content={message.content} role={message.role} />
                 </div>
                 {message.citations && message.citations.length > 0 && (
                   <Citation citations={message.citations} />

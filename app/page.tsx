@@ -7,6 +7,7 @@ import ChatMessages from './component/ChatMessages';
 import ChatInput from './component/ChatInput';
 import MobileSearchUI from './component/MobileSearchUI';
 import DesktopSearchUI from './component/DesktopSearchUI';
+import Sidebar from './component/Sidebar';
 import { fetchResponse } from './api/apiService';
 import modelsData from '../models.json';
 
@@ -27,6 +28,7 @@ export default function Page() {
     }
   ]);
   const [autoprompt, setAutoprompt] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -45,6 +47,10 @@ export default function Page() {
 
   const toggleAutoprompt = () => {
     setAutoprompt(!autoprompt);
+  };
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -105,42 +111,65 @@ export default function Page() {
     }
   };
 
+  // Determine if we have any messages
   const hasMessages = messages.length > 0;
-  const selectedModelObj = models.find(model => model.id === selectedModel);
+
+  // Determine if the selected model is Exa
   const isExa = selectedModel === 'exa';
-  const providerName = isExa ? 'Exa' : selectedModelObj?.provider || '';
+
+  // Get the provider name for the selected model
+  const selectedModelObj = models.find(model => model.id === selectedModel);
+  const providerName = selectedModelObj?.provider || 'AI';
 
   return (
     <>
-      <Header />
-
-      {hasMessages ? (
-        // Chat Messages View
-        <ChatMessages 
-          messages={messages}
-          isLoading={isLoading}
-          selectedModel={selectedModel}
-          selectedModelObj={selectedModelObj}
-          isExa={isExa}
-        />
-      ) : (
-        // Search UI View (No Messages)
+      <Header toggleSidebar={toggleSidebar} />
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      
+      {!hasMessages ? (
         <>
-          {/* Mobile Search UI */}
           <MobileSearchUI 
-              input={input}
-              handleInputChange={handleInputChange}
-              handleSubmit={handleSubmit}
-              isLoading={isLoading}
-              selectedModel={selectedModel}
-              handleModelChange={handleModelChange}
-              models={models}
-              autoprompt={autoprompt}
-              toggleAutoprompt={toggleAutoprompt}
-              setInput={setInput} messages={[]}          />
-
-          {/* Desktop Search UI */}
+            input={input}
+            handleInputChange={handleInputChange}
+            handleSubmit={handleSubmit}
+            isLoading={isLoading}
+            selectedModel={selectedModel}
+            handleModelChange={handleModelChange}
+            models={models}
+            autoprompt={autoprompt}
+            toggleAutoprompt={toggleAutoprompt}
+            setInput={setInput}
+            messages={messages}
+          />
           <DesktopSearchUI 
+            input={input}
+            handleInputChange={handleInputChange}
+            handleSubmit={handleSubmit}
+            isLoading={isLoading}
+            selectedModel={selectedModel}
+            handleModelChange={handleModelChange}
+            models={models}
+            autoprompt={autoprompt}
+            toggleAutoprompt={toggleAutoprompt}
+            setInput={setInput}
+            isExa={isExa}
+            providerName={providerName}
+            messages={messages}
+          />
+        </>
+      ) : (
+        <>
+          <ChatMessages 
+            messages={messages} 
+            isLoading={isLoading} 
+            selectedModel={selectedModel}
+            selectedModelObj={selectedModelObj}
+            isExa={isExa}
+          />
+
+          {/* Input Form - Only show when there are messages */}
+          {hasMessages && (
+            <ChatInput 
               input={input}
               handleInputChange={handleInputChange}
               handleSubmit={handleSubmit}
@@ -148,27 +177,12 @@ export default function Page() {
               selectedModel={selectedModel}
               handleModelChange={handleModelChange}
               models={models}
-              autoprompt={autoprompt}
-              toggleAutoprompt={toggleAutoprompt}
-              setInput={setInput}
               isExa={isExa}
-              providerName={providerName} messages={[]}          />
+            />
+          )}
         </>
-      )}
-
-      {/* Input Form - Only show when there are messages */}
-      {hasMessages && (
-        <ChatInput 
-          input={input}
-          handleInputChange={handleInputChange}
-          handleSubmit={handleSubmit}
-          isLoading={isLoading}
-          selectedModel={selectedModel}
-          handleModelChange={handleModelChange}
-          models={models}
-          isExa={isExa}
-        />
       )}
     </>
   );
 }
+ 
