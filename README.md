@@ -8,7 +8,7 @@ An open-source chat app showcasing the power of Exa's Answer endpoint.
 ### ✨ Try it yourself:
 - [Try the Answer Endpoint](https://dashboard.exa.ai/playground/answer?q=What%20makes%20some%20LLMs%20so%20much%20better%20than%20others%3F&filters=%7B%22model%22%3A%22exa-pro%22%7D) - Experience the Answer endpoint directly on Exa dashboard
 
-- [Live Demo](https://demo.exa.ai/answer) - See the chat app in action
+- [Live Demo](https://exa-chat.vercel.app/) - See the chat app in action
 
 <br>
 
