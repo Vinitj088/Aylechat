@@ -10,6 +10,8 @@ import DesktopSearchUI from './component/DesktopSearchUI';
 import Sidebar from './component/Sidebar';
 import { fetchResponse } from './api/apiService';
 import modelsData from '../models.json';
+import AuthDialog from '@/components/AuthDialog';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Page() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -29,7 +31,9 @@ export default function Page() {
   ]);
   const [autoprompt, setAutoprompt] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const { user, isAuthenticated, login, signup } = useAuth();
 
   useEffect(() => {
     // Add Exa as the first option and then add all Groq models
@@ -55,6 +59,13 @@ export default function Page() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // If user is not authenticated, show auth dialog
+    if (!isAuthenticated) {
+      setShowAuthDialog(true);
+      return;
+    }
+
     if (!input.trim() || isLoading) return;
 
     // Cancel any ongoing request
@@ -121,10 +132,24 @@ export default function Page() {
   const selectedModelObj = models.find(model => model.id === selectedModel);
   const providerName = selectedModelObj?.provider || 'AI';
 
+  const handleLogin = async (email: string, password: string) => {
+    await login(email, password);
+    setShowAuthDialog(false);
+  };
+
+  const handleSignup = async (email: string, password: string, name: string) => {
+    await signup(email, password, name);
+    setShowAuthDialog(false);
+  };
+
   return (
-    <>
+    <main className="flex min-h-screen flex-col">
       <Header toggleSidebar={toggleSidebar} />
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+        onSignInClick={() => setShowAuthDialog(true)}
+      />
       
       {!hasMessages ? (
         <>
@@ -184,7 +209,15 @@ export default function Page() {
           )}
         </>
       )}
-    </>
+
+      {/* Auth Dialog */}
+      <AuthDialog 
+        isOpen={showAuthDialog} 
+        onClose={() => setShowAuthDialog(false)}
+        onLogin={handleLogin}
+        onSignup={handleSignup}
+      />
+    </main>
   );
 }
  

@@ -1,10 +1,12 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useAuth } from '@/context/AuthContext';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  onSignInClick?: () => void;
 }
 
 // Mock chat history data - in a real app, this would come from props
@@ -21,95 +23,101 @@ const chatHistory = [
   { id: '10', title: 'Serverless architecture', date: '1 month ago' },
 ];
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInClick }) => {
+  const { user, isAuthenticated, logout } = useAuth();
+
   return (
     <>
       {/* Overlay - changed to be semi-transparent on all screen sizes */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-40"
-          onClick={onClose}
-        />
-      )}
+      <div
+        className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${
+          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={onClose}
+      />
       
       {/* Sidebar - fixed height with internal scrolling */}
-      <div 
-        className={`fixed top-0 right-0 h-screen w-72 bg-[var(--secondary-faint)] border-l-4 border-[#faf7ec] shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${
+      <div
+        className={`fixed top-0 right-0 h-screen w-64 bg-[#fffdf5] z-50 transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        } flex flex-col`}
       >
-        {/* Sidebar Header - fixed at top */}
-        <div className="flex-shrink-0 flex justify-between items-center p-4 border-b-4 border-[#faf7ec]">
-          <h2 className="text-xl font-bold">Chat History</h2>
-          <button 
+        <div className="p-4 border-b flex items-center justify-between">
+          <h2 className="text-lg font-bold">Hey there</h2>
+          <button
             onClick={onClose}
-            className="p-2 hover:bg-[var(--secondary-faint)] rounded"
+            className="p-1 text-gray-500 hover:text-gray-700 rounded-md"
+            aria-label="Close sidebar"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
         </div>
         
         {/* Sidebar Content - scrollable */}
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col space-y-4">
-          {/* Profile Section with Sign Out Button */}
-          <div className="flex-shrink-0 flex items-center p-3 bg-[var(--secondary-faint)] border-2 border-[#83827e]">
-            <div className="w-12 h-12 bg-[var(--brand-default)] rounded-full flex items-center justify-center text-white font-bold">
-              EX
-            </div>
-            <div className="ml-3 flex-grow">
-              <p className="font-bold">Exa User</p>
-              <p className="text-sm text-gray-600">Free Plan</p>
-            </div>
-            <button className="p-2 hover:bg-[var(--secondary-faint)] rounded-full" title="Sign Out">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-              </svg>
-            </button>
-          </div>
-          
-          {/* Chat History Scrollable Container */}
-          <div className="flex-1 overflow-y-auto pr-1">
-            <h3 className="font-bold text-sm uppercase text-gray-600 mb-2">Recent Conversations</h3>
-            
-            <div className="space-y-2">
-              {chatHistory.map((chat) => (
-                <Link 
-                  href={`/chat/${chat.id}`} 
-                  key={chat.id}
-                  className="block p-3 bg-[var(--secondary-faint)] border-2 border-[#83827e] hover:bg-[var(--secondary-darkest)] transition-colors"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium truncate">{chat.title}</span>
-                    <span className="text-xs text-gray-600">{chat.date}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-          
-          {/* GitHub Repo Link - fixed at bottom */}
-          <div className="flex-shrink-0 p-4 bg-[var(--secondary-darker)] border-2 border-[#000] mt-auto">
-            <h3 className="font-bold mb-2">View Source Code</h3>
-            <p className="text-sm mb-3">Check out this project on GitHub.</p>
-            <a 
-              href="https://github.com/yourusername/exachat" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="block text-center py-2 px-4 bg-[#000] text-white font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:translate-y-0.5 hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] transition-all"
-            >
-              <div className="flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4 space-y-4">
+            <div className="space-y-1">
+              <a
+                href="/"
+                className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-[var(--secondary-darker)] rounded-md transition-colors"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 12L5 10M5 10L12 3L19 10M5 10V20C5 20.5523 5.44772 21 6 21H9M19 10L21 12M19 10V20C19 20.5523 18.5523 21 18 21H15M9 21C9.55228 21 10 20.5523 10 20V16C10 15.4477 10.4477 15 11 15H13C13.5523 15 14 15.4477 14 16V20C14 20.5523 14.4477 21 15 21M9 21H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                <span>GitHub Repo</span>
-              </div>
-            </a>
+                Home
+              </a>
+              <a
+                href="/chat"
+                className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-[var(--secondary-darker)] rounded-md transition-colors"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M8 12H8.01M12 12H12.01M16 12H16.01M21 12C21 16.4183 16.9706 20 12 20C10.4607 20 9.01172 19.6565 7.74467 19.0511L3 20L4.39499 16.28C3.51156 15.0423 3 13.5743 3 12C3 7.58172 7.02944 4 12 4C16.9706 4 21 7.58172 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Chat History
+              </a>
+            </div>
           </div>
+        </div>
+
+        {/* User profile section */}
+        <div className="p-4 border-t">
+          {isAuthenticated ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium">
+                  {user?.name ? user.name.charAt(0).toUpperCase() : user?.email.charAt(0).toUpperCase()}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="font-medium truncate">{user?.name || 'User'}</p>
+                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => logout()}
+                className="w-full flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-[var(--secondary-darker)] rounded-md transition-colors"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17 16L21 12M21 12L17 8M21 12H9M9 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-500">Sign in to save your chat history</p>
+              <button
+                onClick={onSignInClick}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H15M10 17L15 12M15 12L10 7M15 12H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Sign In
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </>

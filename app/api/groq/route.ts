@@ -1,10 +1,17 @@
 import { NextRequest } from 'next/server';
+import { authService } from '@/lib/auth-service';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
+    // Check if user is authenticated
+    const user = await authService.getUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    }
+
     const { query, model } = await req.json();
     if (!query) {
       return new Response(JSON.stringify({ error: 'query is required' }), { status: 400 });

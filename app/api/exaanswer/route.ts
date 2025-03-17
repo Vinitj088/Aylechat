@@ -1,6 +1,7 @@
 // app/api/exaanswer/route.ts
 import { NextRequest } from 'next/server';
 import Exa from "exa-js";
+import { authService } from '@/lib/auth-service';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -9,6 +10,12 @@ const exa = new Exa(process.env.EXA_API_KEY as string);
 
 export async function POST(req: NextRequest) {
   try {
+    // Check if user is authenticated
+    const user = await authService.getUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    }
+
     const { query } = await req.json();
     if (!query) {
       return new Response(JSON.stringify({ error: 'query is required' }), { status: 400 });
