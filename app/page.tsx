@@ -33,6 +33,9 @@ export default function Page() {
   const [autoprompt, setAutoprompt] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
+  const [refreshSidebar, setRefreshSidebar] = useState(0);
+  const [pendingThreadUpdate, setPendingThreadUpdate] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { user, isAuthenticated, login, signup } = useAuth();
   const router = useRouter();
@@ -61,43 +64,38 @@ export default function Page() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // If user is not authenticated, show auth dialog
+    if (!input.trim() || isLoading) return;
+
+    // Show auth dialog if user is not authenticated
     if (!isAuthenticated) {
       setShowAuthDialog(true);
       return;
     }
 
-    if (!input.trim() || isLoading) return;
-
-    // Cancel any ongoing request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    const messageId = Date.now().toString();
     const userMessage: Message = {
-      id: messageId,
+      id: crypto.randomUUID(),
       role: 'user',
-      content: input,
+      content: input.trim()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const assistantMessage: Message = {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: ''
+    };
+
+    setMessages(prev => [...prev, userMessage, assistantMessage]);
     setInput('');
     setIsLoading(true);
 
-    const assistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: '',
-    };
-
-    setMessages(prev => [...prev, assistantMessage]);
-
     try {
+      // Cancel any ongoing request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
       abortControllerRef.current = new AbortController();
-      
-      await fetchResponse(
+
+      const { content, citations } = await fetchResponse(
         input,
         messages,
         selectedModel,
@@ -105,19 +103,79 @@ export default function Page() {
         setMessages,
         assistantMessage
       );
-    } catch (error) {
-      if (error instanceof Error && error.name !== 'AbortError') {
-        console.error('Error fetching response:', error);
-        
-        // Update the assistant message with the error
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === assistantMessage.id 
-              ? { ...msg, content: 'Sorry, there was an error processing your request. Please try again.' } 
-              : msg
-          )
-        );
+
+      // Update the assistant's message with the final content and citations
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === assistantMessage.id 
+            ? { ...msg, content, citations } 
+            : msg
+        )
+      );
+
+      // If user is authenticated, save or update the chat thread
+      if (isAuthenticated && user) {
+        try {
+          const title = messages.length === 0 ? input.slice(0, 50) + '...' : 'Chat Thread';
+          const updatedMessages = [...messages, userMessage, { ...assistantMessage, content, citations }];
+
+          if (currentThreadId) {
+            // Update existing thread
+            const updateResponse = await fetch(`/api/chat/threads/${currentThreadId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ messages: updatedMessages })
+            });
+            
+            if (!updateResponse.ok) {
+              const errorData = await updateResponse.json();
+              console.error('Failed to update thread:', errorData);
+              throw new Error('Failed to update chat thread');
+            }
+          } else {
+            // Create new thread
+            const response = await fetch('/api/chat/threads', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title, messages: updatedMessages })
+            });
+            
+            const data = await response.json();
+            if (!response.ok) {
+              console.error('Failed to create thread:', data);
+              throw new Error('Failed to create chat thread');
+            }
+            
+            if (data.success) {
+              setCurrentThreadId(data.thread.id);
+              // Only trigger refresh if the sidebar is open
+              if (document.querySelector('.sidebar-open')) {
+                setRefreshSidebar(prev => prev + 1);
+              }
+            } else {
+              console.error('Failed to create thread:', data);
+              throw new Error('Failed to create chat thread');
+            }
+          }
+        } catch (error) {
+          console.error('Error saving chat thread:', error);
+        }
+      } else {
+        console.log('User not authenticated, skipping thread save');
       }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request aborted');
+        return;
+      }
+      console.error('Error:', error);
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === assistantMessage.id 
+            ? { ...msg, content: 'Sorry, there was an error processing your request.' } 
+            : msg
+        )
+      );
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;
@@ -147,6 +205,7 @@ export default function Page() {
   const handleNewChat = () => {
     setMessages([]);
     setInput('');
+    setCurrentThreadId(null);
     router.push('/');
   };
 
@@ -157,6 +216,7 @@ export default function Page() {
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
         onSignInClick={() => setShowAuthDialog(true)}
+        refreshTrigger={refreshSidebar}
       />
       
       {!hasMessages ? (

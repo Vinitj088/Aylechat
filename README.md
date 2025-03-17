@@ -76,6 +76,31 @@ This project showcases [Exa's](https://exa.ai) Answer endpoint, which provides:
 
 <br>
 
+## Redis Integration
+
+This application uses Upstash Redis to store chat threads for authenticated users. Each user has their own private chat history that persists between sessions.
+
+### Setup Redis
+
+1. Create an account at [Upstash](https://upstash.com/)
+2. Create a new Redis database
+3. Copy your REST URL and REST Token
+4. Add them to your `.env` file:
+
+```
+UPSTASH_REDIS_REST_URL=your_upstash_redis_url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
+```
+
+### Features
+
+- User-specific chat history
+- Persistent chat threads
+- Real-time updates
+- Privacy protection (each user can only access their own threads)
+
+<br>
+
 ---
 
 Built with ❤️ using [Exa](https://exa.ai)

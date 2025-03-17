@@ -1,32 +1,89 @@
-import React from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { ChatThread } from '@/lib/redis';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { formatDistanceToNow } from 'date-fns';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onSignInClick?: () => void;
+  refreshTrigger?: number;
 }
 
-// Mock chat history data - in a real app, this would come from props
-const chatHistory = [
-  { id: '1', title: 'How to implement React hooks', date: '2 hours ago' },
-  { id: '2', title: 'JavaScript async/await patterns', date: 'Yesterday' },
-  { id: '3', title: 'CSS Grid vs Flexbox', date: '2 days ago' },
-  { id: '4', title: 'NextJS app router migration', date: '3 days ago' },
-  { id: '5', title: 'TypeScript best practices', date: '1 week ago' },
-  { id: '6', title: 'Web accessibility guidelines', date: '1 week ago' },
-  { id: '7', title: 'GraphQL vs REST API', date: '2 weeks ago' },
-  { id: '8', title: 'Docker containerization', date: '3 weeks ago' },
-  { id: '9', title: 'CI/CD pipeline setup', date: '1 month ago' },
-  { id: '10', title: 'Serverless architecture', date: '1 month ago' },
-];
-
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInClick }) => {
-  const { user, isAuthenticated, logout } = useAuth();
+export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger = 0 }: SidebarProps) {
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
+  const { user, isAuthenticated, logout } = useAuth();
+
+  // Simple function to fetch threads
+  const fetchThreads = useCallback(async () => {
+    if (!user || !isOpen || !isAuthenticated) return;
+    
+    try {
+      setIsLoading(true);
+      setFetchError(null);
+      const response = await fetch('/api/chat/threads', {
+        credentials: 'include' // Important for cookies
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Handle unauthorized - user might be logged out
+          setThreads([]);
+          setFetchError('Please sign in to view your chat history');
+          return;
+        }
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      if (data.success) {
+        // Sort threads by updatedAt date, newest first
+        const sortedThreads = [...data.threads].sort((a, b) => 
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+        setThreads(sortedThreads);
+        setHasFetched(true);
+      } else {
+        setFetchError(data.error || 'Failed to load chat history');
+        setThreads([]);
+      }
+    } catch (error) {
+      console.error('Error fetching threads:', error);
+      setFetchError('Failed to load chat history');
+      setThreads([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, isOpen, isAuthenticated]);
+
+  // Initial fetch when sidebar opens
+  useEffect(() => {
+    if (isOpen && !hasFetched && isAuthenticated && user) {
+      fetchThreads();
+    }
+  }, [isOpen, hasFetched, isAuthenticated, user, fetchThreads]);
+
+  // Fetch when refreshTrigger changes and sidebar is open
+  useEffect(() => {
+    if (refreshTrigger > 0 && isOpen && isAuthenticated && user) {
+      fetchThreads();
+    }
+  }, [refreshTrigger, isOpen, isAuthenticated, user, fetchThreads]);
+
+  // Reset hasFetched when sidebar closes or user changes
+  useEffect(() => {
+    if (!isOpen || !user) {
+      setHasFetched(false);
+    }
+  }, [isOpen, user]);
 
   const handleHomeClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -34,102 +91,169 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInClick }) => 
     onClose();
   };
 
+  const handleThreadClick = (threadId: string) => {
+    router.push(`/chat/${threadId}`);
+    onClose();
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await logout();
+      setThreads([]);
+      setHasFetched(false);
+      router.push('/');
+      onClose();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  const handleDeleteThread = async (threadId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the thread click
+    
+    try {
+      const response = await fetch(`/api/chat/threads/${threadId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        // Update local state instead of refetching
+        setThreads(prev => prev.filter(thread => thread.id !== threadId));
+        
+        // If we're on the deleted thread's page, go home
+        if (pathname === `/chat/${threadId}`) {
+          router.push('/');
+        }
+      } else {
+        console.error('Failed to delete thread');
+      }
+    } catch (error) {
+      console.error('Error deleting thread:', error);
+    }
+  };
+
   return (
     <>
-      {/* Overlay - changed to be semi-transparent on all screen sizes */}
-      <div
-        className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${
-          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-        onClick={onClose}
-      />
+      {/* Overlay - only visible when sidebar is open */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40"
+          onClick={onClose}
+        />
+      )}
       
-      {/* Sidebar - fixed height with internal scrolling */}
-      <div
-        className={`fixed top-0 right-0 h-screen w-64 bg-[#fffdf5] z-50 transform transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        } flex flex-col`}
+      {/* Sidebar */}
+      <div 
+        className={`fixed inset-y-0 right-0 z-50 w-64 bg-[#fffdf5] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-x-0 sidebar-open' : 'translate-x-full'
+        } border-l-2 border-black`}
       >
-        <div className="p-4 border-b flex items-center justify-between">
-          <h2 className="text-lg font-bold">Hey there</h2>
-          <button
-            onClick={onClose}
-            className="p-1 text-gray-500 hover:text-gray-700 rounded-md"
-            aria-label="Close sidebar"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-        </div>
-        
-        {/* Sidebar Content - scrollable */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-4 space-y-4">
-            <div className="space-y-1">
-              <button
-                onClick={handleHomeClick}
-                className="w-full flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-[var(--secondary-darker)] rounded-md transition-colors"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 12L5 10M5 10L12 3L19 10M5 10V20C5 20.5523 5.44772 21 6 21H9M19 10L21 12M19 10V20C19 20.5523 18.5523 21 18 21H15M9 21C9.55228 21 10 20.5523 10 20V16C10 15.4477 10.4477 15 11 15H13C13.5523 15 14 15.4477 14 16V20C14 20.5523 14.4477 21 15 21M9 21H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                Home
-              </button>
-              <a
-                href="/chat"
-                className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-[var(--secondary-darker)] rounded-md transition-colors"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M8 12H8.01M12 12H12.01M16 12H16.01M21 12C21 16.4183 16.9706 20 12 20C10.4607 20 9.01172 19.6565 7.74467 19.0511L3 20L4.39499 16.28C3.51156 15.0423 3 13.5743 3 12C3 7.58172 7.02944 4 12 4C16.9706 4 21 7.58172 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                Chat History
-              </a>
-            </div>
+        {/* Sidebar content */}
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between p-3 border-b-2 border-black">
+            <h2 className="text-lg font-bold">Chat History</h2>
+            <button 
+              onClick={onClose}
+              className="p-1.5 rounded-md hover:bg-[#f5f3e4] border border-black"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-        </div>
-
-        {/* User profile section */}
-        <div className="p-4 border-t">
-          {isAuthenticated ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium">
-                  {user?.name ? user.name.charAt(0).toUpperCase() : user?.email.charAt(0).toUpperCase()}
-                </div>
-                <div className="overflow-hidden">
-                  <p className="font-medium truncate">{user?.name || 'User'}</p>
-                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+          
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-3">
+            {!isAuthenticated ? (
+              <div className="flex flex-col items-center justify-center h-full">
+                <p className="text-gray-700 mb-3 text-center">Sign in to view your chat history</p>
+                <button
+                  onClick={onSignInClick}
+                  className="px-3 py-1.5 bg-black text-white rounded-md hover:bg-gray-800 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                >
+                  Sign In
+                </button>
+              </div>
+            ) : isLoading ? (
+              <div className="flex justify-center items-center h-24">
+                {/* Pulsing dots loading indicator */}
+                <div className="flex space-x-2">
+                  <div className="w-2.5 h-2.5 bg-black animate-pulse"></div>
+                  <div className="w-2.5 h-2.5 bg-black animate-pulse delay-150"></div>
+                  <div className="w-2.5 h-2.5 bg-black animate-pulse delay-300"></div>
                 </div>
               </div>
-              <button
-                onClick={() => logout()}
-                className="w-full flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-[var(--secondary-darker)] rounded-md transition-colors"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M17 16L21 12M21 12L17 8M21 12H9M9 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                Sign Out
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-500">Sign in to save your chat history</p>
-              <button
-                onClick={onSignInClick}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M15 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H15M10 17L15 12M15 12L10 7M15 12H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                Sign In
-              </button>
+            ) : fetchError ? (
+              <div className="text-center py-3">
+                <p className="text-red-500">{fetchError}</p>
+                <button
+                  onClick={fetchThreads}
+                  className="mt-2 px-3 py-1 bg-[#f5f3e4] rounded-md hover:bg-[#e9e7d8] text-sm border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : threads.length === 0 ? (
+              <div className="text-center py-3">
+                <p className="text-gray-700">No chat history yet</p>
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {threads.map((thread) => (
+                  <li key={thread.id} className="border-2 border-black rounded-md overflow-hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                    <button
+                      onClick={() => handleThreadClick(thread.id)}
+                      className={`w-full text-left p-2 ${pathname === `/chat/${thread.id}` ? 'bg-[#f5f3e4]' : 'hover:bg-[#f5f3e4]'}`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="font-medium truncate pr-2 text-sm">{thread.title}</div>
+                        <button
+                          onClick={(e) => handleDeleteThread(thread.id, e)}
+                          className="p-0.5 text-gray-600 hover:text-gray-900 hover:bg-[#e9e7d8] rounded-md border border-gray-400"
+                          title="Delete thread"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="text-xs text-gray-600 mt-0.5">
+                        {new Date(thread.updatedAt).toLocaleString()}
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          
+          {/* User profile */}
+          {isAuthenticated && user && (
+            <div className="p-3 border-t-2 border-black">
+              <div className="flex items-center">
+                <div className="w-7 h-7 bg-black text-white rounded-md flex items-center justify-center border border-black">
+                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <div className="ml-2 flex-1 overflow-hidden">
+                  <div className="font-medium truncate text-sm">{user.name || 'User'}</div>
+                  <div className="text-xs text-gray-600 truncate">{user.email}</div>
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-[#f5f3e4] rounded-md border border-gray-400"
+                  title="Sign out"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
     </>
   );
-};
-
-export default Sidebar; 
+} 
