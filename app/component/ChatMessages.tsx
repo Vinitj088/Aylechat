@@ -19,10 +19,10 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   isExa 
 }) => {
   return (
-    <div className="pt-16 pb-32">
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+    <div className="pt-16 pb-32 w-full overflow-x-hidden">
+      <div className="w-full max-w-full md:max-w-4xl mx-auto px-4 py-6 space-y-6">
         {messages.map((message) => (
-          <div key={message.id}>
+          <div key={message.id} className="w-full">
             <div
               className={`flex ${
                 message.role === 'user' ? 'justify-end' : 'justify-start'

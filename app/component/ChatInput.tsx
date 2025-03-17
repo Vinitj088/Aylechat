@@ -1,5 +1,14 @@
 import React, { useRef, useEffect } from 'react';
 import { Model } from '../types';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { ChevronDown } from 'lucide-react';
 
 interface ChatInputProps {
   input: string;
@@ -46,25 +55,51 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [input]);
 
+  // Handle model selection from dropdown
+  const handleModelSelect = (modelId: string) => {
+    // Create a synthetic event object that mimics the onChange event from a select
+    const syntheticEvent = {
+      target: { value: modelId }
+    } as React.ChangeEvent<HTMLSelectElement>;
+    
+    handleModelChange(syntheticEvent);
+  };
+
+  // Get the current model name for display
+  const currentModelName = models.find(model => model.id === selectedModel)?.name || 'Select Model';
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t z-40">
-      <div className="max-w-4xl mx-auto px-4 py-4 relative">
+    <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t z-40 w-screen overflow-x-hidden">
+      <div className="w-full max-w-full md:max-w-4xl mx-auto px-4 py-4 relative">
         <form onSubmit={handleSubmit} className="relative flex flex-col w-full">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center">
-              <label htmlFor="chat-model-selector" className="text-sm text-gray-500 mr-2">Model:</label>
-              <select
-                id="chat-model-selector"
-                value={selectedModel}
-                onChange={handleModelChange}
-                className="text-sm border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[var(--brand-default)] max-w-[120px] sm:max-w-[180px] truncate bg-transparent"
-              >
-                {models.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.name}
-                  </option>
-                ))}
-              </select>
+              <label htmlFor="chat-model-selector" className="text-sm text-gray-500 mr-2 hidden sm:inline">Model:</label>
+              
+              {/* Replace select with DropdownMenu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex items-center gap-1 text-sm border border-gray-200 rounded-md px-2 py-1 focus:outline-none bg-white text-gray-800 font-medium">
+                  <span className="max-w-[100px] sm:max-w-[150px] truncate">{currentModelName}</span>
+                  <ChevronDown className="h-3 w-3 text-gray-500" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                  align="start" 
+                  className="w-56 max-h-[150px] overflow-y-auto bg-[#fffdf5] border border-gray-200"
+                  sideOffset={5}
+                >
+                  <DropdownMenuLabel className="text-xs">Select Model</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {models.map((model) => (
+                    <DropdownMenuItem 
+                      key={model.id}
+                      onClick={() => handleModelSelect(model.id)}
+                      className={`text-sm py-1 ${selectedModel === model.id ? "bg-blue-50 text-blue-600" : ""}`}
+                    >
+                      {model.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">New chat</span>

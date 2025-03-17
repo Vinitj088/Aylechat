@@ -108,13 +108,13 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   const currentModelName = models.find(model => model.id === selectedModel)?.name || 'Select Model';
 
   return (
-    <div className="hidden md:flex min-h-screen flex-col items-center justify-center px-4 py-8 bg-[#fffdf5]">
+    <div className="hidden md:flex min-h-screen flex-col items-center justify-center px-4 py-8 bg-[#fffdf5] w-screen overflow-x-hidden">
       {/* Messages section */}
       {messages && messages.length > 0 && (
-        <div className="w-full max-w-3xl mx-auto mb-8">
+        <div className="w-full max-w-full md:max-w-3xl mx-auto mb-8">
           <div className="space-y-6">
             {messages.filter(m => m.role !== 'system').map((message) => (
-              <div key={message.id}>
+              <div key={message.id} className="w-full">
                 <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`rounded px-4 py-3 max-w-[85%] ${
                     message.role === 'user'
@@ -142,7 +142,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                                 </div>
                               )}
                               {isComplete && finalResponse && (
-                                <div className="prose prose-sm max-w-none">
+                                <div className="prose prose-sm max-w-none compact-prose">
                                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalResponse}</ReactMarkdown>
                                 </div>
                               )}
@@ -161,7 +161,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
         </div>
       )}
 
-      <div className="w-full max-w-3xl mx-auto mb-8 text-center">
+      <div className="w-full max-w-full md:max-w-3xl mx-auto mb-8 text-center">
         <div className="mb-8 text-center">
           <h1 className="text-5xl font-bold mb-2">
             The web, <span className="text-blue-600">organized</span>

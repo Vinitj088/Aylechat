@@ -59,12 +59,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </head>
       <body
-        className={`${abcdDiatype.variable} ${reckless.variable} antialiased`}
+        className={`${abcdDiatype.variable} ${reckless.variable} antialiased overflow-x-hidden`}
       >
-        {children}
+        <div className="w-screen overflow-x-hidden">
+          {children}
+        </div>
         <Analytics />
       </body>
     </html>

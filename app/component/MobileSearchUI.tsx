@@ -108,13 +108,13 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
   const currentModelName = models.find(model => model.id === selectedModel)?.name || 'Select Model';
 
   return (
-    <div className="md:hidden min-h-screen bg-[#fffdf5] pt-16">
+    <div className="md:hidden min-h-screen bg-[#fffdf5] pt-16 w-screen overflow-x-hidden">
       {/* Messages section */}
       {messages && messages.length > 0 && (
-        <div className="max-w-xl mx-auto px-4 mb-8">
+        <div className="w-full max-w-full mx-auto px-4 mb-8">
           <div className="space-y-6">
             {messages.filter(m => m.role !== 'system').map((message) => (
-              <div key={message.id}>
+              <div key={message.id} className="w-full">
                 <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`rounded px-4 py-3 max-w-[85%] ${
                     message.role === 'user'
@@ -161,7 +161,7 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
         </div>
       )}
 
-      <div className="max-w-xl mx-auto px-4 py-8">
+      <div className="w-full max-w-full mx-auto px-4 py-8">
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold mb-2">
             The web, <span className="text-blue-600">organized</span>
