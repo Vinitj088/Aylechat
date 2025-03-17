@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Space+Grotesk:wght@300..700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -78,8 +79,8 @@ body {
   --border-radius-default: 2px;
 
   /* Typography */
-  --font-family-sans: 'ABCDiatype', 'Trebuchet MS', sans-serif;
-  --font-family-serif: 'Reckless', Georgia, serif;
+  --font-family-sans: 'Instrument Sans', sans-serif;
+  --font-family-serif: 'Space Grotesk', sans-serif;
   --text-light-default: #111827;
   --text-light-muted: #6b7280;
   --text-light-subtle: #9ca3af;
@@ -92,12 +93,13 @@ body {
   background: var(--background);
 
   /* Apply ABCDiatype for body */
-  font-family: var(--font-abcd-diatype), sans-serif;
+  font-family: var(--font-family-sans), sans-serif;
+  font-weight: 500;
 }
 
 /* Apply Reckless for headings */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-reckless), serif;
+  font-family: var(--font-family-serif), sans-serif;
 }
 
 

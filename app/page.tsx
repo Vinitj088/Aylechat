@@ -140,6 +140,8 @@ export default function Page() {
             toggleAutoprompt={toggleAutoprompt}
             setInput={setInput}
             messages={messages}
+            isExa={selectedModel.includes('exa')}
+            providerName={selectedModel.includes('exa') ? 'Exa' : 'Groq'}
           />
           <DesktopSearchUI 
             input={input}
@@ -152,8 +154,8 @@ export default function Page() {
             autoprompt={autoprompt}
             toggleAutoprompt={toggleAutoprompt}
             setInput={setInput}
-            isExa={isExa}
-            providerName={providerName}
+            isExa={selectedModel.includes('exa')}
+            providerName={selectedModel.includes('exa') ? 'Exa' : 'Groq'}
             messages={messages}
           />
         </>

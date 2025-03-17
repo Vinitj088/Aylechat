@@ -2,6 +2,15 @@ import React, { useRef, useEffect } from 'react';
 import { Model } from '../types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { ChevronDown } from 'lucide-react';
 
 // Add the parseMessageContent helper function
 const parseMessageContent = (content: string) => {
@@ -85,6 +94,19 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
     }
   }, [input]);
 
+  // Handle model selection from dropdown
+  const handleModelSelect = (modelId: string) => {
+    // Create a synthetic event object that mimics the onChange event from a select
+    const syntheticEvent = {
+      target: { value: modelId }
+    } as React.ChangeEvent<HTMLSelectElement>;
+    
+    handleModelChange(syntheticEvent);
+  };
+
+  // Get the current model name for display
+  const currentModelName = models.find(model => model.id === selectedModel)?.name || 'Select Model';
+
   return (
     <div className="hidden md:flex min-h-screen flex-col items-center justify-center px-4 py-8 bg-[#fffdf5]">
       {/* Messages section */}
@@ -140,61 +162,54 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
       )}
 
       <div className="w-full max-w-3xl mx-auto mb-8 text-center">
-        <h1 className="text-5xl font-bold mb-2">
-          The web, <span className="text-blue-600">organized</span>
-        </h1>
-        <p className="text-lg text-gray-700 mb-4">
-          {isExa ? 'Exa search uses embeddings to understand meaning.' : `${providerName} provides fast AI inference.`}
-          {isExa && <span className="ml-1 underline">Learn more</span>}
-        </p>
-      </div>
-      
-      <div className="w-full max-w-3xl mx-auto">
-        {/* Search toggles above the search box */}
-        <div className="flex items-center justify-between mb-2 px-2">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <select
-                id="desktop-model-selector"
-                value={selectedModel}
-                onChange={handleModelChange}
-                className="text-sm border border-gray-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-600 bg-white"
-              >
-                {models.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">Autoprompt</span>
-            <button 
-              type="button"
-              onClick={toggleAutoprompt}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${autoprompt ? 'bg-blue-600' : 'bg-gray-200'}`}
-            >
-              <span 
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoprompt ? 'translate-x-6' : 'translate-x-1'}`} 
-              />
-            </button>
-            <div className="relative group">
-              <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-                <path d="M12 16V12M12 8H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-              <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                Autoprompt helps refine your search query automatically
-              </div>
-            </div>
-          </div>
+        <div className="mb-8 text-center">
+          <h1 className="text-5xl font-bold mb-2">
+            The web, <span className="text-blue-600">organized</span>
+          </h1>
+          <p className="text-base text-gray-700 mb-2">
+            {isExa ? 'Exa search uses embeddings to understand meaning.' : `${providerName} provides fast AI inference.`}
+          </p>
+          {isExa && (
+            <p className="text-base text-gray-700 underline">
+              Learn more
+            </p>
+          )}
         </div>
         
         {/* Search box */}
-        <div className="border border-gray-200 rounded-lg bg-white p-2 shadow-sm">
+        <div className="border border-blue-600 rounded-lg bg-white shadow-sm overflow-hidden mb-8">
           <form onSubmit={handleSubmit} className="relative">
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-200">
+              <svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              
+              {/* Replace select with DropdownMenu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger className="flex items-center gap-1 text-sm border border-gray-200 rounded-md px-3 py-1.5 focus:outline-none bg-white text-gray-800 font-medium">
+                  <span className="max-w-[120px] truncate">{currentModelName}</span>
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent 
+                  align="start" 
+                  className="w-56 max-h-[150px] overflow-y-auto bg-[#fffdf5] border border-gray-200"
+                  sideOffset={5}
+                >
+                  <DropdownMenuLabel className="text-xs">Select Model</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {models.map((model) => (
+                    <DropdownMenuItem 
+                      key={model.id}
+                      onClick={() => handleModelSelect(model.id)}
+                      className={`text-sm py-1 ${selectedModel === model.id ? "bg-blue-50 text-blue-600" : ""}`}
+                    >
+                      {model.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            
             <textarea
               ref={textareaRef}
               value={input}
@@ -202,29 +217,54 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
               autoFocus
               placeholder="Try a search or paste a link to find similar"
               rows={1}
-              className="w-full p-4 pr-[130px] bg-white border-0 
+              className="w-full p-4 bg-white border-0 
               focus:outline-none focus:ring-0 text-base
               placeholder:text-gray-400 resize-none min-h-[46px] max-h-[120px]
               scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"
               style={{ lineHeight: '1.5' }}
             />
             
-            <button
-              type="submit"
-              disabled={!input.trim() || isLoading}
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 bg-blue-600
-              text-white rounded-md shadow-sm hover:bg-blue-700 disabled:opacity-50
-              disabled:cursor-not-allowed font-medium min-w-[110px] transition-all duration-200"
-            >
-              SEARCH
-            </button>
+            <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200">
+              <div className="flex items-center gap-2">
+                <button 
+                  type="button"
+                  onClick={toggleAutoprompt}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${autoprompt ? 'bg-blue-600' : 'bg-gray-200'}`}
+                >
+                  <span 
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoprompt ? 'translate-x-6' : 'translate-x-1'}`} 
+                  />
+                </button>
+                <span className="text-sm text-gray-500">Autoprompt</span>
+                <div className="relative group">
+                  <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M12 16V12M12 8H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                </div>
+              </div>
+              
+              <button
+                type="submit"
+                disabled={!input.trim() || isLoading}
+                className="bg-blue-600 text-white px-6 py-2 rounded-md font-medium
+                disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 4L12 12M12 12L20 4M12 12L4 20M12 12L20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  <span>SEARCH</span>
+                </div>
+              </button>
+            </div>
           </form>
         </div>
         
         {/* Popular searches */}
-        <div className="mt-8">
+        <div className="mb-8">
           <h3 className="text-sm font-medium text-gray-500 mb-3">POPULAR SEARCHES</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-3">
             <button 
               onClick={() => setInput("a short article about the early days of Google")}
               className="px-3 py-2 bg-white border border-gray-200 rounded-md text-sm hover:border-gray-300 transition-colors text-left"

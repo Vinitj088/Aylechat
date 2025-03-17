@@ -34,16 +34,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       
       {/* Sidebar - fixed height with internal scrolling */}
       <div 
-        className={`fixed top-0 right-0 h-screen w-72 bg-[var(--secondary-faint)] border-l-4 border-[var(--brand-default)] shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${
+        className={`fixed top-0 right-0 h-screen w-72 bg-[var(--secondary-faint)] border-l-4 border-[#faf7ec] shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {/* Sidebar Header - fixed at top */}
-        <div className="flex-shrink-0 flex justify-between items-center p-4 border-b-4 border-[var(--brand-default)]">
+        <div className="flex-shrink-0 flex justify-between items-center p-4 border-b-4 border-[#faf7ec]">
           <h2 className="text-xl font-bold">Chat History</h2>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-[var(--secondary-darker)] rounded"
+            className="p-2 hover:bg-[var(--secondary-faint)] rounded"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -55,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         {/* Sidebar Content - scrollable */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col space-y-4">
           {/* Profile Section with Sign Out Button */}
-          <div className="flex-shrink-0 flex items-center p-3 bg-[var(--secondary-darker)] border-2 border-black">
+          <div className="flex-shrink-0 flex items-center p-3 bg-[var(--secondary-faint)] border-2 border-[#83827e]">
             <div className="w-12 h-12 bg-[var(--brand-default)] rounded-full flex items-center justify-center text-white font-bold">
               EX
             </div>
@@ -63,7 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <p className="font-bold">Exa User</p>
               <p className="text-sm text-gray-600">Free Plan</p>
             </div>
-            <button className="p-2 hover:bg-[var(--secondary-darkest)] rounded-full" title="Sign Out">
+            <button className="p-2 hover:bg-[var(--secondary-faint)] rounded-full" title="Sign Out">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                 <polyline points="16 17 21 12 16 7"></polyline>
@@ -81,7 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 <Link 
                   href={`/chat/${chat.id}`} 
                   key={chat.id}
-                  className="block p-3 bg-[var(--secondary-darker)] border-2 border-black hover:bg-[var(--secondary-darkest)] transition-colors"
+                  className="block p-3 bg-[var(--secondary-faint)] border-2 border-[#83827e] hover:bg-[var(--secondary-darkest)] transition-colors"
                 >
                   <div className="flex flex-col">
                     <span className="font-medium truncate">{chat.title}</span>
@@ -93,14 +93,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </div>
           
           {/* GitHub Repo Link - fixed at bottom */}
-          <div className="flex-shrink-0 p-4 bg-[var(--brand-fainter)] border-2 border-[var(--brand-default)] mt-auto">
+          <div className="flex-shrink-0 p-4 bg-[var(--secondary-darker)] border-2 border-[#000] mt-auto">
             <h3 className="font-bold mb-2">View Source Code</h3>
             <p className="text-sm mb-3">Check out this project on GitHub.</p>
             <a 
               href="https://github.com/yourusername/exachat" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="block text-center py-2 px-4 bg-[var(--brand-default)] text-white font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:translate-y-0.5 hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] transition-all"
+              className="block text-center py-2 px-4 bg-[#000] text-white font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:translate-y-0.5 hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] transition-all"
             >
               <div className="flex items-center justify-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -2,6 +2,15 @@ import React, { useRef, useEffect } from 'react';
 import { Model } from '../types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { ChevronDown } from 'lucide-react';
 
 // Add the parseMessageContent helper function
 const parseMessageContent = (content: string) => {
@@ -42,6 +51,8 @@ interface MobileSearchUIProps {
   toggleAutoprompt: () => void;
   setInput: (input: string) => void;
   messages: { id: string; role: string; content: string }[];
+  isExa?: boolean;
+  providerName?: string;
 }
 
 const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
@@ -55,7 +66,9 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
   autoprompt,
   toggleAutoprompt,
   setInput,
-  messages
+  messages,
+  isExa = true,
+  providerName = ''
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -80,6 +93,19 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
       }
     }
   }, [input]);
+
+  // Handle model selection from dropdown
+  const handleModelSelect = (modelId: string) => {
+    // Create a synthetic event object that mimics the onChange event from a select
+    const syntheticEvent = {
+      target: { value: modelId }
+    } as React.ChangeEvent<HTMLSelectElement>;
+    
+    handleModelChange(syntheticEvent);
+  };
+
+  // Get the current model name for display
+  const currentModelName = models.find(model => model.id === selectedModel)?.name || 'Select Model';
 
   return (
     <div className="md:hidden min-h-screen bg-[#fffdf5] pt-16">
@@ -116,7 +142,7 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
                                 </div>
                               )}
                               {isComplete && finalResponse && (
-                                <div className="prose prose-sm max-w-none">
+                                <div className="prose prose-sm max-w-none compact-prose">
                                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalResponse}</ReactMarkdown>
                                 </div>
                               )}
@@ -141,11 +167,13 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
             The web, <span className="text-blue-600">organized</span>
           </h1>
           <p className="text-base text-gray-700 mb-2">
-            Exa search uses embeddings to understand meaning.
+            {isExa ? 'Exa search uses embeddings to understand meaning.' : `${providerName} provides fast AI inference.`}
           </p>
-          <p className="text-base text-gray-700 underline">
-            Learn more
-          </p>
+          {isExa && (
+            <p className="text-base text-gray-700 underline">
+              Learn more
+            </p>
+          )}
         </div>
         
         {/* Search box */}
@@ -170,18 +198,31 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
                 <svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                <select
-                  id="mobile-model-selector"
-                  value={selectedModel}
-                  onChange={handleModelChange}
-                  className="text-sm border-0 focus:outline-none focus:ring-0 bg-transparent text-gray-800 font-medium max-w-[120px] truncate"
-                >
-                  {models.map((model) => (
-                    <option key={model.id} value={model.id}>
-                      {model.name}
-                    </option>
-                  ))}
-                </select>
+                
+                {/* Replace select with DropdownMenu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center gap-1 text-sm border border-gray-200 rounded-md px-3 py-1.5 focus:outline-none bg-white text-gray-800 font-medium">
+                    <span className="max-w-[120px] truncate">{currentModelName}</span>
+                    <ChevronDown className="h-4 w-4 text-gray-500" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent 
+                    align="start" 
+                    className="w-56 max-h-[150px] overflow-y-auto bg-[#fffdf5] border border-gray-200"
+                    sideOffset={5}
+                  >
+                    <DropdownMenuLabel className="text-xs">Select Model</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {models.map((model) => (
+                      <DropdownMenuItem 
+                        key={model.id}
+                        onClick={() => handleModelSelect(model.id)}
+                        className={`text-sm py-1 ${selectedModel === model.id ? "bg-blue-50 text-blue-600" : ""}`}
+                      >
+                        {model.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               
               <div className="flex items-center gap-2">

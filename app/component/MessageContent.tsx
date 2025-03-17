@@ -83,7 +83,7 @@ export default function MessageContent({ content, role }: MessageContentProps) {
       
       {/* Copy button below content - only shown for AI responses with content */}
       {showCopyButton && !isErrorMessage && (
-        <div className="flex justify-end mt-2">
+        <div className="flex justify-end mt-4">
           <button
             onClick={() => copyToClipboard(finalResponse || thinking)}
             className="flex items-center gap-1 py-1 px-2 text-xs bg-[var(--secondary-darker)] border-2 border-black rounded hover:bg-[var(--secondary-darkest)] transition-colors"
