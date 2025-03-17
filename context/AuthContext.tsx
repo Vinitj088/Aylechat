@@ -1,5 +1,5 @@
 "use client"
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { clientAuth } from '@/lib/client-auth';
 
 interface User {
@@ -24,10 +24,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastCheckRef = useRef<number>(0);
+  const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check auth status on mount and when window regains focus
   useEffect(() => {
     const checkAuthStatus = async () => {
+      // Debounce checks - don't check more than once every 3 seconds
+      const now = Date.now();
+      if (now - lastCheckRef.current < 3000) {
+        return;
+      }
+      
+      lastCheckRef.current = now;
+      
       try {
         // First check if we have a user in localStorage
         const storedUser = clientAuth.getUser();
@@ -38,7 +48,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         // If not, check with the server
-        const response = await fetch('/api/auth');
+        const response = await fetch('/api/auth', {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          if (response.status === 401) {
+            setUser(null);
+            clientAuth.clearUser();
+            return;
+          }
+          throw new Error(`Auth check failed: ${response.status}`);
+        }
+        
         const data = await response.json();
         
         if (data.success && data.user) {
@@ -56,24 +78,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         console.error('Error checking auth status:', error);
         setError('Failed to check authentication status');
-        setUser(null);
-        clientAuth.clearUser();
+        // Don't clear user here - might be a temporary network issue
       } finally {
         setIsLoading(false);
       }
     };
 
+    // Initial auth check
     checkAuthStatus();
 
-    // Check auth status when window regains focus
+    // Check auth status when window regains focus, but debounced
     const handleFocus = () => {
-      if (!isLoading) {
-        checkAuthStatus();
+      // Clear any pending timeout
+      if (checkTimeoutRef.current) {
+        clearTimeout(checkTimeoutRef.current);
       }
+      
+      // Set a new timeout to prevent rapid rechecking
+      checkTimeoutRef.current = setTimeout(() => {
+        if (!isLoading) {
+          checkAuthStatus();
+        }
+      }, 500);
     };
 
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      if (checkTimeoutRef.current) {
+        clearTimeout(checkTimeoutRef.current);
+      }
+    };
   }, [isLoading]);
 
   const login = async (email: string, password: string) => {
