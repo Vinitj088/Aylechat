@@ -1,20 +1,32 @@
 import React from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface HeaderProps {
   toggleSidebar: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
+  const router = useRouter();
+
+  const handleHomeClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    router.push('/');
+  };
+
   return (
     <div className="fixed top-0 left-0 right-0 bg-[#fffdf5] border-b z-50 w-screen overflow-x-hidden">
       <div className="w-full max-w-full md:max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
         {/* Logo */}
-        <a href="/" className="flex items-center hover:opacity-80 transition-opacity">
+        <button 
+          onClick={handleHomeClick}
+          className="flex items-center hover:opacity-80 transition-opacity"
+        >
           <svg className="w-6 h-6 text-blue-600 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M4 4L12 12M12 12L20 4M12 12L4 20M12 12L20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
           <span className="font-bold text-lg">EXA</span>
-        </a>
+        </button>
 
         {/* Right side controls */}
         <div className="flex items-center gap-2">
