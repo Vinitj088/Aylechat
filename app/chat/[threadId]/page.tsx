@@ -155,7 +155,7 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
         messages, // Pass the previous messages for context
         selectedModel,
         abortControllerRef.current,
-        (updatedMsgs) => {
+        (updatedMsgs: Message[]) => {
           // This callback updates messages as they stream in
           setMessages(updatedMsgs);
         },
