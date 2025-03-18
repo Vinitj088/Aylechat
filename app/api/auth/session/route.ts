@@ -8,10 +8,52 @@ export async function GET(request: NextRequest) {
   try {
     console.log('Session API: Starting session check');
     
+    // Add query parameter detection for logout
+    const { searchParams } = new URL(request.url);
+    const isLogout = searchParams.has('logout');
+    
+    if (isLogout) {
+      console.log('Session API: Logout parameter detected, forcing empty session');
+      return NextResponse.json(
+        { user: null },
+        { 
+          status: 200,
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        }
+      );
+    }
+    
     // Get all cookies for debugging
     const cookieStore = cookies();
     const allCookies = cookieStore.getAll();
     console.log('Session API: Available cookies:', allCookies.map(c => c.name).join(', '));
+    
+    // Check if the actual session cookie exists
+    const hasSessionCookie = allCookies.some(c => 
+      c.name === '__Secure-next-auth.session-token' || 
+      c.name === 'next-auth.session-token'
+    );
+    
+    if (!hasSessionCookie) {
+      console.log('Session API: No session cookie found, returning 401');
+      return NextResponse.json(
+        { user: null },
+        { 
+          status: 401,
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Surrogate-Control': 'no-store',
+            'Vary': '*'
+          }
+        }
+      );
+    }
     
     // Use getToken to verify the session without accessing the database
     const token = await getToken({

@@ -23,13 +23,11 @@ export async function POST(request: NextRequest) {
         // Delete only auth-related sessions, not user data
         // This preserves Redis chat history while clearing login state
         if (session?.user_id) {
+          console.log(`Force-logout: Deleting all sessions for user ${session.user_id}`);
           await db
             .deleteFrom('sessions')
             .where('user_id', '=', session.user_id)
             .execute();
-          
-          // Note: We intentionally do NOT delete Redis data here
-          // Redis chat threads are preserved so users can access them after logging back in
         }
 
         // Delete the specific session as well
@@ -45,25 +43,28 @@ export async function POST(request: NextRequest) {
       cookieStore.delete(AUTH_CONFIG.COOKIE_NAME);
     }
 
-    // Delete ALL auth-related cookies to ensure complete logout
-    const allCookies = cookieStore.getAll();
-    console.log('Force-logout: Clearing cookies:', allCookies.map(c => c.name).join(', '));
+    // CRITICAL: Target the exact NextAuth cookie names used in the logs
+    const nextAuthCookies = [
+      '__Host-next-auth.csrf-token',
+      '__Secure-next-auth.callback-url',
+      '__Secure-next-auth.session-token',
+      'next-auth.csrf-token',
+      'next-auth.callback-url',
+      'next-auth.session-token'
+    ];
     
-    allCookies.forEach(cookie => {
-      if (cookie.name.includes('next-auth') || 
-          cookie.name.includes('session') || 
-          cookie.name === '__Secure-next-auth.session-token' ||
-          cookie.name === '__Host-next-auth.csrf-token' ||
-          cookie.name === 'next-auth.csrf-token' ||
-          cookie.name === 'next-auth.callback-url' ||
-          cookie.name === 'next-auth.session-token') {
+    console.log('Force-logout: Explicitly clearing NextAuth cookies');
+    
+    // Delete each NextAuth cookie explicitly
+    nextAuthCookies.forEach(cookieName => {
+      const cookie = cookieStore.get(cookieName);
+      if (cookie) {
+        console.log(`Force-logout: Deleting cookie: ${cookieName}`);
+        cookieStore.delete(cookieName);
         
-        console.log(`Force-logout: Deleting cookie: ${cookie.name}`);
-        
-        // Delete with various path and domain combinations to ensure removal
-        cookieStore.delete(cookie.name);
+        // Also set it as expired
         cookieStore.set({
-          name: cookie.name,
+          name: cookieName,
           value: '',
           expires: new Date(0),
           path: '/',
@@ -71,29 +72,17 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Set a response with cookie clearing headers as well
+    // Set response with cookie clearing headers
     const response = NextResponse.json({ success: true });
     
     // Set expired cookies in response headers as well
-    response.cookies.set({
-      name: 'next-auth.session-token',
-      value: '',
-      expires: new Date(0),
-      path: '/',
-    });
-    
-    response.cookies.set({
-      name: 'next-auth.csrf-token',
-      value: '',
-      expires: new Date(0),
-      path: '/',
-    });
-    
-    response.cookies.set({
-      name: AUTH_CONFIG.COOKIE_NAME,
-      value: '',
-      expires: new Date(0),
-      path: '/',
+    nextAuthCookies.forEach(cookieName => {
+      response.cookies.set({
+        name: cookieName,
+        value: '',
+        expires: new Date(0),
+        path: '/',
+      });
     });
 
     return response;
