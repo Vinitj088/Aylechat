@@ -114,48 +114,25 @@ export function useAuth() {
    * Sign out a user
    * Uses a direct approach to clear all auth state
    */
-  const handleSignOut = async () => {
-    // Prevent duplicate sign-out attempts
-    if (loading) return;
-    
-    setLoading(true);
-    console.log('useAuth: Starting signout process...');
+  const handleSignOut = async (): Promise<boolean> => {
+    if (loading) return false;
     
     try {
-      // First: Clear client-side storage
-      localStorage.clear();
-      sessionStorage.clear();
+      setLoading(true);
       
-      // Second: Clear all cookies from client side
-      document.cookie.split(';').forEach(c => {
-        const cookie = c.trim();
-        const eqPos = cookie.indexOf('=');
-        const name = eqPos > -1 ? cookie.substring(0, eqPos) : cookie;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-      });
+      console.log("Redirecting to force-logout endpoint");
+      // Redirect to our force-logout endpoint which handles everything
+      window.location.href = `/api/auth/force-logout?t=${Date.now()}&r=${Math.random().toString(36).substring(7)}`;
       
-      // Third: Call NextAuth signOut API directly
-      await fetch('/api/auth/signout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          callbackUrl: '/',
-          json: true
-        })
-      });
-      
-      // Fourth: Invalidate current session
-      await update();
-      
-      // Fifth: Force a full page reload
-      window.location.href = `/?reload=${Date.now()}`;
+      // This line won't actually execute due to the redirection
+      return true;
     } catch (error) {
-      console.error("Error during signout:", error);
-      // Fallback to window location
-      window.location.href = "/?error=signout";
+      console.error("Error during sign out:", error);
       setLoading(false);
+      
+      // If something goes wrong, still try to get to auth page
+      window.location.href = `/auth?error=signout&t=${Date.now()}`;
+      return false;
     }
   };
 

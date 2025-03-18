@@ -126,44 +126,16 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
 
   const handleSignOut = async () => {
     try {
-      // Clear threads first for immediate UI feedback
+      // Clear threads for immediate UI feedback
       setThreads([]);
       
-      console.log('Sidebar: Starting signout process...');
-      
-      // First: Clear client-side storage
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Second: Clear all cookies from client side
-      document.cookie.split(';').forEach(c => {
-        const cookie = c.trim();
-        const eqPos = cookie.indexOf('=');
-        const name = eqPos > -1 ? cookie.substring(0, eqPos) : cookie;
-        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-      });
-      
-      // Third: POST to NextAuth signout
-      const response = await fetch('/api/auth/signout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          callbackUrl: '/',
-          json: true
-        })
-      });
-      
-      console.log('Sidebar: Signout response:', response.status);
-      
-      // Fourth: Directly reload with cache buster to reset app state completely
-      window.location.href = `/?reload=${Date.now()}`;
-      
+      console.log("Redirecting to force-logout endpoint");
+      // No need for complex client-side logout logic - just redirect to our force-logout endpoint
+      window.location.href = `/api/auth/force-logout?t=${Date.now()}&r=${Math.random().toString(36).substring(7)}`;
     } catch (error) {
-      console.error('Error signing out:', error);
-      // Force a page refresh on error for a clean slate
-      window.location.href = `/?error=${Date.now()}`;
+      console.error("Error during sign out:", error);
+      // If something goes wrong, still try to get to auth page
+      window.location.href = `/auth?error=signout&t=${Date.now()}`;
     }
   };
 

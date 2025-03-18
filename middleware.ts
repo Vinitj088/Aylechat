@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
 // Protected routes that require authentication
@@ -16,6 +15,12 @@ const publicApiRoutes = [
 
 export async function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
+  
+  // Get the NextAuth.js token early so it's available for all checks
+  const token = await getToken({ 
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
   
   // Handle reload parameter (used for clearing session)
   if (searchParams.has('reload') || searchParams.has('logout')) {
@@ -64,17 +69,20 @@ export async function middleware(request: NextRequest) {
   );
   
   if (isProtectedRoute) {
-    // Get the NextAuth.js token
-    const token = await getToken({ 
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-    
     // If no token, redirect to home
     if (!token) {
       const url = new URL('/', request.url);
       return NextResponse.redirect(url);
     }
+  }
+  
+  // Check for expired flag in URL
+  const expired = searchParams.get('expired');
+  
+  if (expired === 'true') {
+    // If expired parameter is detected, redirect to force-logout
+    console.log('Middleware: Detected expired=true, redirecting to force-logout');
+    return NextResponse.redirect(new URL('/api/auth/force-logout', request.url));
   }
   
   // Add cache control headers to API requests to prevent caching
@@ -86,7 +94,22 @@ export async function middleware(request: NextRequest) {
     response.headers.set('Pragma', 'no-cache');
     response.headers.set('Expires', '0');
     
+    // If no token is found and this isn't a public API route, return 401
+    if (!token) {
+      const response = NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      );
+      response.headers.set('Cache-Control', 'no-store, must-revalidate');
+      return response;
+    }
+    
     return response;
+  }
+  
+  // For non-API protected routes, redirect to auth page if not authenticated
+  if (!token) {
+    return NextResponse.redirect(new URL('/auth', request.url));
   }
   
   return NextResponse.next();

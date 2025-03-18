@@ -90,4 +90,77 @@ export async function POST(request: NextRequest) {
     console.error('Force logout error:', error);
     return NextResponse.json({ success: false, error: 'Failed to force logout' }, { status: 500 });
   }
+}
+
+// Completely wipe all auth cookies, session cookies, and force a redirect
+// This ensures a clean break from the authenticated state
+export async function GET(request: NextRequest) {
+  console.log("Executing force-logout API endpoint");
+  
+  // Get cookie store to clear cookies server-side
+  const cookieStore = cookies();
+  
+  // All possible auth related cookies we want to clear
+  const cookiesToClear = [
+    'next-auth.session-token',
+    '__Secure-next-auth.session-token',
+    '__Host-next-auth.session-token',
+    'next-auth.csrf-token',
+    '__Secure-next-auth.csrf-token',
+    '__Host-next-auth.csrf-token',
+    'next-auth.callback-url',
+    '__Secure-next-auth.callback-url',
+    '__Host-next-auth.callback-url',
+    'session_token'
+  ];
+  
+  // Log all cookies for debugging
+  console.log("Cookies before clearing:", cookieStore.getAll().map(c => c.name));
+  
+  // Clear all auth cookies from server
+  for (const name of cookiesToClear) {
+    cookieStore.delete(name);
+    // Also try with path
+    cookieStore.delete({
+      name,
+      path: '/',
+    });
+  }
+  
+  // Create a response that redirects to the auth page with expired=true
+  const response = NextResponse.redirect(new URL('/auth?expired=true&t=' + Date.now(), request.url), {
+    status: 302
+  });
+  
+  // Also clear cookies in the response headers for client side
+  for (const name of cookiesToClear) {
+    // Clear cookie with various options to ensure it's removed properly
+    response.cookies.delete(name);
+    
+    // Different domains and paths to be thorough
+    response.cookies.set({
+      name,
+      value: "",
+      expires: new Date(0),
+      path: "/",
+    });
+    
+    // Also try with secure and httpOnly flags
+    response.cookies.set({
+      name,
+      value: "",
+      expires: new Date(0),
+      path: "/",
+      secure: true,
+      httpOnly: true
+    });
+  }
+  
+  // Set cache control headers to prevent caching
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  response.headers.set('Pragma', 'no-cache');
+  response.headers.set('Expires', '0');
+  
+  console.log("Force logout completed, redirecting to auth page with expired=true");
+  return response;
 } 

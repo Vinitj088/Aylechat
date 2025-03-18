@@ -1,136 +1,183 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useSearchParams } from "next/navigation";
 
-type AuthFormProps = {
-  onSuccess?: () => void;
-};
-
-export function AuthForm({ onSuccess }: AuthFormProps) {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+export function AuthForm() {
   const { signIn, signUp, error, isLoading } = useAuth();
+  const [view, setView] = useState<'login' | 'register'>('login');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    name: ''
+  });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  
+  const searchParams = useSearchParams();
+  
+  // Handle expired sessions
+  useEffect(() => {
+    const expired = searchParams?.get('expired');
+    const errorParam = searchParams?.get('error');
+    
+    // If redirected here after logout, clear cookies one more time
+    if (expired === 'true' || errorParam) {
+      setSessionExpired(true);
+      
+      // Client-side cleanup again for good measure
+      document.cookie.split(';').forEach(c => {
+        const cookie = c.trim();
+        const eqPos = cookie.indexOf('=');
+        const name = eqPos > -1 ? cookie.substring(0, eqPos) : cookie;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+      });
+      
+      // Clear storage
+      localStorage.clear();
+      sessionStorage.clear();
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Reset form errors
+    setFormError(null);
 
     try {
-      // Clear any previous errors and attempt flags
-      localStorage.removeItem('authAttempt');
-      
-      // Set an auth attempt flag to prevent duplicate submissions
-      localStorage.setItem('authAttempt', 'true');
-      
-      let success = false;
-      
-      if (isSignUp) {
-        const result = await signUp({ email, password, name });
-        success = !!result;
-      } else {
-        const result = await signIn({ email, password });
-        success = !!result;
+      // Validate form
+      if (!formData.email || !formData.password) {
+        setFormError('Email and password are required');
+        return;
       }
+
+      if (view === 'register' && !formData.name) {
+        setFormError('Name is required');
+        return;
+      }
+
+      // Handle login or registration
+      let success;
       
+      if (view === 'login') {
+        success = await signIn({
+          email: formData.email,
+          password: formData.password
+        });
+      } else {
+        success = await signUp({
+          email: formData.email,
+          password: formData.password,
+          name: formData.name
+        });
+      }
+
       if (success) {
-        // Set a small delay to allow the auth state to fully update
+        // Allow time for auth state to update
         setTimeout(() => {
-          // Clear auth attempt flag
-          localStorage.removeItem('authAttempt');
-          
-          // Redirect or call success callback
-          if (onSuccess) {
-            onSuccess();
-          } else {
-            // Force a page refresh to update all auth state
-            window.location.href = '/?auth=success&t=' + Date.now();
-          }
+          window.location.href = '/';
         }, 200);
       }
     } catch (err) {
-      console.error('Auth error:', err);
-      localStorage.removeItem('authAttempt');
+      setFormError('An unexpected error occurred');
+      console.error(err);
     }
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
   return (
-    <div className="w-full max-w-md">
-      <div className="flex justify-center mb-4">
-        <button
-          onClick={() => setIsSignUp(false)}
-          className={`px-4 py-2 ${
-            !isSignUp ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500"
-          }`}
-        >
-          Login
-        </button>
-        <button
-          onClick={() => setIsSignUp(true)}
-          className={`px-4 py-2 ${
-            isSignUp ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500"
-          }`}
-        >
-          Register
-        </button>
+    <div>
+      {sessionExpired && (
+        <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800">
+          Your session has been signed out. Please sign in again.
+        </div>
+      )}
+      
+      <div className="flex justify-center mb-6">
+        <div className="flex border border-black rounded-lg overflow-hidden">
+          <button
+            className={`px-4 py-2 ${view === 'login' ? 'bg-black text-white' : 'bg-white text-black'}`}
+            onClick={() => setView('login')}
+          >
+            Login
+          </button>
+          <button
+            className={`px-4 py-2 ${view === 'register' ? 'bg-black text-white' : 'bg-white text-black'}`}
+            onClick={() => setView('register')}
+          >
+            Register
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {isSignUp && (
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium">
+      <form onSubmit={handleSubmit}>
+        {view === 'register' && (
+          <div className="mb-4">
+            <label htmlFor="name" className="block text-sm font-medium mb-1">
               Name
             </label>
             <input
-              id="name"
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required={isSignUp}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="w-full p-2 border border-black rounded-md"
+              placeholder="Your name"
             />
           </div>
         )}
 
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium">
+        <div className="mb-4">
+          <label htmlFor="email" className="block text-sm font-medium mb-1">
             Email
           </label>
           <input
-            id="email"
             type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            className="w-full p-2 border border-black rounded-md"
+            placeholder="you@example.com"
           />
         </div>
 
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium">
+        <div className="mb-6">
+          <label htmlFor="password" className="block text-sm font-medium mb-1">
             Password
           </label>
           <input
-            id="password"
             type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            id="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            className="w-full p-2 border border-black rounded-md"
+            placeholder="••••••••"
           />
         </div>
 
-        {error && (
-          <div className="text-red-500 text-sm mt-2">{error}</div>
+        {(formError || error) && (
+          <div className="mb-4 p-2 text-red-500 border border-red-200 rounded">
+            {formError || error}
+          </div>
         )}
 
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="w-full py-2 px-4 bg-black hover:bg-gray-800 text-white rounded-md transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] border-2 border-black disabled:opacity-50"
         >
-          {isLoading ? "Loading..." : isSignUp ? "Register" : "Login"}
+          {isLoading ? 'Processing...' : view === 'login' ? 'Sign In' : 'Sign Up'}
         </button>
       </form>
     </div>
