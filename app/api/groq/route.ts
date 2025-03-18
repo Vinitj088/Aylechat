@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { authService } from '@/lib/auth-service';
+import { Message } from '@/app/types';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     // Format messages for Groq API in the correct format
     const formattedMessages = messages && messages.length > 0 
-      ? messages.map(msg => ({
+      ? messages.map((msg: Message) => ({
           role: msg.role,
           content: msg.content
         }))

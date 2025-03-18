@@ -2,6 +2,7 @@
 import { NextRequest } from 'next/server';
 import Exa from "exa-js";
 import { authService } from '@/lib/auth-service';
+import { Message } from '@/app/types';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
     if (messages && messages.length > 0) {
       // Create a formatted conversation history
       const conversationContext = messages
-        .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+        .map((msg: Message) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
         .join('\n\n');
       
       // Add conversation context to the query
