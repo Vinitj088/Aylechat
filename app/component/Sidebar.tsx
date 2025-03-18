@@ -131,9 +131,32 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       
       console.log('Sidebar: Starting signout process...');
       
-      // Simply redirect to the NextAuth signout page
-      // This uses NextAuth's built-in signout which properly clears all cookies
-      window.location.href = '/api/auth/signout?callbackUrl=/?logout=' + Date.now();
+      // Create a hidden form to POST to the signout endpoint
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/api/auth/signout';
+      
+      // Add CSRF token if available
+      const csrfToken = document.querySelector('input[name="csrfToken"]')?.getAttribute('value');
+      if (csrfToken) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfToken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+      }
+      
+      // Add callback URL
+      const callbackInput = document.createElement('input');
+      callbackInput.type = 'hidden';
+      callbackInput.name = 'callbackUrl';
+      callbackInput.value = `/?logout=${Date.now()}`;
+      form.appendChild(callbackInput);
+      
+      // Append to body, submit, then remove
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
       
     } catch (error) {
       console.error('Error signing out:', error);

@@ -112,21 +112,48 @@ export function useAuth() {
 
   /**
    * Sign out a user
-   * Uses NextAuth's built-in signOut functionality with a redirect
+   * Uses a form POST to NextAuth's signout endpoint
    */
   const handleSignOut = () => {
     // Prevent duplicate sign-out attempts
     if (loading) return;
     
     setLoading(true);
-    console.log('useAuth: Starting signout process using NextAuth...');
+    console.log('useAuth: Starting signout process using form POST...');
     
-    // Use NextAuth's signOut with redirect for complete session cleanup
-    nextAuthSignOut({ 
-      callbackUrl: `/?logout=${Date.now()}` 
-    });
-    
-    // This function doesn't return a promise since it triggers a redirect
+    try {
+      // Create a hidden form to POST to the signout endpoint
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/api/auth/signout';
+      
+      // Add CSRF token if available
+      const csrfToken = document.querySelector('input[name="csrfToken"]')?.getAttribute('value');
+      if (csrfToken) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfToken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+      }
+      
+      // Add callback URL
+      const callbackInput = document.createElement('input');
+      callbackInput.type = 'hidden';
+      callbackInput.name = 'callbackUrl';
+      callbackInput.value = `/?logout=${Date.now()}`;
+      form.appendChild(callbackInput);
+      
+      // Append to body, submit, then remove
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+    } catch (error) {
+      console.error("Error in form submission:", error);
+      // Fallback to window location
+      window.location.href = "/?error=signout";
+      setLoading(false);
+    }
   };
 
   return {
