@@ -35,7 +35,6 @@ export default function Page() {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
-  const [pendingThreadUpdate, setPendingThreadUpdate] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { user, isAuthenticated, login, signup } = useAuth();
   const router = useRouter();
@@ -62,6 +61,103 @@ export default function Page() {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      await login(email, password);
+      setShowAuthDialog(false);
+      
+      // Process pending input after successful login
+      if (input.trim()) {
+        // Wait a bit for auth to complete
+        setTimeout(() => {
+          handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+        }, 300);
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
+    }
+  };
+
+  const handleSignup = async (email: string, password: string, name: string) => {
+    try {
+      await signup(email, password, name);
+      setShowAuthDialog(false);
+      
+      // Process pending input after successful signup
+      if (input.trim()) {
+        // Wait a bit for auth to complete
+        setTimeout(() => {
+          handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+        }, 300);
+      }
+    } catch (error) {
+      console.error('Signup failed:', error);
+      throw error;
+    }
+  };
+
+  // Triggered when authentication state changes - load threads
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Only trigger sidebar refresh on auth state change
+      setRefreshSidebar(prev => prev + 1);
+    }
+  }, [isAuthenticated]);
+
+  // Simplified thread creation that only makes one API call
+  const createOrUpdateThread = async (threadContent: { messages: Message[], title?: string }) => {
+    if (!isAuthenticated || !user) return null;
+    
+    try {
+      if (currentThreadId) {
+        // Update existing thread
+        const response = await fetch(`/api/chat/threads/${currentThreadId}`, {
+          method: 'PUT',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          },
+          body: JSON.stringify({ messages: threadContent.messages }),
+          credentials: 'include'
+        });
+        
+        if (!response.ok) return null;
+        
+        return currentThreadId;
+      } else {
+        // Create new thread
+        const title = threadContent.title || 'Chat Thread';
+        const response = await fetch('/api/chat/threads', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          },
+          body: JSON.stringify({ 
+            title, 
+            messages: threadContent.messages 
+          }),
+          credentials: 'include'
+        });
+        
+        if (!response.ok) return null;
+        
+        const data = await response.json();
+        if (data.success) {
+          // Trigger refresh after thread creation
+          setRefreshSidebar(prev => prev + 1);
+          return data.thread.id;
+        }
+        
+        return null;
+      }
+    } catch (error) {
+      console.error('Error with thread operation:', error);
+      return null;
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -84,6 +180,7 @@ export default function Page() {
       content: ''
     };
 
+    // Add messages to the UI
     setMessages(prev => [...prev, userMessage, assistantMessage]);
     setInput('');
     setIsLoading(true);
@@ -94,7 +191,7 @@ export default function Page() {
         abortControllerRef.current.abort();
       }
       abortControllerRef.current = new AbortController();
-
+      
       const { content, citations } = await fetchResponse(
         input,
         messages,
@@ -104,64 +201,34 @@ export default function Page() {
         assistantMessage
       );
 
-      // Update the assistant's message with the final content and citations
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === assistantMessage.id 
-            ? { ...msg, content, citations } 
-            : msg
-        )
-      );
-
-      // If user is authenticated, save or update the chat thread
-      if (isAuthenticated && user) {
-        try {
-          const title = messages.length === 0 ? input.slice(0, 50) + '...' : 'Chat Thread';
-          const updatedMessages = [...messages, userMessage, { ...assistantMessage, content, citations }];
-
-          if (currentThreadId) {
-            // Update existing thread
-            const updateResponse = await fetch(`/api/chat/threads/${currentThreadId}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ messages: updatedMessages }),
-              credentials: 'include'
-            });
-            
-            if (!updateResponse.ok) {
-              const errorData = await updateResponse.json();
-              console.error('Failed to update thread:', errorData);
-              throw new Error('Failed to update chat thread');
-            }
-          } else {
-            // Create new thread
-            const response = await fetch('/api/chat/threads', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title, messages: updatedMessages }),
-              credentials: 'include'
-            });
-            
-            const data = await response.json();
-            if (!response.ok) {
-              console.error('Failed to create thread:', data);
-              throw new Error('Failed to create chat thread');
-            }
-            
-            if (data.success) {
-              setCurrentThreadId(data.thread.id);
-              // When a thread is created, always trigger a refresh regardless of sidebar state
-              setRefreshSidebar(prev => prev + 1);
-            } else {
-              console.error('Failed to create thread:', data);
-              throw new Error('Failed to create chat thread');
-            }
-          }
-        } catch (error) {
-          console.error('Error saving chat thread:', error);
-        }
+      // Create a new array with the updated messages
+      const updatedMessages = [...messages];
+      const assistantIndex = updatedMessages.findIndex(m => m.id === assistantMessage.id);
+      
+      if (assistantIndex !== -1) {
+        // Update existing message
+        updatedMessages[assistantIndex] = { ...assistantMessage, content, citations };
       } else {
-        console.log('User not authenticated, skipping thread save');
+        // Add as new messages
+        updatedMessages.push(userMessage);
+        updatedMessages.push({ ...assistantMessage, content, citations });
+      }
+      
+      setMessages(updatedMessages);
+
+      // Save to Redis only if authenticated
+      if (isAuthenticated && user) {
+        const title = messages.length === 0 ? input.slice(0, 50) : 'Chat Thread';
+        
+        const threadId = await createOrUpdateThread({ 
+          title, 
+          messages: updatedMessages 
+        });
+        
+        if (threadId) {
+          setCurrentThreadId(threadId);
+          // No navigation - stay on the current page
+        }
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
@@ -191,56 +258,6 @@ export default function Page() {
   // Get the provider name for the selected model
   const selectedModelObj = models.find(model => model.id === selectedModel);
   const providerName = selectedModelObj?.provider || 'AI';
-
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      await login(email, password);
-      setShowAuthDialog(false);
-      
-      // Wait for authentication to complete, then open sidebar and trigger refresh
-      setTimeout(() => {
-        setIsSidebarOpen(true);
-        setRefreshSidebar(prev => prev + 1);
-        
-        // If there was an input when auth dialog opened, submit it
-        if (input.trim()) {
-          handleSubmit({ preventDefault: () => {} } as React.FormEvent);
-        }
-      }, 100);
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw error;
-    }
-  };
-
-  const handleSignup = async (email: string, password: string, name: string) => {
-    try {
-      await signup(email, password, name);
-      setShowAuthDialog(false);
-      
-      // Wait for authentication to complete, then open sidebar and trigger refresh
-      setTimeout(() => {
-        setIsSidebarOpen(true);
-        setRefreshSidebar(prev => prev + 1);
-        
-        // If there was an input when auth dialog opened, submit it
-        if (input.trim()) {
-          handleSubmit({ preventDefault: () => {} } as React.FormEvent);
-        }
-      }, 100);
-    } catch (error) {
-      console.error('Signup failed:', error);
-      throw error;
-    }
-  };
-
-  // Add an effect to monitor authentication state
-  useEffect(() => {
-    // When auth state changes to authenticated, trigger sidebar refresh
-    if (isAuthenticated && user) {
-      setRefreshSidebar(prev => prev + 1);
-    }
-  }, [isAuthenticated, user]);
 
   const handleNewChat = () => {
     setMessages([]);

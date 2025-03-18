@@ -11,7 +11,7 @@ import modelsData from '../../../models.json';
 import AuthDialog from '@/components/AuthDialog';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { RedisService, ChatThread } from '@/lib/redis';
+import { ChatThread } from '@/lib/redis';
 
 export default function ChatThreadPage({ params }: { params: { threadId: string } }) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -30,7 +30,6 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
       searchMode: true
     }
   ]);
-  const [autoprompt, setAutoprompt] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [thread, setThread] = useState<ChatThread | null>(null);
@@ -47,21 +46,35 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
 
   useEffect(() => {
     const fetchThread = async () => {
-      if (!isAuthenticated) {
+      if (!isAuthenticated || !user) {
         setIsThreadLoading(false);
-        router.push('/');
         return;
       }
 
       try {
         setIsThreadLoading(true);
-        const response = await fetch(`/api/chat/threads/${threadId}`);
+        const response = await fetch(`/api/chat/threads/${threadId}`, {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Content-Type': 'application/json'
+          }
+        });
         
         if (!response.ok) {
           if (response.status === 404) {
             router.push('/');
             return;
           }
+          
+          if (response.status === 401) {
+            // Don't redirect on auth error, just show empty state
+            setIsThreadLoading(false);
+            return;
+          }
+          
           throw new Error('Failed to fetch thread');
         }
         
@@ -78,7 +91,7 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
     };
 
     fetchThread();
-  }, [threadId, isAuthenticated, router]);
+  }, [threadId, isAuthenticated, user, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     setInput(e.target.value);
@@ -88,10 +101,6 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
     setSelectedModel(e.target.value as ModelType);
   };
 
-  const toggleAutoprompt = () => {
-    setAutoprompt(!autoprompt);
-  };
-
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
@@ -99,6 +108,11 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
+
+    if (!isAuthenticated) {
+      setShowAuthDialog(true);
+      return;
+    }
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -132,15 +146,16 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
         assistantMessage
       );
 
-      // Update the assistant's message with the final content and citations
-      const updatedMessages = messages.map(msg => 
-        msg.id === assistantMessage.id 
-          ? { ...msg, content, citations } 
-          : msg
-      );
+      // Create a copy of the messages and update it
+      const updatedMessages = [...messages];
+      const assistantIndex = updatedMessages.findIndex(m => m.id === assistantMessage.id);
       
-      updatedMessages.push(userMessage);
-      updatedMessages.push({ ...assistantMessage, content, citations });
+      if (assistantIndex !== -1) {
+        updatedMessages[assistantIndex] = { ...assistantMessage, content, citations };
+      } else {
+        updatedMessages.push(userMessage);
+        updatedMessages.push({ ...assistantMessage, content, citations });
+      }
       
       setMessages(updatedMessages);
 
@@ -148,8 +163,12 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
       if (isAuthenticated && user) {
         await fetch(`/api/chat/threads/${threadId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: updatedMessages })
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+          },
+          body: JSON.stringify({ messages: updatedMessages }),
+          credentials: 'include'
         });
       }
     } catch (error) {

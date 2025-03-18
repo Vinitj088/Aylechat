@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ChatThread } from '@/lib/redis';
 import { useAuth } from '@/context/AuthContext';
-import { formatDistanceToNow } from 'date-fns';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -15,32 +14,50 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger = 0 }: SidebarProps) {
   const [threads, setThreads] = useState<ChatThread[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasFetched, setHasFetched] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [lastRefreshTrigger, setLastRefreshTrigger] = useState(0);
+  const [lastFetchTime, setLastFetchTime] = useState(0);
+  const isFetchingRef = useRef(false);
+  
   const router = useRouter();
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuth();
 
-  // Simple function to fetch threads
-  const fetchThreads = useCallback(async () => {
-    if (!user || !isOpen || !isAuthenticated) return;
+  // Optimized function to fetch threads
+  const fetchThreads = useCallback(async (force = false) => {
+    // Don't fetch if not authenticated, sidebar is closed, already fetching, or no user
+    if (!isAuthenticated || !user || !isOpen || isFetchingRef.current) return;
+    
+    // Debounce fetches within 5 seconds unless forced
+    const now = Date.now();
+    if (!force && now - lastFetchTime < 5000) return;
+    
+    isFetchingRef.current = true;
+    setLastFetchTime(now);
     
     try {
       setIsLoading(true);
       setFetchError(null);
+      
       const response = await fetch('/api/chat/threads', {
-        credentials: 'include' // Important for cookies
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Content-Type': 'application/json'
+        }
       });
       
       if (!response.ok) {
         if (response.status === 401) {
-          // Handle unauthorized - user might be logged out
-          setThreads([]);
           setFetchError('Please sign in to view your chat history');
-          return;
+          setThreads([]);
+        } else {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+        return;
       }
       
       const data = await response.json();
@@ -50,7 +67,6 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
         );
         setThreads(sortedThreads);
-        setHasFetched(true);
       } else {
         setFetchError(data.error || 'Failed to load chat history');
         setThreads([]);
@@ -61,43 +77,27 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       setThreads([]);
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
-  }, [user, isOpen, isAuthenticated]);
+  }, [user, isOpen, isAuthenticated, lastFetchTime]);
 
-  // Initial fetch when sidebar opens
+  // Only fetch when necessary: on initial open or refresh trigger change
   useEffect(() => {
-    if (isOpen && !hasFetched && isAuthenticated && user) {
+    if (isAuthenticated && user && isOpen) {
+      // Only fetch on initial login or when refreshTrigger changes
+      if (lastRefreshTrigger !== refreshTrigger) {
+        setLastRefreshTrigger(refreshTrigger);
+        fetchThreads(true); // Force fetch when refresh trigger changes
+      }
+    }
+  }, [refreshTrigger, isAuthenticated, user, isOpen, lastRefreshTrigger, fetchThreads]);
+
+  // Also fetch when sidebar opens if user is authenticated
+  useEffect(() => {
+    if (isOpen && isAuthenticated && user) {
       fetchThreads();
     }
-  }, [isOpen, hasFetched, isAuthenticated, user, fetchThreads]);
-
-  // Fetch when refreshTrigger changes and sidebar is open
-  useEffect(() => {
-    if (refreshTrigger > 0 && isOpen && isAuthenticated && user) {
-      fetchThreads();
-    }
-  }, [refreshTrigger, isOpen, isAuthenticated, user, fetchThreads]);
-
-  // Reset hasFetched when sidebar closes or user changes
-  useEffect(() => {
-    if (!isOpen || !user) {
-      setHasFetched(false);
-    }
-  }, [isOpen, user]);
-
-  // Add an effect to handle auth state changes
-  useEffect(() => {
-    // When authentication state changes (user logs in via dialog), reset the fetch state
-    if (isAuthenticated && user && !hasFetched && isOpen) {
-      fetchThreads();
-    }
-  }, [isAuthenticated, user, hasFetched, isOpen, fetchThreads]);
-
-  const handleHomeClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    router.push('/');
-    onClose();
-  };
+  }, [isOpen, isAuthenticated, user, fetchThreads]);
 
   const handleThreadClick = (threadId: string) => {
     router.push(`/chat/${threadId}`);
@@ -108,7 +108,6 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
     try {
       await logout();
       setThreads([]);
-      setHasFetched(false);
       router.push('/');
       onClose();
     } catch (error) {
@@ -188,16 +187,16 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
               <div className="flex justify-center items-center h-24">
                 {/* Pulsing dots loading indicator */}
                 <div className="flex space-x-2">
-                  <div className="w-2.5 h-2.5 bg-black animate-pulse"></div>
-                  <div className="w-2.5 h-2.5 bg-black animate-pulse delay-150"></div>
-                  <div className="w-2.5 h-2.5 bg-black animate-pulse delay-300"></div>
+                  <div className="w-2.5 h-2.5 bg-black  animate-pulse"></div>
+                  <div className="w-2.5 h-2.5 bg-black  animate-pulse delay-150"></div>
+                  <div className="w-2.5 h-2.5 bg-black  animate-pulse delay-300"></div>
                 </div>
               </div>
             ) : fetchError ? (
               <div className="text-center py-3">
                 <p className="text-red-500">{fetchError}</p>
                 <button
-                  onClick={fetchThreads}
+                  onClick={() => fetchThreads(true)}
                   className="mt-2 px-3 py-1 bg-[#f5f3e4] rounded-md hover:bg-[#e9e7d8] text-sm border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                 >
                   Try Again

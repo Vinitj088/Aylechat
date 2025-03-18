@@ -8,12 +8,26 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
-        { status: 401 }
+        { 
+          status: 401,
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache'
+          }
+        }
       );
     }
 
     const threads = await RedisService.getUserChatThreads(user.id);
-    return NextResponse.json({ success: true, threads });
+    return NextResponse.json(
+      { success: true, threads },
+      { 
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache'
+        }
+      }
+    );
   } catch (error) {
     console.error('Error getting chat threads:', error);
     return NextResponse.json(
@@ -29,7 +43,13 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
-        { status: 401 }
+        { 
+          status: 401,
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache'
+          }
+        }
       );
     }
 
@@ -52,7 +72,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, thread });
+    return NextResponse.json(
+      { success: true, thread },
+      { 
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache'
+        }
+      }
+    );
   } catch (error) {
     console.error('Error creating chat thread:', error);
     return NextResponse.json(

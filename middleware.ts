@@ -16,8 +16,11 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(route)
   )
   
+  // Skip auth check for auth API routes
+  const isAuthRoute = request.nextUrl.pathname.startsWith('/api/auth/')
+  
   // If it's a protected route, check for session cookie
-  if (isProtectedRoute) {
+  if (isProtectedRoute && !isAuthRoute) {
     const sessionCookie = request.cookies.get(AUTH_CONFIG.COOKIE_NAME)
     
     // If no session cookie, redirect to home
@@ -26,14 +29,27 @@ export async function middleware(request: NextRequest) {
     }
   }
   
+  // Add cache control headers to API requests to prevent caching
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    const response = NextResponse.next();
+    
+    // Add cache control headers to prevent caching
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
+  }
+  
   return NextResponse.next()
 }
 
-// Only run middleware on protected routes
+// Run middleware on protected routes and API routes
 export const config = {
   matcher: [
     '/chat/:path*',
     '/settings/:path*',
     '/profile/:path*',
+    '/api/:path*',
   ]
 } 
