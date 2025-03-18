@@ -5,6 +5,10 @@ import { AUTH_CONFIG } from './constants';
 import { redirect } from 'next/navigation';
 import { User, Session } from './types';
 
+// NOTE: This service handles server-side authentication in API routes.
+// It complements the NextAuth system but is used exclusively for API handlers.
+// Client-side authentication is handled by NextAuth and useAuth hook in lib/hooks/useAuth.ts.
+
 // Constants
 const SALT_ROUNDS = 10;
 const SESSION_EXPIRY_DAYS = 30;

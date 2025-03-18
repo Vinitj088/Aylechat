@@ -1,6 +1,10 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useState } from "react";
 
+// NOTE: This is the primary authentication hook used by client components.
+// It integrates with NextAuth while providing additional functionality.
+// This hook is used throughout the application for auth state management.
+
 type SignInParams = {
   email: string;
   password: string;

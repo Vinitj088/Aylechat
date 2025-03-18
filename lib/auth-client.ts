@@ -1,3 +1,7 @@
+// DEPRECATED: This file is no longer in use and can be safely removed.
+// The application now uses NextAuth with the useAuth hook from lib/hooks/useAuth.ts
+// This file is kept for reference purposes but should be removed in future cleanup.
+
 import { AUTH_CONFIG } from './constants';
 
 interface User {
