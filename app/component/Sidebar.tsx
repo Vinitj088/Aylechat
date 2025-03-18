@@ -22,16 +22,25 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, refreshSession } = useAuth();
 
-  // Optimized function to fetch threads
+  // Improved function to fetch threads with better error handling
   const fetchThreads = useCallback(async (force = false) => {
-    // Don't fetch if not authenticated, sidebar is closed, already fetching, or no user
-    if (!isAuthenticated || !user || !isOpen || isFetchingRef.current) return;
+    // Skip if there's already a fetch in progress
+    if (isFetchingRef.current) return;
+    
+    // Skip if sidebar is closed (will fetch when opened)
+    if (!isOpen) return;
     
     // Debounce fetches within 5 seconds unless forced
     const now = Date.now();
     if (!force && now - lastFetchTime < 5000) return;
+    
+    // Don't fetch if not authenticated
+    if (!isAuthenticated || !user) {
+      setThreads([]);
+      return;
+    }
     
     isFetchingRef.current = true;
     setLastFetchTime(now);
@@ -52,8 +61,19 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       
       if (!response.ok) {
         if (response.status === 401) {
-          setFetchError('Please sign in to view your chat history');
-          setThreads([]);
+          // Try refreshing session on auth error
+          await refreshSession();
+          if (isAuthenticated) {
+            // Retry after session refresh
+            setTimeout(() => {
+              isFetchingRef.current = false;
+              fetchThreads(true);
+            }, 500);
+            return;
+          } else {
+            setFetchError('Please sign in to view your chat history');
+            setThreads([]);
+          }
         } else {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
@@ -79,12 +99,11 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       setIsLoading(false);
       isFetchingRef.current = false;
     }
-  }, [user, isOpen, isAuthenticated, lastFetchTime]);
+  }, [user, isOpen, isAuthenticated, lastFetchTime, refreshSession]);
 
-  // Only fetch when necessary: on initial open or refresh trigger change
+  // Fetch when refreshTrigger changes
   useEffect(() => {
     if (isAuthenticated && user && isOpen) {
-      // Only fetch on initial login or when refreshTrigger changes
       if (lastRefreshTrigger !== refreshTrigger) {
         setLastRefreshTrigger(refreshTrigger);
         fetchThreads(true); // Force fetch when refresh trigger changes
@@ -92,12 +111,19 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
     }
   }, [refreshTrigger, isAuthenticated, user, isOpen, lastRefreshTrigger, fetchThreads]);
 
-  // Also fetch when sidebar opens if user is authenticated
+  // Also fetch when sidebar opens
   useEffect(() => {
     if (isOpen && isAuthenticated && user) {
       fetchThreads();
     }
   }, [isOpen, isAuthenticated, user, fetchThreads]);
+
+  // Fetch when authentication state changes
+  useEffect(() => {
+    if (isOpen && isAuthenticated && user) {
+      fetchThreads(true);
+    }
+  }, [isAuthenticated, user, isOpen, fetchThreads]);
 
   const handleThreadClick = (threadId: string) => {
     router.push(`/chat/${threadId}`);

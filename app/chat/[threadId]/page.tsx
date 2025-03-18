@@ -48,6 +48,7 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
     const fetchThread = async () => {
       if (!isAuthenticated || !user) {
         setIsThreadLoading(false);
+        // Don't redirect - let the middleware handle auth redirects if needed
         return;
       }
 
@@ -56,41 +57,48 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
         const response = await fetch(`/api/chat/threads/${threadId}`, {
           method: 'GET',
           credentials: 'include',
-          cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Content-Type': 'application/json'
           }
         });
-        
+
         if (!response.ok) {
           if (response.status === 404) {
-            router.push('/');
+            // Thread not found, but don't redirect - just mark as loaded
+            setIsThreadLoading(false);
             return;
-          }
-          
-          if (response.status === 401) {
-            // Don't redirect on auth error, just show empty state
+          } else if (response.status === 401) {
+            // Authentication issue, but don't redirect - middleware will handle this
             setIsThreadLoading(false);
             return;
           }
-          
-          throw new Error('Failed to fetch thread');
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
-        
+
         const data = await response.json();
         if (data.success && data.thread) {
           setThread(data.thread);
-          setMessages(data.thread.messages);
+          setMessages(data.thread.messages || []);
+          // If it has an associated model, set it
+          if (data.thread.model) {
+            setSelectedModel(data.thread.model as ModelType);
+          }
+        } else {
+          // Thread data issue, but don't redirect
+          console.error('Failed to load thread:', data.error);
         }
       } catch (error) {
-        console.error('Error fetching thread:', error);
+        console.error('Error loading thread:', error);
+        // Don't redirect on error, just log it
       } finally {
         setIsThreadLoading(false);
       }
     };
 
-    fetchThread();
+    if (threadId) {
+      fetchThread();
+    }
   }, [threadId, isAuthenticated, user, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
@@ -109,26 +117,29 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    if (!isAuthenticated) {
-      setShowAuthDialog(true);
+    // Don't submit if auth dialog is open
+    if (showAuthDialog) {
       return;
     }
 
+    // Create new user message
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
       content: input.trim()
     };
 
+    // Create placeholder for assistant response
     const assistantMessage: Message = {
       id: crypto.randomUUID(),
       role: 'assistant',
       content: ''
     };
 
-    setMessages(prev => [...prev, userMessage, assistantMessage]);
+    // Update UI right away
     setInput('');
     setIsLoading(true);
+    setMessages(prev => [...prev, userMessage, assistantMessage]);
 
     try {
       // Cancel any ongoing request
@@ -137,53 +148,80 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
       }
       abortControllerRef.current = new AbortController();
 
+      // Fetch the response
       const { content, citations } = await fetchResponse(
         input,
         messages,
         selectedModel,
         abortControllerRef.current,
-        setMessages,
+        (updatedMessages) => {
+          // This callback updates messages as they stream in
+          setMessages(updatedMessages);
+        },
         assistantMessage
       );
 
-      // Create a copy of the messages and update it
-      const updatedMessages = [...messages];
-      const assistantIndex = updatedMessages.findIndex(m => m.id === assistantMessage.id);
-      
-      if (assistantIndex !== -1) {
-        updatedMessages[assistantIndex] = { ...assistantMessage, content, citations };
-      } else {
-        updatedMessages.push(userMessage);
-        updatedMessages.push({ ...assistantMessage, content, citations });
-      }
-      
-      setMessages(updatedMessages);
+      // Update message with final response
+      setMessages(prev => {
+        const updatedMessages = [...prev];
+        const assistantIndex = updatedMessages.findIndex(m => m.id === assistantMessage.id);
+        
+        if (assistantIndex !== -1) {
+          updatedMessages[assistantIndex] = { 
+            ...assistantMessage, 
+            content, 
+            citations 
+          };
+        }
+        
+        return updatedMessages;
+      });
 
-      // Update the thread in Redis
-      if (isAuthenticated && user) {
-        await fetch(`/api/chat/threads/${threadId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache'
-          },
-          body: JSON.stringify({ messages: updatedMessages }),
-          credentials: 'include'
-        });
+      // Update thread in database if authenticated
+      if (isAuthenticated && user && threadId) {
+        try {
+          await fetch(`/api/chat/threads/${threadId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              messages: messages.concat([userMessage, {
+                ...assistantMessage,
+                content,
+                citations
+              }]),
+              model: selectedModel
+            })
+          });
+        } catch (updateError) {
+          console.error('Error updating thread:', updateError);
+          // Continue even if update fails - don't disrupt user experience
+        }
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Request aborted');
+        console.log('Request was aborted');
         return;
       }
-      console.error('Error:', error);
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === assistantMessage.id 
-            ? { ...msg, content: 'Sorry, there was an error processing your request.' } 
-            : msg
-        )
-      );
+      
+      console.error('Error in chat submission:', error);
+      
+      // Update error message
+      setMessages(prev => {
+        const updatedMessages = [...prev];
+        const assistantIndex = updatedMessages.findIndex(m => m.id === assistantMessage.id);
+        
+        if (assistantIndex !== -1) {
+          updatedMessages[assistantIndex] = {
+            ...assistantMessage,
+            content: 'I encountered an error processing your request. Please try again.'
+          };
+        }
+        
+        return updatedMessages;
+      });
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;

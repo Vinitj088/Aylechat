@@ -16,6 +16,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,6 +26,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const initialized = useRef(false);
+
+  // Function to refresh the session
+  const refreshSession = async (): Promise<void> => {
+    try {
+      const session = await authClient.getSession();
+      if (session?.user) {
+        setUser(session.user);
+      } else {
+        // Clear user if server session is invalid
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('Failed to refresh session:', error);
+    }
+  };
 
   // Initialize auth state once
   useEffect(() => {
@@ -39,17 +55,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const storedUser = authClient.getStoredUser();
         if (storedUser && authClient.hasSessionCookie()) {
           setUser(storedUser);
-          setIsLoading(false);
         }
         
         // Then validate with server
-        const session = await authClient.getSession();
-        if (session?.user) {
-          setUser(session.user);
-        } else if (user) {
-          // Clear user if server session is invalid
-          setUser(null);
-        }
+        await refreshSession();
       } catch (error) {
         console.error('Failed to initialize auth:', error);
       } finally {
@@ -59,6 +68,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuth();
   }, []);
+
+  // Set up periodic session refresh
+  useEffect(() => {
+    if (!user) return;
+    
+    // Refresh session every 15 minutes
+    const refreshInterval = setInterval(refreshSession, 15 * 60 * 1000);
+    
+    return () => clearInterval(refreshInterval);
+  }, [user]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
@@ -110,7 +129,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     error,
     login,
     signup,
-    logout
+    logout,
+    refreshSession
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

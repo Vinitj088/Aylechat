@@ -11,7 +11,7 @@ interface Session {
   expires: string;
 }
 
-// Simple client-side auth service that follows BetterAuth patterns
+// Enhanced client-side auth service that follows BetterAuth patterns
 export const authClient = {
   // Session management
   async getSession(): Promise<Session | null> {
@@ -23,14 +23,26 @@ export const authClient = {
           'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
         credentials: 'include',
-        cache: 'no-store'
+        // Use next: { revalidate: 0 } to ensure fresh data
+        next: { revalidate: 0 }
       });
       
-      if (!response.ok) return null;
+      if (!response.ok) {
+        // Clear local storage if session is invalid
+        if (response.status === 401) {
+          localStorage.removeItem('user');
+        }
+        return null;
+      }
       
       const data = await response.json();
-      if (!data.user) return null;
+      if (!data.user) {
+        localStorage.removeItem('user');
+        return null;
+      }
       
+      // Update localStorage with fresh user data
+      localStorage.setItem('user', JSON.stringify(data.user));
       return data;
     } catch (error) {
       console.error('Error getting session:', error);
@@ -99,10 +111,20 @@ export const authClient = {
   
   async signOut(): Promise<void> {
     try {
-      await fetch('/api/auth/signout', {
+      const response = await fetch('/api/auth/signout', {
         method: 'POST',
         credentials: 'include'
       });
+      
+      // Clear localStorage even if the request fails
+      localStorage.removeItem('user');
+      
+      // Clear auth cookie from browser
+      document.cookie = `${AUTH_CONFIG.COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      
+      if (!response.ok) {
+        console.warn('Sign out response not OK:', response.statusText);
+      }
     } catch (error) {
       console.error('Sign out error:', error);
     } finally {
@@ -116,6 +138,7 @@ export const authClient = {
       const userData = localStorage.getItem('user');
       return userData ? JSON.parse(userData) : null;
     } catch (error) {
+      localStorage.removeItem('user'); // Clear corrupted data
       return null;
     }
   },
