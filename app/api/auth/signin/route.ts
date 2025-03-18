@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authService } from '@/lib/auth-service';
 
+/**
+ * Custom signin API route
+ * 
+ * This route complements NextAuth by providing direct API access for authentication.
+ * It's typically called by custom forms that need more control over the auth flow,
+ * but the primary authentication should still go through NextAuth.
+ * 
+ * For client-side components, use the useAuth hook's signIn method instead.
+ */
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {

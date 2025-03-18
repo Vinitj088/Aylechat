@@ -1,9 +1,18 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useState } from "react";
 
-// NOTE: This is the primary authentication hook used by client components.
-// It integrates with NextAuth while providing additional functionality.
-// This hook is used throughout the application for auth state management.
+/**
+ * Primary authentication hook for client components
+ * 
+ * This hook extends NextAuth's functionality by providing:
+ * 1. Better error handling and loading states
+ * 2. Sign-up functionality with our custom API
+ * 3. Enhanced sign-out with proper cleanup
+ * 4. Session management and persistence
+ * 
+ * Use this hook in all components that need authentication instead
+ * of directly using NextAuth functions.
+ */
 
 type SignInParams = {
   email: string;
@@ -23,6 +32,10 @@ export function useAuth() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Sign in a user with credentials
+   * Uses NextAuth's signIn function with our credentials provider
+   */
   const handleSignIn = async ({ email, password, redirect = false, callbackUrl = "/" }: SignInParams) => {
     try {
       // Prevent duplicate sign-in attempts
@@ -69,6 +82,10 @@ export function useAuth() {
     }
   };
 
+  /**
+   * Sign up a new user
+   * Creates a user in our database via API, then signs them in
+   */
   const handleSignUp = async ({ email, password, name }: SignUpParams) => {
     try {
       setLoading(true);
@@ -99,6 +116,13 @@ export function useAuth() {
     }
   };
 
+  /**
+   * Sign out a user
+   * Performs a complete logout process including:
+   * - Client-side state cleanup
+   * - Server-side session clearing
+   * - NextAuth signOut
+   */
   const handleSignOut = async () => {
     try {
       // Prevent duplicate sign-out attempts

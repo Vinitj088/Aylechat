@@ -3,6 +3,21 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "./db";
 
+/**
+ * NextAuth Configuration
+ * 
+ * This is the central configuration for NextAuth, which is the primary
+ * authentication system used throughout the application. It defines:
+ * 
+ * 1. Authentication providers (credentials-based in this case)
+ * 2. Session management strategy (JWT)
+ * 3. Callback functions for custom authentication logic
+ * 4. Custom pages for authentication flows
+ * 
+ * Client components should use the useAuth hook from lib/hooks/useAuth.ts
+ * rather than accessing NextAuth directly.
+ */
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({

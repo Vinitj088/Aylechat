@@ -3,6 +3,16 @@ import { hash } from "bcrypt";
 import { NextRequest, NextResponse } from "next/server";
 import { setupDatabase } from "@/lib/db-setup";
 
+/**
+ * Custom signup API route
+ * 
+ * This route creates user accounts in the database which are then used by NextAuth.
+ * After successful signup, clients should authenticate through NextAuth's signIn.
+ * 
+ * For client-side components, use the useAuth hook's signUp method instead,
+ * which handles both account creation and subsequent authentication.
+ */
+
 export const dynamic = 'force-dynamic';
 
 // Ensure database tables exist - run this on every request to ensure tables are created

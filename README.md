@@ -21,6 +21,8 @@ Exa Answer Chat App is a free and open-source application that shows how to use 
 ## 💻 Tech Stack
 - **Backend**: [Exa API](https://exa.ai) - Answer endpoint
 - **Frontend**: [Next.js](https://nextjs.org/docs) with App Router
+- **Authentication**: [NextAuth.js](https://next-auth.js.org/) with custom database integration
+- **Database**: PostgreSQL for user data, [Upstash Redis](https://upstash.com/) for chat threads
 - **Styling**: [TailwindCSS](https://tailwindcss.com)
 - **Language**: TypeScript
 - **Hosting**: [Vercel](https://vercel.com/)
@@ -32,6 +34,7 @@ Exa Answer Chat App is a free and open-source application that shows how to use 
 ### Prerequisites
 - Node.js 18+ installed
 - Exa API key ([Get it here](https://dashboard.exa.ai/api-keys))
+- PostgreSQL database for auth (or use Vercel Postgres)
 
 ### Installation
 
@@ -50,9 +53,19 @@ npm install
 ```bash
 cp .env.example .env.local
 ```
-Then add your Exa API key to `.env.local`:
+Then add your API keys and database URLs to `.env.local`:
 ```
+# Exa API
 EXA_API_KEY=your-api-key-here
+
+# Auth (required)
+DATABASE_URL=your-postgres-url
+NEXTAUTH_SECRET=your-nextauth-secret-key
+NEXTAUTH_URL=http://localhost:3000
+
+# Redis (required for chat history)
+UPSTASH_REDIS_REST_URL=your_upstash_redis_url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
 ```
 
 4. Run the development server
@@ -60,7 +73,38 @@ EXA_API_KEY=your-api-key-here
 npm run dev
 ```
 
-5. Open [http://localhost:3000/answer](http://localhost:3000/answer) in your browser
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+<br>
+
+## 🔐 Authentication System
+
+This application uses NextAuth.js as the primary authentication system, with custom extensions for enhanced functionality:
+
+### Features
+
+- Secure credential-based authentication
+- JWT session management
+- Persistent user sessions
+- Database integration with PostgreSQL
+- Custom signup and profile management
+- Protected API routes and pages
+
+### Usage
+
+The app provides a centralized authentication hook that should be used in all components:
+
+```tsx
+import { useAuth } from '@/lib/hooks/useAuth';
+
+function MyComponent() {
+  const { user, isAuthenticated, signIn, signUp, signOut } = useAuth();
+  
+  // Use these methods and state for auth operations
+}
+```
+
+For server-side authentication checking, use NextAuth's built-in methods.
 
 <br>
 
