@@ -223,6 +223,7 @@ export class AuthService {
 
   // Logout user
   async logout(): Promise<void> {
+    console.log('AuthService: Starting logout process');
     const cookieStore = cookies();
     const sessionId = cookieStore.get(AUTH_CONFIG.COOKIE_NAME)?.value;
 
@@ -241,26 +242,37 @@ export class AuthService {
           .where('id', '=', sessionId)
           .execute();
 
-        // Optionally, delete all sessions for this user for complete logout
+        // Delete all sessions for this user for complete logout
         if (session?.user_id) {
+          console.log(`AuthService: Deleting all sessions for user ${session.user_id}`);
           await db
             .deleteFrom('sessions')
             .where('user_id', '=', session.user_id)
             .execute();
         }
       } catch (error) {
-        console.error('Error deleting sessions:', error);
+        console.error('Error deleting session(s):', error);
       }
-
-      // Delete session cookie
-      cookieStore.delete(AUTH_CONFIG.COOKIE_NAME);
     }
 
-    // Clear cache
-    sessionCache = null;
+    // Clear all auth-related cookies
+    console.log('AuthService: Clearing all auth cookies');
+    const allCookies = cookieStore.getAll();
+    allCookies.forEach(cookie => {
+      cookieStore.delete(cookie.name);
+      
+      // Also set an expired cookie
+      cookieStore.set({
+        name: cookie.name,
+        value: '',
+        expires: new Date(0),
+        path: '/',
+      });
+    });
 
-    // Return success response instead of redirecting
-    return;
+    // Clear session cache
+    sessionCache = null;
+    console.log('AuthService: Logout complete');
   }
 
   // Check if user is authenticated

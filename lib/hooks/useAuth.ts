@@ -101,31 +101,52 @@ export function useAuth() {
       if (loading) return false;
       
       setLoading(true);
+      console.log('useAuth: Starting signout process...');
       
       // Mark as logging out for immediate UI feedback
       localStorage.removeItem('userSession');
       sessionStorage.removeItem('authState');
       
-      // Manual cookie clearing for auth-related cookies only
-      // This approach preserves Redis data while clearing auth state
+      // More aggressive cookie clearing - ALL cookies, not just auth related
+      // This ensures complete state reset while preserving Redis data server-side
+      console.log('useAuth: Clearing all cookies...');
       document.cookie.split(';').forEach(cookie => {
         const [name] = cookie.trim().split('=');
-        if (name && (name.includes('next-auth') || name.includes('session'))) {
+        if (name) {
+          console.log(`useAuth: Clearing cookie: ${name}`);
+          // Clear with different paths to ensure complete removal
           document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/auth;`;
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/api;`;
         }
       });
       
-      // Call NextAuth signOut with no redirect
+      // Call force-logout API first to ensure server-side session clearing
+      console.log('useAuth: Calling force-logout API...');
+      await fetch('/api/auth/force-logout', {
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      // Call NextAuth signOut with specific options
+      console.log('useAuth: Calling NextAuth signOut...');
       await signOut({ 
         redirect: false,
-        callbackUrl: window.location.origin 
+        callbackUrl: '/'
       });
       
       // Force session update
+      console.log('useAuth: Forcing session update...');
       await update();
       
-      // Add a small delay to ensure everything is synced
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Add a longer delay to ensure everything is synced
+      console.log('useAuth: Adding delay before returning...');
+      await new Promise(resolve => setTimeout(resolve, 200));
       
       return true;
     } catch (err) {

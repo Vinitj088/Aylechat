@@ -129,31 +129,52 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       // Clear threads first for immediate UI feedback
       setThreads([]);
       
+      console.log('Sidebar: Starting signout process...');
+      
       // Call our force-logout API for server-side session clearing
-      await fetch('/api/auth/force-logout', {
+      const forceLogoutRes = await fetch('/api/auth/force-logout', {
         method: 'POST',
         credentials: 'include',
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      console.log('Sidebar: Force-logout API response:', forceLogoutRes.status);
+      
+      // Clear client-side storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Clear cookies on client side
+      document.cookie.split(';').forEach(cookie => {
+        const [name] = cookie.trim().split('=');
+        if (name) {
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
         }
       });
       
       // Sign out using the auth hook
-      const success = await signOut();
+      console.log('Sidebar: Calling NextAuth signOut...');
+      await signOut();
       
       // Close sidebar
       onClose();
       
-      // Add a short delay to allow state updates to complete
+      // Add a delay to ensure all logout processes complete
+      console.log('Sidebar: Adding delay before redirect...');
       setTimeout(() => {
-        // Force a full page reload with cache-busting parameter
-        window.location.href = '/?nocache=' + Date.now();
-      }, 200);
+        console.log('Sidebar: Redirecting with cache-busting...');
+        // Force a complete page reload with extensive cache busting
+        const cacheBuster = `nocache=${Date.now()}-${Math.random()}`;
+        window.location.href = `/?${cacheBuster}`;
+      }, 300);
     } catch (error) {
       console.error('Error signing out:', error);
       // Force a page refresh on error for a clean slate
-      window.location.href = '/';
+      window.location.href = `/?error=${Date.now()}`;
     }
   };
 

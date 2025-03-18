@@ -45,15 +45,58 @@ export async function POST(request: NextRequest) {
       cookieStore.delete(AUTH_CONFIG.COOKIE_NAME);
     }
 
-    // Delete any other auth cookies just to be safe
-    cookieStore.getAll().forEach(cookie => {
-      if (cookie.name.includes('next-auth') || cookie.name.includes('session')) {
+    // Delete ALL auth-related cookies to ensure complete logout
+    const allCookies = cookieStore.getAll();
+    console.log('Force-logout: Clearing cookies:', allCookies.map(c => c.name).join(', '));
+    
+    allCookies.forEach(cookie => {
+      if (cookie.name.includes('next-auth') || 
+          cookie.name.includes('session') || 
+          cookie.name === '__Secure-next-auth.session-token' ||
+          cookie.name === '__Host-next-auth.csrf-token' ||
+          cookie.name === 'next-auth.csrf-token' ||
+          cookie.name === 'next-auth.callback-url' ||
+          cookie.name === 'next-auth.session-token') {
+        
+        console.log(`Force-logout: Deleting cookie: ${cookie.name}`);
+        
+        // Delete with various path and domain combinations to ensure removal
         cookieStore.delete(cookie.name);
+        cookieStore.set({
+          name: cookie.name,
+          value: '',
+          expires: new Date(0),
+          path: '/',
+        });
       }
     });
 
-    // Return success response
-    return NextResponse.json({ success: true });
+    // Set a response with cookie clearing headers as well
+    const response = NextResponse.json({ success: true });
+    
+    // Set expired cookies in response headers as well
+    response.cookies.set({
+      name: 'next-auth.session-token',
+      value: '',
+      expires: new Date(0),
+      path: '/',
+    });
+    
+    response.cookies.set({
+      name: 'next-auth.csrf-token',
+      value: '',
+      expires: new Date(0),
+      path: '/',
+    });
+    
+    response.cookies.set({
+      name: AUTH_CONFIG.COOKIE_NAME,
+      value: '',
+      expires: new Date(0),
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     console.error('Force logout error:', error);
     return NextResponse.json({ success: false, error: 'Failed to force logout' }, { status: 500 });
