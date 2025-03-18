@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ChatThread } from '@/lib/redis';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/lib/hooks/useAuth';
+import Link from 'next/link';
+import { formatDistanceToNow } from 'date-fns';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -22,8 +24,8 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, logout, refreshSession } = useAuth();
-
+  const { user, isAuthenticated, signOut } = useAuth();
+  
   // Improved function to fetch threads with better error handling
   const fetchThreads = useCallback(async (force = false) => {
     // Skip if there's already a fetch in progress
@@ -39,6 +41,8 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
     // Don't fetch if not authenticated
     if (!isAuthenticated || !user) {
       setThreads([]);
+      setFetchError(null);
+      setIsLoading(false);
       return;
     }
     
@@ -61,23 +65,13 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       
       if (!response.ok) {
         if (response.status === 401) {
-          // Try refreshing session on auth error
-          await refreshSession();
-          if (isAuthenticated) {
-            // Retry after session refresh
-            setTimeout(() => {
-              isFetchingRef.current = false;
-              fetchThreads(true);
-            }, 500);
-            return;
-          } else {
-            setFetchError('Please sign in to view your chat history');
-            setThreads([]);
-          }
+          // Auth error - redirect to auth page
+          setFetchError('Please sign in to view your chat history');
+          setThreads([]);
+          return;
         } else {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
-        return;
       }
       
       const data = await response.json();
@@ -99,7 +93,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       setIsLoading(false);
       isFetchingRef.current = false;
     }
-  }, [user, isOpen, isAuthenticated, lastFetchTime, refreshSession]);
+  }, [user, isOpen, isAuthenticated, lastFetchTime]);
 
   // Fetch when refreshTrigger changes
   useEffect(() => {
@@ -132,12 +126,34 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
 
   const handleSignOut = async () => {
     try {
-      await logout();
+      // Clear threads first for immediate UI feedback
       setThreads([]);
-      router.push('/');
+      
+      // Call our force-logout API for server-side session clearing
+      await fetch('/api/auth/force-logout', {
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        }
+      });
+      
+      // Sign out using the auth hook
+      const success = await signOut();
+      
+      // Close sidebar
       onClose();
+      
+      // Add a short delay to allow state updates to complete
+      setTimeout(() => {
+        // Force a full page reload with cache-busting parameter
+        window.location.href = '/?nocache=' + Date.now();
+      }, 200);
     } catch (error) {
       console.error('Error signing out:', error);
+      // Force a page refresh on error for a clean slate
+      window.location.href = '/';
     }
   };
 
@@ -262,25 +278,18 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
             )}
           </div>
           
-          {/* User profile */}
+          {/* Footer with user info and sign out */}
           {isAuthenticated && user && (
             <div className="p-3 border-t-2 border-black">
-              <div className="flex items-center">
-                <div className="w-7 h-7 bg-black text-white rounded-md flex items-center justify-center border border-black">
-                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                </div>
-                <div className="ml-2 flex-1 overflow-hidden">
-                  <div className="font-medium truncate text-sm">{user.name || 'User'}</div>
-                  <div className="text-xs text-gray-600 truncate">{user.email}</div>
+              <div className="flex justify-between items-center">
+                <div className="text-sm truncate">
+                  <span className="font-medium">{user.name || user.email}</span>
                 </div>
                 <button
                   onClick={handleSignOut}
-                  className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-[#f5f3e4] rounded-md border border-gray-400"
-                  title="Sign out"
+                  className="px-2 py-1 bg-[#f5f3e4] text-sm rounded-md hover:bg-[#e9e7d8] border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
+                  Sign Out
                 </button>
               </div>
             </div>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Analytics } from '@vercel/analytics/next';
-import { AuthProvider } from '@/context/AuthContext';
+import { Providers } from './providers';
 
 // Load the ABCDiatype font (Regular and Bold only)
 const abcdDiatype = localFont({
@@ -65,12 +65,12 @@ export default function RootLayout({
       <body
         className={`${abcdDiatype.variable} ${reckless.variable} antialiased overflow-x-hidden`}
       >
-        <AuthProvider>
+        <Providers>
           <div className="w-screen overflow-x-hidden">
             {children}
           </div>
           <Analytics />
-        </AuthProvider>
+        </Providers>
       </body>
     </html>
   );

@@ -53,10 +53,17 @@ export const authClient = {
   // Auth methods
   async signIn(email: string, password: string): Promise<User | null> {
     try {
+      // First clear any existing session data
+      localStorage.removeItem('user');
+      document.cookie = `${AUTH_CONFIG.COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      
       const response = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         },
         body: JSON.stringify({ email, password }),
         credentials: 'include'
@@ -69,6 +76,7 @@ export const authClient = {
       
       const data = await response.json();
       if (data.user) {
+        // Store user data in localStorage
         localStorage.setItem('user', JSON.stringify(data.user));
         return data.user;
       }
@@ -76,6 +84,9 @@ export const authClient = {
       return null;
     } catch (error) {
       console.error('Sign in error:', error);
+      // Clear any partial session data on error
+      localStorage.removeItem('user');
+      document.cookie = `${AUTH_CONFIG.COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
       throw error;
     }
   },
@@ -111,24 +122,30 @@ export const authClient = {
   
   async signOut(): Promise<void> {
     try {
+      // First clear local storage and cookies for immediate UI feedback
+      localStorage.removeItem('user');
+      document.cookie = `${AUTH_CONFIG.COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      
+      // Then make the API call
       const response = await fetch('/api/auth/signout', {
         method: 'POST',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
-      
-      // Clear localStorage even if the request fails
-      localStorage.removeItem('user');
-      
-      // Clear auth cookie from browser
-      document.cookie = `${AUTH_CONFIG.COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
       
       if (!response.ok) {
         console.warn('Sign out response not OK:', response.statusText);
+        // Force reload to reset any remaining state
+        window.location.href = '/';
       }
     } catch (error) {
       console.error('Sign out error:', error);
-    } finally {
-      localStorage.removeItem('user');
+      // Force reload even on error
+      window.location.href = '/';
     }
   },
   

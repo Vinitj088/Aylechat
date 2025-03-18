@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RedisService } from '@/lib/redis';
-import { authService } from '@/lib/auth-service';
+import { getToken } from 'next-auth/jwt';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await authService.getUser();
-    if (!user) {
+    // Use JWT token to get user
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET
+    });
+
+    if (!token || !token.id) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { 
@@ -18,7 +25,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const threads = await RedisService.getUserChatThreads(user.id);
+    const userId = token.id as string;
+    const threads = await RedisService.getUserChatThreads(userId);
+    
     return NextResponse.json(
       { success: true, threads },
       { 
@@ -39,8 +48,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await authService.getUser();
-    if (!user) {
+    // Use JWT token to get user
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET
+    });
+
+    if (!token || !token.id) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { 
@@ -53,6 +67,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const userId = token.id as string;
     const body = await request.json();
     const { title, messages } = body;
 
@@ -63,7 +78,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const thread = await RedisService.createChatThread(user.id, title, messages || []);
+    const thread = await RedisService.createChatThread(userId, title, messages || []);
     
     if (!thread) {
       return NextResponse.json(

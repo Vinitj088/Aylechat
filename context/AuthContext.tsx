@@ -39,6 +39,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Failed to refresh session:', error);
+      // Clear user on error to force re-authentication
+      setUser(null);
     }
   };
 
@@ -113,8 +115,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
-      await authClient.signOut();
+      // Clear user state immediately for UI feedback
       setUser(null);
+      // Then sign out on the server
+      await authClient.signOut();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {

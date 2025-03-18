@@ -8,10 +8,11 @@ import ChatInput from '../../component/ChatInput';
 import Sidebar from '../../component/Sidebar';
 import { fetchResponse } from '../../api/apiService';
 import modelsData from '../../../models.json';
-import AuthDialog from '@/components/AuthDialog';
-import { useAuth } from '@/context/AuthContext';
+import AuthDialog from '@/app/component/AuthDialog';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { ChatThread } from '@/lib/redis';
+import { toast } from 'sonner';
 
 export default function ChatThreadPage({ params }: { params: { threadId: string } }) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -33,8 +34,9 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [thread, setThread] = useState<ChatThread | null>(null);
+  const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { user, isAuthenticated, login, signup } = useAuth();
+  const { user, isAuthenticated, signIn, signUp } = useAuth();
   const router = useRouter();
   const { threadId } = params;
 
@@ -54,7 +56,9 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
 
       try {
         setIsThreadLoading(true);
-        const response = await fetch(`/api/chat/threads/${threadId}`, {
+        // Add a timestamp to prevent caching
+        const timestamp = Date.now();
+        const response = await fetch(`/api/chat/threads/${threadId}?t=${timestamp}`, {
           method: 'GET',
           credentials: 'include',
           headers: {
@@ -69,7 +73,8 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
             setIsThreadLoading(false);
             return;
           } else if (response.status === 401) {
-            // Authentication issue, but don't redirect - middleware will handle this
+            // No need to refresh, just show auth dialog
+            setShowAuthDialog(true);
             setIsThreadLoading(false);
             return;
           }
@@ -163,47 +168,19 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
       );
 
       // Update message with final response
-      setMessages(prev => {
-        const updatedMessages = [...prev];
-        const assistantIndex = updatedMessages.findIndex(m => m.id === assistantMessage.id);
-        
-        if (assistantIndex !== -1) {
-          updatedMessages[assistantIndex] = { 
-            ...assistantMessage, 
-            content, 
-            citations 
-          };
-        }
-        
-        return updatedMessages;
-      });
+      const finalMessages = [...messages, userMessage];
+      const finalAssistantMessage = { 
+        ...assistantMessage, 
+        content, 
+        citations 
+      };
+      finalMessages.push(finalAssistantMessage);
+      
+      setMessages(finalMessages);
 
-      // Update thread in database if authenticated
+      // Update thread in database
       if (isAuthenticated && user && threadId) {
-        try {
-          await fetch(`/api/chat/threads/${threadId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-              messages: [
-                ...messages, 
-                userMessage, 
-                {
-                  ...assistantMessage,
-                  content,
-                  citations
-                }
-              ],
-              model: selectedModel
-            })
-          });
-        } catch (updateError) {
-          console.error('Error updating thread:', updateError);
-          // Continue even if update fails - don't disrupt user experience
-        }
+        updateThread(finalMessages);
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
@@ -213,6 +190,12 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
       
       console.error('Error in chat submission:', error);
       
+      // Handle rate limit errors with the enhanced error type
+      if (error instanceof Error && (error.name === 'RateLimitError' || error.message.includes('Rate limit'))) {
+        // Rate limit toast is already handled in apiService.ts
+        // Just update the chat message
+      }
+      
       // Update error message
       setMessages(prev => {
         const updatedMessages = [...prev];
@@ -221,7 +204,9 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
         if (assistantIndex !== -1) {
           updatedMessages[assistantIndex] = {
             ...assistantMessage,
-            content: 'I encountered an error processing your request. Please try again.'
+            content: error instanceof Error && (error.name === 'RateLimitError' || error.message.includes('Rate limit'))
+              ? 'Rate limit reached. Please wait a moment before trying again.'
+              : 'I encountered an error processing your request. Please try again.'
           };
         }
         
@@ -242,6 +227,53 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
 
   // Get the provider name for the selected model
   const selectedModelObj = models.find(model => model.id === selectedModel);
+
+  // Update thread in database
+  const updateThread = async (updatedMessages: Message[]) => {
+    if (!isAuthenticated || !user || !threadId) {
+      return false;
+    }
+    
+    try {
+      // Add timestamp to prevent caching
+      const timestamp = Date.now();
+      const response = await fetch(`/api/chat/threads/${threadId}?t=${timestamp}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          messages: updatedMessages,
+          model: selectedModel
+        })
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          // No need to refresh, just show auth dialog
+          setShowAuthDialog(true);
+          setIsThreadLoading(false);
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      if (result.success) {
+        // Update sidebar to reflect changes
+        setRefreshSidebar(prev => prev + 1);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error updating thread:', error);
+      return false;
+    }
+  };
 
   if (isThreadLoading) {
     return (
@@ -266,6 +298,7 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
         onSignInClick={() => setShowAuthDialog(true)}
+        refreshTrigger={refreshSidebar}
       />
       
       <ChatMessages 
@@ -292,8 +325,8 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
       <AuthDialog 
         isOpen={showAuthDialog} 
         onClose={() => setShowAuthDialog(false)}
-        onLogin={login}
-        onSignup={signup}
+        onLogin={signIn}
+        onSignup={signUp}
       />
     </main>
   );

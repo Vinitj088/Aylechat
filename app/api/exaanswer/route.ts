@@ -1,19 +1,23 @@
 // app/api/exaanswer/route.ts
 import { NextRequest } from 'next/server';
 import Exa from "exa-js";
-import { authService } from '@/lib/auth-service';
 import { Message } from '@/app/types';
+import { getToken } from 'next-auth/jwt';
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 export const dynamic = 'force-dynamic';
 
 const exa = new Exa(process.env.EXA_API_KEY as string);
 
 export async function POST(req: NextRequest) {
   try {
-    // Check if user is authenticated
-    const user = await authService.getUser();
-    if (!user) {
+    // Check if user is authenticated using Auth.js JWT
+    const token = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET
+    });
+
+    if (!token || !token.id) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
@@ -22,25 +26,34 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'query is required' }), { status: 400 });
     }
 
-    // Format conversation history for Exa
-    let enhancedQuery = query;
-    if (messages && messages.length > 0) {
-      // Create a formatted conversation history
-      const conversationContext = messages
-        .map((msg: Message) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
-        .join('\n\n');
-      
-      // Add conversation context to the query
-      enhancedQuery = `${conversationContext}\n\nUser: ${query}\n\nAssistant:`;
-    }
+    // Extract the actual query - no need to include all conversation history
+    // since Exa is a search API, not an LLM with a context window
+    console.log(`Processing Exa search for query: ${query}`);
 
-    const stream = exa.streamAnswer(enhancedQuery, { model: "exa-pro" });
+    // Add timeout promise to avoid hanging requests
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Exa API request timed out')), 90000); // 90 seconds timeout
+    });
+
+    // Create Exa stream - just pass the raw query since Exa is a search API
+    // Using the options according to exa-js documentation
+    const streamPromise = exa.streamAnswer(query, { 
+      model: "exa-pro"
+    });
+    
+    // Use Promise.race to implement timeout
+    const stream = await Promise.race([streamPromise, timeoutPromise]) as AsyncIterable<any>;
     
     const encoder = new TextEncoder();
 
     const streamResponse = new ReadableStream({
       async start(controller) {
         try {
+          // Add a timeout for the entire streaming process
+          const streamTimeout = setTimeout(() => {
+            controller.error(new Error('Streaming response timed out'));
+          }, 90000); // 90 seconds timeout
+          
           for await (const chunk of stream) {
             // Send citations if present
             if (chunk.citations?.length) {
@@ -52,9 +65,18 @@ export async function POST(req: NextRequest) {
               choices: [{ delta: { content: chunk.content } }]
             }) + '\n'));
           }
+          
+          clearTimeout(streamTimeout);
           controller.close();
         } catch (error) {
-          controller.error(error);
+          console.error('Error during stream processing:', error);
+          
+          // Send a partial response error message so the frontend knows something went wrong
+          controller.enqueue(encoder.encode(JSON.stringify({
+            choices: [{ delta: { content: "\n\nI apologize, but I encountered an issue completing this search. Please try rephrasing your question or breaking it into smaller parts." } }]
+          }) + '\n'));
+          
+          controller.close();
         }
       },
     });
@@ -67,8 +89,12 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
+    console.error('Exa API error:', error);
     return new Response(
-      JSON.stringify({ error: `Failed to perform search | ${error.message}` }), 
+      JSON.stringify({ 
+        error: `Failed to perform search | ${error.message}`,
+        message: "There was an issue with your search request. Please try rephrasing your query."
+      }), 
       { status: 500 }
     );
   }

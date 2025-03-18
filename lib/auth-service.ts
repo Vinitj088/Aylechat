@@ -227,10 +227,30 @@ export class AuthService {
     const sessionId = cookieStore.get(AUTH_CONFIG.COOKIE_NAME)?.value;
 
     if (sessionId) {
-      await db
-        .deleteFrom('sessions')
-        .where('id', '=', sessionId)
-        .execute();
+      try {
+        // Get user ID from session before deleting it
+        const session = await db
+          .selectFrom('sessions')
+          .where('id', '=', sessionId)
+          .select(['user_id'])
+          .executeTakeFirst();
+
+        // Delete current session
+        await db
+          .deleteFrom('sessions')
+          .where('id', '=', sessionId)
+          .execute();
+
+        // Optionally, delete all sessions for this user for complete logout
+        if (session?.user_id) {
+          await db
+            .deleteFrom('sessions')
+            .where('user_id', '=', session.user_id)
+            .execute();
+        }
+      } catch (error) {
+        console.error('Error deleting sessions:', error);
+      }
 
       // Delete session cookie
       cookieStore.delete(AUTH_CONFIG.COOKIE_NAME);

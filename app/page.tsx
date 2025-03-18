@@ -10,9 +10,10 @@ import DesktopSearchUI from './component/DesktopSearchUI';
 import Sidebar from './component/Sidebar';
 import { fetchResponse } from './api/apiService';
 import modelsData from '../models.json';
-import AuthDialog from '@/components/AuthDialog';
-import { useAuth } from '@/context/AuthContext';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import AuthDialog from './component/AuthDialog';
+import { toast } from 'sonner';
 
 export default function Page() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -36,8 +37,11 @@ export default function Page() {
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { user, isAuthenticated, login, signup } = useAuth();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
+
+  const user = session?.user;
+  const isAuthenticated = !!session?.user;
 
   useEffect(() => {
     // Add Exa as the first option and then add all Groq models
@@ -61,39 +65,17 @@ export default function Page() {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      await login(email, password);
-      setShowAuthDialog(false);
-      
-      // Process pending input after successful login
-      if (input.trim()) {
-        // Wait a bit for auth to complete
-        setTimeout(() => {
-          handleSubmit({ preventDefault: () => {} } as React.FormEvent);
-        }, 300);
-      }
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw error;
-    }
-  };
-
-  const handleSignup = async (email: string, password: string, name: string) => {
-    try {
-      await signup(email, password, name);
-      setShowAuthDialog(false);
-      
-      // Process pending input after successful signup
-      if (input.trim()) {
-        // Wait a bit for auth to complete
-        setTimeout(() => {
-          handleSubmit({ preventDefault: () => {} } as React.FormEvent);
-        }, 300);
-      }
-    } catch (error) {
-      console.error('Signup failed:', error);
-      throw error;
+  // Handle successful auth
+  const handleAuthSuccess = async () => {
+    // Force update session
+    await update();
+    setRefreshSidebar(prev => prev + 1);
+    
+    // Process pending input if any
+    if (input.trim()) {
+      setTimeout(() => {
+        handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+      }, 300);
     }
   };
 
@@ -118,10 +100,16 @@ export default function Page() {
         ? `/api/chat/threads/${currentThreadId}` 
         : '/api/chat/threads';
       
-      const response = await fetch(endpoint, {
+      // Add a timestamp to ensure we don't get a cached response
+      const timestamp = Date.now();
+      
+      const response = await fetch(`${endpoint}?t=${timestamp}`, {
         method,
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -132,7 +120,7 @@ export default function Page() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          // Auth error - show auth dialog instead of redirecting
+          // Auth error - show auth dialog
           setShowAuthDialog(true);
           return null;
         }
@@ -166,6 +154,12 @@ export default function Page() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
+
+    // If not authenticated, show auth dialog and keep the message in the input
+    if (!isAuthenticated || !user) {
+      setShowAuthDialog(true);
+      return;
+    }
 
     // Prevent submitting if auth dialog is open
     if (showAuthDialog) {
@@ -203,18 +197,6 @@ export default function Page() {
         // Use the first 50 chars of the message as the title
         threadTitle = input.substring(0, 50) + (input.length > 50 ? '...' : '');
       }
-      
-      // Create or update the thread with the new messages
-      const threadId = await createOrUpdateThread({
-        messages: [...messages, userMessage, assistantMessage],
-        title: threadTitle
-      });
-      
-      // If thread creation failed due to auth, stop here
-      if (!threadId && !isAuthenticated) {
-        setIsLoading(false);
-        return;
-      }
 
       // Add selected model as system message for context
       const systemMessage = models.find(model => model.id === selectedModel);
@@ -234,31 +216,44 @@ export default function Page() {
       );
 
       // Update message with final response
-      setMessages(prev => {
-        const updatedMessages = [...prev];
-        const assistantIndex = updatedMessages.findIndex(m => m.id === assistantMessage.id);
-        
-        if (assistantIndex !== -1) {
-          updatedMessages[assistantIndex] = { 
-            ...assistantMessage, 
-            content, 
-            citations 
-          };
-        }
-        
-        return updatedMessages;
-      });
+      const finalMessages = [...messages, userMessage, {
+        ...assistantMessage,
+        content,
+        citations
+      }];
+      
+      setMessages(finalMessages);
 
-      // Update the thread after completion
-      if (threadId) {
-        await createOrUpdateThread({
-          messages: [...messages, userMessage, {
-            ...assistantMessage,
-            content,
-            citations
-          }],
+      // Create or update the thread only after we have the complete response
+      if (isFirstMessage) {
+        // For first message, create a new thread
+        const threadId = await createOrUpdateThread({
+          messages: finalMessages,
           title: threadTitle
         });
+        
+        if (threadId) {
+          setCurrentThreadId(threadId);
+          // Update the URL to the new thread without forcing a reload
+          window.history.pushState({}, '', `/chat/${threadId}`);
+        }
+      } else if (currentThreadId) {
+        // For subsequent messages, update the existing thread
+        await createOrUpdateThread({
+          messages: finalMessages
+        });
+      } else {
+        // If we somehow don't have a thread ID, create a new thread
+        const threadId = await createOrUpdateThread({
+          messages: finalMessages,
+          title: threadTitle
+        });
+        
+        if (threadId) {
+          setCurrentThreadId(threadId);
+          // Update the URL to the new thread without forcing a reload
+          window.history.pushState({}, '', `/chat/${threadId}`);
+        }
       }
     } catch (error) {
       console.error('Error in chat submission:', error);
@@ -310,6 +305,7 @@ export default function Page() {
 
   return (
     <main className="flex min-h-screen flex-col">
+      
       <Header toggleSidebar={toggleSidebar} />
       <Sidebar 
         isOpen={isSidebarOpen} 
@@ -380,10 +376,9 @@ export default function Page() {
 
       {/* Auth Dialog */}
       <AuthDialog 
-        isOpen={showAuthDialog} 
+        isOpen={showAuthDialog}
         onClose={() => setShowAuthDialog(false)}
-        onLogin={handleLogin}
-        onSignup={handleSignup}
+        onSuccess={handleAuthSuccess}
       />
     </main>
   );

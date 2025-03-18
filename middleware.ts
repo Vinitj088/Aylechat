@@ -1,36 +1,48 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { AUTH_CONFIG } from '@/lib/constants'
+import { getToken } from 'next-auth/jwt'
 
-// This function can be marked `async` if using `await` inside
+// Protected routes that require authentication
+const protectedRoutes = [
+  '/chat',
+  '/settings',
+  '/profile',
+];
+
+// Public routes that don't require API authentication
+const publicApiRoutes = [
+  '/api/auth'
+];
+
 export async function middleware(request: NextRequest) {
-  // Define protected routes that require authentication
-  const protectedRoutes = [
-    AUTH_CONFIG.ROUTES.CHAT,
-    AUTH_CONFIG.ROUTES.SETTINGS,
-    AUTH_CONFIG.ROUTES.PROFILE,
-  ]
+  const { pathname } = request.nextUrl;
   
-  // Check if the current path is a protected route
+  // Skip auth check for public API routes
+  if (publicApiRoutes.some(route => pathname.startsWith(route))) {
+    return NextResponse.next();
+  }
+  
+  // Check for protected routes that require authentication
   const isProtectedRoute = protectedRoutes.some(route => 
-    request.nextUrl.pathname.startsWith(route)
-  )
+    pathname.startsWith(route)
+  );
   
-  // Skip auth check for auth API routes
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/api/auth/')
-  
-  // If it's a protected route, check for session cookie
-  if (isProtectedRoute && !isAuthRoute) {
-    const sessionCookie = request.cookies.get(AUTH_CONFIG.COOKIE_NAME)
+  if (isProtectedRoute) {
+    // Get the NextAuth.js token
+    const token = await getToken({ 
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
     
-    // If no session cookie, redirect to home
-    if (!sessionCookie) {
-      return NextResponse.redirect(new URL(AUTH_CONFIG.ROUTES.HOME, request.url))
+    // If no token, redirect to home
+    if (!token) {
+      const url = new URL('/', request.url);
+      return NextResponse.redirect(url);
     }
   }
   
   // Add cache control headers to API requests to prevent caching
-  if (request.nextUrl.pathname.startsWith('/api/')) {
+  if (pathname.startsWith('/api/')) {
     const response = NextResponse.next();
     
     // Add cache control headers to prevent caching
@@ -41,7 +53,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
   
-  return NextResponse.next()
+  return NextResponse.next();
 }
 
 // Run middleware on protected routes and API routes

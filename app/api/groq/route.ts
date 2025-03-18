@@ -1,15 +1,19 @@
 import { NextRequest } from 'next/server';
-import { authService } from '@/lib/auth-service';
 import { Message } from '@/app/types';
+import { getToken } from 'next-auth/jwt';
 
-export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
+export const maxDuration = 120; // Increased to 2 minutes
 
 export async function POST(req: NextRequest) {
   try {
-    // Check if user is authenticated
-    const user = await authService.getUser();
-    if (!user) {
+    // Check if user is authenticated using Auth.js JWT
+    const token = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET
+    });
+
+    if (!token || !token.id) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
@@ -21,6 +25,10 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'model is required' }), { status: 400 });
     }
 
+    // Log some information about the request
+    console.log(`Processing Groq request with model: ${model}`);
+    console.log(`Message count: ${messages?.length || 0}`);
+    
     // Groq API endpoint
     const groqEndpoint = 'https://api.groq.com/openai/v1/chat/completions';
     
@@ -39,8 +47,21 @@ export async function POST(req: NextRequest) {
       // If no messages history is provided, just use the query
       : [{ role: 'user', content: query }];
 
-    // Prepare the request to Groq API
-    const groqResponse = await fetch(groqEndpoint, {
+    // Add latest user query if not already included in messages
+    if (messages?.length > 0 && query) {
+      const lastMessage = formattedMessages[formattedMessages.length - 1];
+      if (lastMessage.role !== 'user' || lastMessage.content !== query) {
+        formattedMessages.push({ role: 'user', content: query });
+      }
+    }
+
+    // Add timeout promise to avoid hanging requests
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Groq API request timed out')), 90000); // 90 seconds timeout
+    });
+
+    // Prepare the request to Groq API with a timeout
+    const fetchPromise = fetch(groqEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -52,9 +73,25 @@ export async function POST(req: NextRequest) {
         stream: true
       })
     });
+    
+    // Use Promise.race to implement timeout
+    const groqResponse = await Promise.race([fetchPromise, timeoutPromise]) as Response;
 
     if (!groqResponse.ok) {
       const errorData = await groqResponse.json();
+      console.error('Groq API error response:', errorData);
+      
+      // Handle rate limit errors specifically
+      if (groqResponse.status === 429) {
+        return new Response(JSON.stringify({ 
+          error: {
+            message: errorData.error?.message || 'Rate limit reached',
+            type: errorData.error?.type || 'tokens',
+            code: errorData.error?.code || 'rate_limit_exceeded'
+          }
+        }), { status: 429 });
+      }
+      
       return new Response(JSON.stringify({ error: `Groq API error: ${errorData.error?.message || 'Unknown error'}` }), { 
         status: groqResponse.status 
       });
@@ -66,62 +103,39 @@ export async function POST(req: NextRequest) {
     
     // Buffer to accumulate partial chunks
     let buffer = '';
+    let contentAccumulator = ''; // Track total content for debugging
     
     const transformStream = new TransformStream({
       async transform(chunk, controller) {
-        const text = decoder.decode(chunk);
-        // Add the new text to our buffer
-        buffer += text;
-        
-        // Process complete lines
-        const lines = buffer.split('\n');
-        // Keep the last line in the buffer if it's incomplete
-        buffer = lines.pop() || '';
-        
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (!trimmedLine) continue;
+        try {
+          const text = decoder.decode(chunk);
+          // Add the new text to our buffer
+          buffer += text;
           
-          if (trimmedLine.startsWith('data: ')) {
-            const data = trimmedLine.slice(6); // Remove 'data: ' prefix
+          // Process complete lines
+          const lines = buffer.split('\n');
+          // Keep the last line in the buffer if it's incomplete
+          buffer = lines.pop() || '';
+          
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) continue;
             
-            if (data === '[DONE]') {
-              // End of stream marker from Groq
-              continue;
-            }
-            
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.choices && parsed.choices[0]?.delta?.content) {
-                // Format the data to match what our frontend expects
-                const formattedData = {
-                  choices: [
-                    {
-                      delta: {
-                        content: parsed.choices[0].delta.content
-                      }
-                    }
-                  ]
-                };
-                controller.enqueue(encoder.encode(JSON.stringify(formattedData) + '\n'));
+            if (trimmedLine.startsWith('data: ')) {
+              const data = trimmedLine.slice(6); // Remove 'data: ' prefix
+              
+              if (data === '[DONE]') {
+                // End of stream marker from Groq
+                continue;
               }
-            } catch (e) {
-              // Silently ignore parsing errors for incomplete chunks
-              // They will be handled when we get complete chunks
-            }
-          }
-        }
-      },
-      
-      // Make sure to process any remaining data in the buffer
-      flush(controller) {
-        if (buffer.trim()) {
-          if (buffer.trim().startsWith('data: ')) {
-            const data = buffer.trim().slice(6);
-            if (data !== '[DONE]') {
+              
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.choices && parsed.choices[0]?.delta?.content) {
+                  // Keep track of content for debugging
+                  contentAccumulator += parsed.choices[0].delta.content;
+                  
+                  // Format the data to match what our frontend expects
                   const formattedData = {
                     choices: [
                       {
@@ -134,31 +148,89 @@ export async function POST(req: NextRequest) {
                   controller.enqueue(encoder.encode(JSON.stringify(formattedData) + '\n'));
                 }
               } catch (e) {
-                // Ignore parsing errors in the final flush
+                console.error('Error parsing Groq chunk:', e, 'Line:', trimmedLine);
+                // Continue processing other chunks rather than failing
               }
             }
           }
+        } catch (error) {
+          console.error('Error in transform:', error);
+          // Send error but don't terminate the stream
+          controller.enqueue(encoder.encode(JSON.stringify({
+            choices: [{ delta: { content: "\n\nI apologize, but I encountered an issue processing your request. Please try again." } }]
+          }) + '\n'));
+        }
+      },
+      
+      // Make sure to process any remaining data in the buffer
+      flush(controller) {
+        try {
+          if (buffer.trim()) {
+            if (buffer.trim().startsWith('data: ')) {
+              const data = buffer.trim().slice(6);
+              if (data !== '[DONE]') {
+                try {
+                  const parsed = JSON.parse(data);
+                  if (parsed.choices && parsed.choices[0]?.delta?.content) {
+                    const formattedData = {
+                      choices: [
+                        {
+                          delta: {
+                            content: parsed.choices[0].delta.content
+                          }
+                        }
+                      ]
+                    };
+                    controller.enqueue(encoder.encode(JSON.stringify(formattedData) + '\n'));
+                  }
+                } catch (e) {
+                  console.error('Error in flush:', e);
+                }
+              }
+            }
+          }
+          
+          console.log(`Completed Groq response, generated ${contentAccumulator.length} characters`);
+        } catch (error) {
+          console.error('Error in flush:', error);
         }
       }
     });
 
-    // Pipe the response through our transform stream
-    const responseStream = groqResponse.body?.pipeThrough(transformStream);
+    // Add a timeout for the entire streaming process
+    const streamTimeoutController = new AbortController();
+    const { signal } = streamTimeoutController;
+    setTimeout(() => streamTimeoutController.abort(), 95000); // 95 seconds
     
-    if (!responseStream) {
-      return new Response(JSON.stringify({ error: 'Failed to process stream' }), { status: 500 });
-    }
+    try {
+      // Pipe the response through our transform stream with timeout
+      const responseStream = groqResponse.body?.pipeThrough(transformStream, { signal });
+      
+      if (!responseStream) {
+        return new Response(JSON.stringify({ error: 'Failed to process stream' }), { status: 500 });
+      }
 
-    return new Response(responseStream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    });
+      return new Response(responseStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('Groq streaming aborted due to timeout');
+        return new Response(JSON.stringify({ error: 'Streaming timed out' }), { status: 504 });
+      }
+      throw error; // Rethrow other errors to be caught by the outer catch
+    }
   } catch (error: any) {
+    console.error('Groq API error:', error);
     return new Response(
-      JSON.stringify({ error: `Failed to perform Groq request | ${error.message}` }), 
+      JSON.stringify({ 
+        error: `Failed to perform Groq request | ${error.message}`,
+        message: "I apologize, but I couldn't complete your request. Please try again."
+      }), 
       { status: 500 }
     );
   }

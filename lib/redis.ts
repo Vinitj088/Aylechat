@@ -111,7 +111,9 @@ export class RedisService {
       const threadData = await redis.get(threadKey);
       if (!threadData) return null;
       
-      const thread = JSON.parse(threadData as string) as ChatThread;
+      // Ensure threadData is a string before parsing
+      const stringData = typeof threadData === 'string' ? threadData : JSON.stringify(threadData);
+      const thread = JSON.parse(stringData) as ChatThread;
       const now = new Date().toISOString();
       
       // Update thread
@@ -121,7 +123,7 @@ export class RedisService {
         updatedAt: now
       };
       
-      // Save updated thread
+      // Ensure proper serialization before saving
       await redis.set(threadKey, JSON.stringify(updatedThread));
       
       // Update thread in user's thread list
