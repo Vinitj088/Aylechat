@@ -3,7 +3,7 @@ import { Message } from '@/app/types';
 import { getToken } from 'next-auth/jwt';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120; // Increased to 2 minutes
+export const maxDuration = 60; // Maximum allowed for Vercel Hobby plan
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     // Add timeout promise to avoid hanging requests
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Groq API request timed out')), 90000); // 90 seconds timeout
+      setTimeout(() => reject(new Error('Groq API request timed out')), 45000); // 45 seconds timeout
     });
 
     // Prepare the request to Groq API with a timeout
@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
     // Add a timeout for the entire streaming process
     const streamTimeoutController = new AbortController();
     const { signal } = streamTimeoutController;
-    setTimeout(() => streamTimeoutController.abort(), 95000); // 95 seconds
+    setTimeout(() => streamTimeoutController.abort(), 50000); // 50 seconds
     
     try {
       // Pipe the response through our transform stream with timeout

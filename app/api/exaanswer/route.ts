@@ -4,7 +4,7 @@ import Exa from "exa-js";
 import { Message } from '@/app/types';
 import { getToken } from 'next-auth/jwt';
 
-export const maxDuration = 120;
+export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 const exa = new Exa(process.env.EXA_API_KEY as string);
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     // Add timeout promise to avoid hanging requests
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Exa API request timed out')), 90000); // 90 seconds timeout
+      setTimeout(() => reject(new Error('Exa API request timed out')), 45000); // 45 seconds timeout
     });
 
     // Create Exa stream - just pass the raw query since Exa is a search API
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
           // Add a timeout for the entire streaming process
           const streamTimeout = setTimeout(() => {
             controller.error(new Error('Streaming response timed out'));
-          }, 90000); // 90 seconds timeout
+          }, 45000); // 45 seconds timeout
           
           for await (const chunk of stream) {
             // Send citations if present
