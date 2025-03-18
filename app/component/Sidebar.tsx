@@ -131,32 +131,34 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       
       console.log('Sidebar: Starting signout process...');
       
-      // Create a hidden form to POST to the signout endpoint
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = '/api/auth/signout';
+      // First: Clear client-side storage
+      localStorage.clear();
+      sessionStorage.clear();
       
-      // Add CSRF token if available
-      const csrfToken = document.querySelector('input[name="csrfToken"]')?.getAttribute('value');
-      if (csrfToken) {
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = 'csrfToken';
-        csrfInput.value = csrfToken;
-        form.appendChild(csrfInput);
-      }
+      // Second: Clear all cookies from client side
+      document.cookie.split(';').forEach(c => {
+        const cookie = c.trim();
+        const eqPos = cookie.indexOf('=');
+        const name = eqPos > -1 ? cookie.substring(0, eqPos) : cookie;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+      });
       
-      // Add callback URL
-      const callbackInput = document.createElement('input');
-      callbackInput.type = 'hidden';
-      callbackInput.name = 'callbackUrl';
-      callbackInput.value = `/?logout=${Date.now()}`;
-      form.appendChild(callbackInput);
+      // Third: POST to NextAuth signout
+      const response = await fetch('/api/auth/signout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          callbackUrl: '/',
+          json: true
+        })
+      });
       
-      // Append to body, submit, then remove
-      document.body.appendChild(form);
-      form.submit();
-      document.body.removeChild(form);
+      console.log('Sidebar: Signout response:', response.status);
+      
+      // Fourth: Directly reload with cache buster to reset app state completely
+      window.location.href = `/?reload=${Date.now()}`;
       
     } catch (error) {
       console.error('Error signing out:', error);

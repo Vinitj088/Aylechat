@@ -15,7 +15,43 @@ const publicApiRoutes = [
 ];
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
+  
+  // Handle reload parameter (used for clearing session)
+  if (searchParams.has('reload') || searchParams.has('logout')) {
+    console.log('Middleware: Detected reload/logout parameter');
+    
+    // Create a new response
+    const response = NextResponse.next();
+    
+    // Clear all potential auth cookies to ensure clean state
+    const cookiesToClear = [
+      'next-auth.session-token',
+      '__Secure-next-auth.session-token',
+      '__Host-next-auth.session-token',
+      'next-auth.csrf-token',
+      '__Secure-next-auth.csrf-token',
+      '__Host-next-auth.csrf-token',
+      'next-auth.callback-url',
+      '__Secure-next-auth.callback-url',
+      '__Host-next-auth.callback-url',
+      'session_token'
+    ];
+    
+    for (const cookieName of cookiesToClear) {
+      response.cookies.delete(cookieName);
+      
+      // Also set expired cookies to ensure they're cleared
+      response.cookies.set({
+        name: cookieName,
+        value: '',
+        expires: new Date(0),
+        path: '/',
+      });
+    }
+    
+    return response;
+  }
   
   // Skip auth check for public API routes
   if (publicApiRoutes.some(route => pathname.startsWith(route))) {
@@ -59,6 +95,7 @@ export async function middleware(request: NextRequest) {
 // Run middleware on protected routes and API routes
 export const config = {
   matcher: [
+    '/',
     '/chat/:path*',
     '/settings/:path*',
     '/profile/:path*',
