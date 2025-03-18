@@ -16,12 +16,24 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
-    const { query } = await req.json();
+    const { query, messages } = await req.json();
     if (!query) {
       return new Response(JSON.stringify({ error: 'query is required' }), { status: 400 });
     }
 
-    const stream = exa.streamAnswer(query, { model: "exa-pro" });
+    // Format conversation history for Exa
+    let enhancedQuery = query;
+    if (messages && messages.length > 0) {
+      // Create a formatted conversation history
+      const conversationContext = messages
+        .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+        .join('\n\n');
+      
+      // Add conversation context to the query
+      enhancedQuery = `${conversationContext}\n\nUser: ${query}\n\nAssistant:`;
+    }
+
+    const stream = exa.streamAnswer(enhancedQuery, { model: "exa-pro" });
     
     const encoder = new TextEncoder();
 

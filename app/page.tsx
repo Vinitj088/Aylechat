@@ -179,10 +179,17 @@ export default function Page() {
       content: input
     };
 
+    // Create placeholder for assistant response
+    const assistantMessage: Message = {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: ''
+    };
+
     // Clear the input field and update the messages state
     setInput('');
     setIsLoading(true);
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage, assistantMessage]);
 
     try {
       // Use abort controller to cancel the request if needed
@@ -199,7 +206,7 @@ export default function Page() {
       
       // Create or update the thread with the new messages
       const threadId = await createOrUpdateThread({
-        messages: [...messages, userMessage],
+        messages: [...messages, userMessage, assistantMessage],
         title: threadTitle
       });
       
@@ -213,20 +220,74 @@ export default function Page() {
       const systemMessage = models.find(model => model.id === selectedModel);
       let modelName = systemMessage ? systemMessage.name : selectedModel;
 
-      // Rest of the function remains the same
-      // ... existing code ...
+      // Fetch the response
+      const { content, citations } = await fetchResponse(
+        input,
+        messages,
+        selectedModel,
+        abortControllerRef.current,
+        (updatedMessages) => {
+          // This callback updates messages as they stream in
+          setMessages(updatedMessages);
+        },
+        assistantMessage
+      );
+
+      // Update message with final response
+      setMessages(prev => {
+        const updatedMessages = [...prev];
+        const assistantIndex = updatedMessages.findIndex(m => m.id === assistantMessage.id);
+        
+        if (assistantIndex !== -1) {
+          updatedMessages[assistantIndex] = { 
+            ...assistantMessage, 
+            content, 
+            citations 
+          };
+        }
+        
+        return updatedMessages;
+      });
+
+      // Update the thread after completion
+      if (threadId) {
+        await createOrUpdateThread({
+          messages: [...messages, userMessage, {
+            ...assistantMessage,
+            content,
+            citations
+          }],
+          title: threadTitle
+        });
+      }
     } catch (error) {
       console.error('Error in chat submission:', error);
-      setMessages(prev => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: 'I encountered an error processing your request. Please try again.'
+      setMessages(prev => {
+        const assistantIndex = prev.findIndex(m => m.id === assistantMessage.id);
+        
+        if (assistantIndex !== -1) {
+          // Update the assistant message with an error
+          const updatedMessages = [...prev];
+          updatedMessages[assistantIndex] = {
+            ...assistantMessage,
+            content: 'I encountered an error processing your request. Please try again.'
+          };
+          return updatedMessages;
         }
-      ]);
+        
+        // If assistant message not found, add an error message
+        return [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: 'I encountered an error processing your request. Please try again.'
+          }
+        ];
+      });
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 

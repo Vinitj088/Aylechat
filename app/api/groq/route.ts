@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 
-    const { query, model } = await req.json();
+    const { query, model, messages } = await req.json();
     if (!query) {
       return new Response(JSON.stringify({ error: 'query is required' }), { status: 400 });
     }
@@ -29,6 +29,15 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'GROQ_API_KEY is not configured' }), { status: 500 });
     }
 
+    // Format messages for Groq API in the correct format
+    const formattedMessages = messages && messages.length > 0 
+      ? messages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }))
+      // If no messages history is provided, just use the query
+      : [{ role: 'user', content: query }];
+
     // Prepare the request to Groq API
     const groqResponse = await fetch(groqEndpoint, {
       method: 'POST',
@@ -38,7 +47,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: model,
-        messages: [{ role: 'user', content: query }],
+        messages: formattedMessages,
         stream: true
       })
     });

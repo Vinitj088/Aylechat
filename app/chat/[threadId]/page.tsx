@@ -139,7 +139,8 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
     // Update UI right away
     setInput('');
     setIsLoading(true);
-    setMessages(prev => [...prev, userMessage, assistantMessage]);
+    const updatedMessages = [...messages, userMessage, assistantMessage];
+    setMessages(updatedMessages);
 
     try {
       // Cancel any ongoing request
@@ -148,15 +149,15 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
       }
       abortControllerRef.current = new AbortController();
 
-      // Fetch the response
+      // Fetch the response with current messages for context
       const { content, citations } = await fetchResponse(
         input,
-        messages,
+        messages, // Pass the previous messages for context
         selectedModel,
         abortControllerRef.current,
-        (updatedMessages) => {
+        (updatedMsgs) => {
           // This callback updates messages as they stream in
-          setMessages(updatedMessages);
+          setMessages(updatedMsgs);
         },
         assistantMessage
       );
@@ -187,11 +188,15 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
             },
             credentials: 'include',
             body: JSON.stringify({
-              messages: messages.concat([userMessage, {
-                ...assistantMessage,
-                content,
-                citations
-              }]),
+              messages: [
+                ...messages, 
+                userMessage, 
+                {
+                  ...assistantMessage,
+                  content,
+                  citations
+                }
+              ],
               model: selectedModel
             })
           });
