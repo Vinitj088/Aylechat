@@ -1,9 +1,21 @@
 import { AuthForm } from "../component/AuthForm";
 import { UserProfile } from "../component/UserProfile";
 import { getSession } from "@/lib/auth-utils";
-import { cookies } from "next/headers";
+import { clearAuthCookiesServerAction } from "@/lib/session-utils";
+import { revalidatePath } from "next/cache";
 
 export const dynamic = 'force-dynamic';
+
+// Server action to clear cookies - this is allowed to modify cookies
+async function clearSessionServerAction() {
+  'use server';
+  
+  // Use our utility function to clear cookies in a server action
+  await clearAuthCookiesServerAction();
+  
+  // Revalidate the path to ensure fresh data
+  revalidatePath('/auth');
+}
 
 export default async function AuthPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
   const session = await getSession();
@@ -13,20 +25,9 @@ export default async function AuthPage({ searchParams }: { searchParams: { [key:
   
   // If expired or error parameter is present, we want to show the login form regardless of session
   if (isExpired) {
-    // Clear any cookies on the server as well
-    const cookieStore = cookies();
-    const cookiesToClear = [
-      'next-auth.session-token',
-      '__Secure-next-auth.session-token',
-      '__Host-next-auth.session-token',
-      'next-auth.csrf-token',
-      'next-auth.callback-url',
-      'session_token'
-    ];
-    
-    for (const name of cookiesToClear) {
-      cookieStore.delete(name);
-    }
+    // Instead of directly clearing cookies here, use the server action
+    // This avoids the "Cookies can only be modified in a Server Action or Route Handler" error
+    await clearSessionServerAction();
     
     // Force fresh session check
     return (

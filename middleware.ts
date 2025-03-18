@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import { AUTH_COOKIE_NAMES } from '@/lib/session-utils'
 
 // Protected routes that require authentication
 const protectedRoutes = [
@@ -29,21 +30,8 @@ export async function middleware(request: NextRequest) {
     // Create a new response
     const response = NextResponse.next();
     
-    // Clear all potential auth cookies to ensure clean state
-    const cookiesToClear = [
-      'next-auth.session-token',
-      '__Secure-next-auth.session-token',
-      '__Host-next-auth.session-token',
-      'next-auth.csrf-token',
-      '__Secure-next-auth.csrf-token',
-      '__Host-next-auth.csrf-token',
-      'next-auth.callback-url',
-      '__Secure-next-auth.callback-url',
-      '__Host-next-auth.callback-url',
-      'session_token'
-    ];
-    
-    for (const cookieName of cookiesToClear) {
+    // Clear all auth cookies using our constant list
+    for (const cookieName of AUTH_COOKIE_NAMES) {
       response.cookies.delete(cookieName);
       
       // Also set expired cookies to ensure they're cleared
