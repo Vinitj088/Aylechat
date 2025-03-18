@@ -226,7 +226,7 @@ export default function Page() {
         messages,
         selectedModel,
         abortControllerRef.current,
-        (updatedMessages) => {
+        (updatedMessages: Message[]) => {
           // This callback updates messages as they stream in
           setMessages(updatedMessages);
         },
