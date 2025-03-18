@@ -131,45 +131,9 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       
       console.log('Sidebar: Starting signout process...');
       
-      // Clear client-side storage
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Clear NextAuth cookies specifically on client side
-      const nextAuthCookies = [
-        '__Host-next-auth.csrf-token',
-        '__Secure-next-auth.callback-url',
-        '__Secure-next-auth.session-token',
-        'next-auth.csrf-token',
-        'next-auth.callback-url',
-        'next-auth.session-token'
-      ];
-      
-      console.log('Sidebar: Clearing NextAuth cookies on client');
-      nextAuthCookies.forEach(name => {
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-      });
-      
-      // Call our force-logout API for server-side session clearing
-      console.log('Sidebar: Calling force-logout API');
-      const forceLogoutRes = await fetch('/api/auth/force-logout', {
-        method: 'POST',
-        credentials: 'include',
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      });
-      
-      console.log('Sidebar: Force-logout API response:', forceLogoutRes.status);
-      
-      // Close sidebar
-      onClose();
-      
-      // Use direct page navigation to ensure a full refresh with cache busting
-      console.log('Sidebar: Redirecting with cache-busting...');
-      window.location.href = `/?logout=${Date.now()}`;
+      // Simply redirect to the NextAuth signout page
+      // This uses NextAuth's built-in signout which properly clears all cookies
+      window.location.href = '/api/auth/signout?callbackUrl=/?logout=' + Date.now();
       
     } catch (error) {
       console.error('Error signing out:', error);

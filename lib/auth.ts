@@ -2,6 +2,7 @@ import { compare } from "bcrypt";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "./db";
+import { AUTH_CONFIG } from "./constants";
 
 /**
  * NextAuth Configuration
@@ -84,10 +85,37 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
+    async signIn({ user }) {
+      if (user) {
+        // Successfully signed in - log for debugging
+        console.log(`NextAuth: User signed in successfully: ${user.email}`);
+      }
+      return true;
+    },
+  },
+  events: {
+    async signOut({ token }) {
+      console.log('NextAuth: User signed out, cleaning up sessions');
+      
+      // Delete from database if we have a token ID
+      if (token?.id) {
+        try {
+          await db
+            .deleteFrom('sessions')
+            .where('user_id', '=', token.id as string)
+            .execute();
+          
+          console.log(`NextAuth: Deleted sessions for user ${token.id}`);
+        } catch (error) {
+          console.error('NextAuth: Error deleting sessions:', error);
+        }
+      }
+    }
   },
   pages: {
     signIn: "/auth",
     error: "/auth",
+    signOut: "/auth",
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",

@@ -1,4 +1,4 @@
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useSession, signIn as nextAuthSignIn, signOut as nextAuthSignOut } from "next-auth/react";
 import { useState } from "react";
 
 /**
@@ -48,7 +48,7 @@ export function useAuth() {
       localStorage.removeItem('userSession');
       sessionStorage.removeItem('authState');
       
-      const result = await signIn("credentials", {
+      const result = await nextAuthSignIn("credentials", {
         email,
         password,
         redirect,
@@ -60,17 +60,11 @@ export function useAuth() {
         return null;
       }
       
-      // Force multiple updates to ensure state is current
+      // Force session update
       await update();
       
       // Store a flag to indicate successful login
       localStorage.setItem('userSession', 'active');
-      
-      // Add a small delay to allow session update to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Force another update after the delay
-      await update();
       
       return session?.user;
     } catch (err) {
@@ -118,71 +112,21 @@ export function useAuth() {
 
   /**
    * Sign out a user
-   * Performs a complete logout process including:
-   * - Client-side state cleanup
-   * - Server-side session clearing
-   * - NextAuth signOut
+   * Uses NextAuth's built-in signOut functionality with a redirect
    */
-  const handleSignOut = async () => {
-    try {
-      // Prevent duplicate sign-out attempts
-      if (loading) return false;
-      
-      setLoading(true);
-      console.log('useAuth: Starting signout process...');
-      
-      // Mark as logging out for immediate UI feedback
-      localStorage.removeItem('userSession');
-      sessionStorage.removeItem('authState');
-      
-      // More aggressive cookie clearing - ALL cookies, not just auth related
-      // This ensures complete state reset while preserving Redis data server-side
-      console.log('useAuth: Clearing all cookies...');
-      document.cookie.split(';').forEach(cookie => {
-        const [name] = cookie.trim().split('=');
-        if (name) {
-          console.log(`useAuth: Clearing cookie: ${name}`);
-          // Clear with different paths to ensure complete removal
-          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/auth;`;
-          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/api;`;
-        }
-      });
-      
-      // Call force-logout API first to ensure server-side session clearing
-      console.log('useAuth: Calling force-logout API...');
-      await fetch('/api/auth/force-logout', {
-        method: 'POST',
-        credentials: 'include',
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      });
-      
-      // Call NextAuth signOut with specific options
-      console.log('useAuth: Calling NextAuth signOut...');
-      await signOut({ 
-        redirect: false,
-        callbackUrl: '/'
-      });
-      
-      // Force session update
-      console.log('useAuth: Forcing session update...');
-      await update();
-      
-      // Add a longer delay to ensure everything is synced
-      console.log('useAuth: Adding delay before returning...');
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      return true;
-    } catch (err) {
-      console.error("Sign out error:", err);
-      return false;
-    } finally {
-      setLoading(false);
-    }
+  const handleSignOut = () => {
+    // Prevent duplicate sign-out attempts
+    if (loading) return;
+    
+    setLoading(true);
+    console.log('useAuth: Starting signout process using NextAuth...');
+    
+    // Use NextAuth's signOut with redirect for complete session cleanup
+    nextAuthSignOut({ 
+      callbackUrl: `/?logout=${Date.now()}` 
+    });
+    
+    // This function doesn't return a promise since it triggers a redirect
   };
 
   return {
