@@ -27,8 +27,10 @@ export async function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
   console.log(`Middleware processing: ${pathname}`);
   
-  // Create Supabase client for auth
+  // Create response to modify
   const res = NextResponse.next();
+  
+  // Create Supabase client for auth with cookie settings
   const supabase = createMiddlewareClient({ req: request, res });
   
   // Get the Supabase session
@@ -48,8 +50,20 @@ export async function middleware(request: NextRequest) {
     if (session.user.email) {
       res.headers.set('x-user-email', session.user.email);
     }
+    
+    // Set a secure cookie to validate session on the client side
+    // This is a backup mechanism to help track auth state
+    res.cookies.set('auth-state', 'authenticated', { 
+      path: '/',
+      httpOnly: false, // Make it available to client JS
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24, // 1 day
+      sameSite: 'lax'
+    });
   } else {
     console.log(`Unauthenticated access to ${pathname}`);
+    // Clear the auth state cookie if no session
+    res.cookies.set('auth-state', '', { maxAge: 0, path: '/' });
   }
   
   // Skip auth check for public API routes

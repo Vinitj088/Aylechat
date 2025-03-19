@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import AuthDebugButton from '@/components/AuthDebugButton';
 
 // Create a new component that uses useSearchParams
 function PageContent() {
@@ -451,6 +452,11 @@ function PageContent() {
         onClose={() => setShowAuthDialog(false)}
         onSuccess={handleAuthSuccess}
       />
+
+      {/* Add the debug button */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <AuthDebugButton />
+      </div>
     </main>
   );
 }

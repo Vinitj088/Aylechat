@@ -29,11 +29,23 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
+      
+      // Debug logging for session state
+      if (session) {
+        console.log('Session initialized with user:', session.user.email);
+        // Ensure cookies are set
+        document.cookie = `user-authenticated=true; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `user-email=${session.user.email}; path=/; max-age=86400; SameSite=Lax`;
+      } else {
+        console.log('No session found during initialization');
+      }
+      
       setIsLoading(false);
 
       // Set up listener for auth state changes
       const { data: { subscription } } = await supabase.auth.onAuthStateChange(
-        (_event, session) => {
+        (event, session) => {
+          console.log('Auth state changed:', event, session?.user?.email);
           setSession(session);
           setUser(session?.user ?? null);
           setIsLoading(false);
@@ -41,8 +53,24 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
           // Set a debug-only cookie when authentication state changes
           if (session?.user) {
             document.cookie = `user-authenticated=true; path=/; max-age=86400; SameSite=Lax`;
+            document.cookie = `user-email=${session.user.email}; path=/; max-age=86400; SameSite=Lax`;
+            
+            // Force refresh to ensure middleware picks up the session
+            if (event === 'SIGNED_IN') {
+              console.log('User signed in, refreshing...');
+              // Small delay to ensure cookies are set
+              setTimeout(() => {
+                router.refresh();
+              }, 500);
+            }
           } else {
             document.cookie = 'user-authenticated=; path=/; max-age=0';
+            document.cookie = 'user-email=; path=/; max-age=0';
+            
+            if (event === 'SIGNED_OUT') {
+              console.log('User signed out, refreshing...');
+              router.refresh();
+            }
           }
         }
       );
@@ -53,7 +81,7 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
     };
 
     initializeSession();
-  }, []);
+  }, [router]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -61,13 +89,20 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
       const { error, data } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
+      // Debug logging
+      console.log('Sign in successful, setting session for user:', email);
+      
       // We no longer need to manually set cookies since Supabase will handle this automatically
       // with the correct cookie names when using the implicit flow
 
       // But we'll set a special cookie for debugging
       document.cookie = `user-email=${email}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `user-authenticated=true; path=/; max-age=86400; SameSite=Lax`;
       
-      router.refresh();
+      // Small delay to ensure cookies are set
+      setTimeout(() => {
+        router.refresh();
+      }, 500);
     } catch (error: any) {
       throw new Error(error.message || 'Error signing in');
     } finally {
@@ -90,6 +125,8 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
       });
       
       if (error) throw error;
+      
+      console.log('Sign up successful, user data:', data.user?.email);
       
       // Automatically sign in the user after sign-up
       if (data.user) {
@@ -116,9 +153,13 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
         
         // Set debugging cookie
         document.cookie = `user-email=${email}; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `user-authenticated=true; path=/; max-age=86400; SameSite=Lax`;
+        
+        // Small delay to ensure cookies are set
+        setTimeout(() => {
+          router.refresh();
+        }, 500);
       }
-      
-      router.refresh();
     } catch (error: any) {
       throw new Error(error.message || 'Error signing up');
     } finally {
