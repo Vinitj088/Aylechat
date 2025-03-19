@@ -2,7 +2,8 @@
 import { NextRequest } from 'next/server';
 import Exa from "exa-js";
 import { Message } from '@/app/types';
-import { getAuthenticatedUser } from '@/lib/supabase-utils';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -12,16 +13,22 @@ const exa = new Exa(process.env.EXA_API_KEY as string);
 export async function POST(req: NextRequest) {
   console.log('Exa API called');
   try {
-    // Get authenticated user
-    console.log('Getting authenticated user...');
-    const { user, error } = await getAuthenticatedUser();
+    // Get authenticated user using Supabase's route handler
+    console.log('Getting authenticated user with createRouteHandlerClient...');
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
     
-    if (error || !user) {
-      console.error('Authentication error:', error);
-      return new Response(JSON.stringify({ error: 'Unauthorized', details: error }), { status: 401 });
+    if (authError) {
+      console.error('Authentication error:', authError);
+      return new Response(JSON.stringify({ error: 'Unauthorized', details: authError.message }), { status: 401 });
+    }
+    
+    if (!session || !session.user) {
+      console.error('No session or user found');
+      return new Response(JSON.stringify({ error: 'Unauthorized', details: 'No session found' }), { status: 401 });
     }
 
-    console.log('User authenticated:', user.email);
+    console.log('User authenticated:', session.user.email);
     const { query, messages } = await req.json();
     console.log('Request body:', { query, messageCount: messages?.length });
     

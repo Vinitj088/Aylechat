@@ -38,14 +38,11 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
           setUser(session?.user ?? null);
           setIsLoading(false);
           
-          // Update cookies when session changes
-          if (session) {
-            document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=86400; SameSite=Lax`;
-            document.cookie = `sb-refresh-token=${session.refresh_token}; path=/; max-age=86400; SameSite=Lax`;
+          // Set a debug-only cookie when authentication state changes
+          if (session?.user) {
+            document.cookie = `user-authenticated=true; path=/; max-age=86400; SameSite=Lax`;
           } else {
-            // Clear cookies on logout
-            document.cookie = 'sb-access-token=; path=/; max-age=0';
-            document.cookie = 'sb-refresh-token=; path=/; max-age=0';
+            document.cookie = 'user-authenticated=; path=/; max-age=0';
           }
         }
       );
@@ -64,13 +61,12 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
       const { error, data } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      // Make sure to explicitly save the session data for API access
-      if (data?.session) {
-        // Store session tokens in cookies for API access
-        document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=86400; SameSite=Lax`;
-        document.cookie = `sb-refresh-token=${data.session.refresh_token}; path=/; max-age=86400; SameSite=Lax`;
-      }
+      // We no longer need to manually set cookies since Supabase will handle this automatically
+      // with the correct cookie names when using the implicit flow
 
+      // But we'll set a special cookie for debugging
+      document.cookie = `user-email=${email}; path=/; max-age=86400; SameSite=Lax`;
+      
       router.refresh();
     } catch (error: any) {
       throw new Error(error.message || 'Error signing in');
@@ -111,18 +107,15 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
         }
         
         // Sign in with the credentials that were just used to sign up
-        const { error: signInError, data: signInData } = await supabase.auth.signInWithPassword({
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password
         });
         
         if (signInError) throw signInError;
         
-        // Store session tokens for API access
-        if (signInData?.session) {
-          document.cookie = `sb-access-token=${signInData.session.access_token}; path=/; max-age=86400; SameSite=Lax`;
-          document.cookie = `sb-refresh-token=${signInData.session.refresh_token}; path=/; max-age=86400; SameSite=Lax`;
-        }
+        // Set debugging cookie
+        document.cookie = `user-email=${email}; path=/; max-age=86400; SameSite=Lax`;
       }
       
       router.refresh();
@@ -138,9 +131,9 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
       setIsLoading(true);
       await supabase.auth.signOut();
       
-      // Clear auth cookies
-      document.cookie = 'sb-access-token=; path=/; max-age=0';
-      document.cookie = 'sb-refresh-token=; path=/; max-age=0';
+      // Clear debug cookies
+      document.cookie = 'user-authenticated=; path=/; max-age=0';
+      document.cookie = 'user-email=; path=/; max-age=0';
       
       router.push('/');
       router.refresh();

@@ -12,7 +12,8 @@ const protectedRoutes = [
 const publicApiRoutes = [
   '/api/auth',
   '/api/migration',
-  '/api/debug'
+  '/api/debug',
+  '/api/auth-debug'
 ];
 
 // API routes that require authentication
@@ -39,6 +40,14 @@ export async function middleware(request: NextRequest) {
   
   if (session) {
     console.log(`Authenticated user: ${session.user.email} accessing ${pathname}`);
+    
+    // Add these headers to debug
+    if (session.user.id) {
+      res.headers.set('x-user-id', session.user.id);
+    }
+    if (session.user.email) {
+      res.headers.set('x-user-email', session.user.email);
+    }
   } else {
     console.log(`Unauthenticated access to ${pathname}`);
   }
@@ -73,14 +82,6 @@ export async function middleware(request: NextRequest) {
     console.log(`Redirecting unauthenticated user from ${pathname} to home`);
     const url = new URL('/?authRequired=true', request.url);
     return NextResponse.redirect(url);
-  }
-  
-  // Set cookies for authenticated users
-  if (session) {
-    res.cookies.set('sb-authenticated', 'true', { 
-      maxAge: 60 * 60 * 24, // 1 day
-      path: '/'  
-    });
   }
   
   return res;

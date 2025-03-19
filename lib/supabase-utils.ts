@@ -173,7 +173,9 @@ export const getServerSupabaseClient = () => {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   return createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-      persistSession: false
+      persistSession: false,
+      autoRefreshToken: true,
+      detectSessionInUrl: false
     }
   });
 };
@@ -188,50 +190,23 @@ export async function getAuthenticatedUser() {
     const allCookies = cookieStore.getAll();
     console.log('Available cookies:', allCookies.map(c => c.name));
     
-    // Try getting session directly first
-    const { data: { session: directSession } } = await supabaseClient.auth.getSession();
+    // Try getting session directly first - with the default Supabase cookie
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
     
-    if (directSession?.user) {
-      console.log('Found session directly:', directSession.user.email);
-      return { user: directSession.user, error: null };
+    if (error) {
+      console.error('Error getting session:', error);
+      return { user: null, error: error.message };
     }
     
-    // Look for Supabase cookies with various possible names
-    const accessToken = 
-      cookieStore.get('sb-access-token') || 
-      cookieStore.get('sb-authed') ||
-      cookieStore.get('supabase-auth-token');
-      
-    const refreshToken = cookieStore.get('sb-refresh-token');
-    
-    if (!accessToken) {
-      console.log('No Supabase access token found in cookies');
-      return { user: null, error: 'No access token' };
+    if (session?.user) {
+      console.log('Found session directly:', session.user.email);
+      return { user: session.user, error: null };
     }
     
-    console.log('Found access token, setting session...');
+    // If we get here, there's no session using the default Supabase cookie handling
+    console.log('No session found using default Supabase cookies');
     
-    // Get session from cookie
-    const sessionResult = await supabaseClient.auth.setSession({
-      access_token: accessToken.value,
-      refresh_token: refreshToken?.value || ''
-    });
-    
-    if (sessionResult.error) {
-      console.error('Error setting session:', sessionResult.error);
-      return { user: null, error: sessionResult.error.message };
-    }
-    
-    // Get the session
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    
-    if (!session || !session.user) {
-      console.log('No session or user found after setting session');
-      return { user: null, error: 'Not authenticated' };
-    }
-    
-    console.log('Successfully authenticated user:', session.user.email);
-    return { user: session.user, error: null };
+    return { user: null, error: 'Not authenticated' };
   } catch (error) {
     console.error('Error getting authenticated user:', error);
     return { user: null, error: 'Authentication error' };
