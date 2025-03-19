@@ -1,16 +1,15 @@
 'use client';
 
 import { SupabaseAuthProvider } from '@/context/SupabaseAuthContext';
-import { SonnerToaster } from './component/ui/sonner-toast';
+import { Toaster } from '@/components/ui/sonner';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SupabaseAuthProvider>
       {children}
-      <SonnerToaster 
+      <Toaster 
         position="bottom-right"
         closeButton
-        richColors={false}
         expand={false}
         style={{
           zIndex: 9999,

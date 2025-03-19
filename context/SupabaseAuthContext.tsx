@@ -64,6 +64,8 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
   const signUp = async (email: string, password: string, name?: string) => {
     try {
       setIsLoading(true);
+      
+      // Sign up the user without email verification
       const { error, data } = await supabase.auth.signUp({ 
         email, 
         password,
@@ -75,9 +77,9 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
       
       if (error) throw error;
       
-      // After signup, automatically sign in the user
+      // Automatically sign in the user after sign-up
       if (data.user) {
-        // Update profile data
+        // Update profile data if name is provided
         if (name) {
           await supabase
             .from('profiles')
@@ -90,11 +92,13 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
             });
         }
         
-        // Immediately try to sign in with the same credentials
-        await supabase.auth.signInWithPassword({
+        // Sign in with the credentials that were just used to sign up
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password
         });
+        
+        if (signInError) throw signInError;
       }
       
       router.refresh();

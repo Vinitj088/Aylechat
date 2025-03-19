@@ -111,12 +111,12 @@ export default function SupabaseAuthDialog({ isOpen, onClose, onSuccess }: AuthD
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="text-center">
+      <DialogContent className="sm:max-w-[425px] border-2 border-black rounded-none shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-[#fffdf5] p-0">
+        <DialogHeader className="p-6 pb-0">
+          <DialogTitle className="text-center text-xl font-bold">
             {activeTab === 'signin' ? 'Sign In' : 'Create an Account'}
           </DialogTitle>
-          <DialogDescription className="text-center">
+          <DialogDescription className="text-center text-black/70">
             {activeTab === 'signin' 
               ? 'Enter your credentials to sign in to your account' 
               : 'Fill out the form below to create a new account'}
@@ -124,15 +124,15 @@ export default function SupabaseAuthDialog({ isOpen, onClose, onSuccess }: AuthD
         </DialogHeader>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="signin">Sign In</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 p-0 h-12 bg-[#f5f3e4] rounded-none border-y-2 border-black">
+            <TabsTrigger value="signin" className="rounded-none data-[state=active]:bg-[#fffdf5] data-[state=active]:shadow-none h-full">Sign In</TabsTrigger>
+            <TabsTrigger value="signup" className="rounded-none data-[state=active]:bg-[#fffdf5] data-[state=active]:shadow-none h-full">Sign Up</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="signin" className="space-y-4 pt-4">
+          <TabsContent value="signin" className="space-y-4 p-6">
             <form onSubmit={handleSignIn} className="space-y-4">
               <div className="grid w-full gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="font-medium">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -141,10 +141,11 @@ export default function SupabaseAuthDialog({ isOpen, onClose, onSuccess }: AuthD
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
                   required
+                  className="border-2 border-black rounded-none p-2 bg-white"
                 />
               </div>
               <div className="grid w-full gap-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="font-medium">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -153,23 +154,28 @@ export default function SupabaseAuthDialog({ isOpen, onClose, onSuccess }: AuthD
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
                   required
+                  className="border-2 border-black rounded-none p-2 bg-white"
                 />
               </div>
               
               {error && (
-                <p className="text-sm text-red-500">{error}</p>
+                <p className="text-sm text-red-500 font-medium">{error}</p>
               )}
               
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button 
+                type="submit" 
+                className="w-full bg-black text-white rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all" 
+                disabled={isLoading}
+              >
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
           </TabsContent>
           
-          <TabsContent value="signup" className="space-y-4 pt-4">
+          <TabsContent value="signup" className="space-y-4 p-6">
             <form onSubmit={handleSignUp} className="space-y-4">
               <div className="grid w-full gap-2">
-                <Label htmlFor="name">Name (Optional)</Label>
+                <Label htmlFor="name" className="font-medium">Name (Optional)</Label>
                 <Input
                   id="name"
                   type="text"
@@ -177,10 +183,11 @@ export default function SupabaseAuthDialog({ isOpen, onClose, onSuccess }: AuthD
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={isLoading}
+                  className="border-2 border-black rounded-none p-2 bg-white"
                 />
               </div>
               <div className="grid w-full gap-2">
-                <Label htmlFor="email-signup">Email</Label>
+                <Label htmlFor="email-signup" className="font-medium">Email</Label>
                 <Input
                   id="email-signup"
                   type="email"
@@ -189,10 +196,11 @@ export default function SupabaseAuthDialog({ isOpen, onClose, onSuccess }: AuthD
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
                   required
+                  className="border-2 border-black rounded-none p-2 bg-white"
                 />
               </div>
               <div className="grid w-full gap-2">
-                <Label htmlFor="password-signup">Password</Label>
+                <Label htmlFor="password-signup" className="font-medium">Password</Label>
                 <Input
                   id="password-signup"
                   type="password"
@@ -201,14 +209,19 @@ export default function SupabaseAuthDialog({ isOpen, onClose, onSuccess }: AuthD
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
                   required
+                  className="border-2 border-black rounded-none p-2 bg-white"
                 />
               </div>
               
               {error && (
-                <p className="text-sm text-red-500">{error}</p>
+                <p className="text-sm text-red-500 font-medium">{error}</p>
               )}
               
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button 
+                type="submit" 
+                className="w-full bg-black text-white rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all" 
+                disabled={isLoading}
+              >
                 {isLoading ? 'Creating account...' : 'Create Account'}
               </Button>
             </form>
