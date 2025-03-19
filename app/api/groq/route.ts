@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
       
       if (userAuthCookie && userEmailCookie?.value) {
         console.log('Found backup authentication cookies for:', userEmailCookie.value);
+        // Accept the cookie auth as valid without database checks
         isAuthenticated = true;
         userEmail = userEmailCookie.value;
       }
@@ -54,9 +55,9 @@ export async function POST(req: NextRequest) {
 
     // Make the formatted messages for Groq API compatible
     const formattedMessages = messages.map(msg => ({
-      role: msg.role === 'user' ? 'user' : 'assistant',
+      role: msg.role === 'user' ? 'user' : 'assistant' as const,
       content: msg.content
-    }));
+    })) as Array<{ role: 'user' | 'assistant'; content: string }>;
 
     console.log(`Creating Groq chat with model "${model}" and ${formattedMessages.length} messages`);
     

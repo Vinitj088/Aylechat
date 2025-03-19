@@ -40,45 +40,17 @@ export async function GET(request: NextRequest) {
       console.log('Attempting to use backup cookies for:', userEmailCookie.value);
       
       try {
-        // Try to get user by email from Supabase
-        const { data: userData, error: userError } = await supabase
-          .from('profiles')
-          .select('id, email')
-          .eq('email', userEmailCookie.value)
-          .single();
+        // Create a mock user ID based on email if we can't query the database
+        // This is a temporary solution until the profiles table is created
+        const mockUserId = userEmailCookie.value.split('@')[0] + '-user';
+        console.log('Using mock user ID for authentication:', mockUserId);
+        const userId = mockUserId;
+        const threads = await RedisService.getUserChatThreads(userId);
         
-        if (userError) {
-          console.error('Error looking up user by email:', userError);
-          // Try a different approach - look up in auth.users directly
-          const serviceClient = await supabase.auth.admin.listUsers();
-          const matchingUser = serviceClient.data?.users?.find(
-            u => u.email === userEmailCookie.value
-          );
-          
-          if (matchingUser) {
-            console.log('Found user from auth.users:', matchingUser.id);
-            const userId = matchingUser.id;
-            const threads = await RedisService.getUserChatThreads(userId);
-            
-            return NextResponse.json(
-              { success: true, threads },
-              { headers: CACHE_HEADERS }
-            );
-          }
-        }
-        
-        if (userData?.id) {
-          console.log('Found user ID from email cookie:', userData.id);
-          const userId = userData.id;
-          const threads = await RedisService.getUserChatThreads(userId);
-          
-          return NextResponse.json(
-            { success: true, threads },
-            { headers: CACHE_HEADERS }
-          );
-        } else {
-          console.error('No profile found for email:', userEmailCookie.value);
-        }
+        return NextResponse.json(
+          { success: true, threads },
+          { headers: CACHE_HEADERS }
+        );
       } catch (userLookupError) {
         console.error('Error in user lookup process:', userLookupError);
       }
@@ -125,17 +97,10 @@ export async function POST(request: NextRequest) {
       if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
         console.log('Attempting to use backup cookies for:', userEmailCookie.value);
         
-        // Try to get user by email from Supabase
-        const { data: userData, error: userError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', userEmailCookie.value)
-          .single();
-        
-        if (userData?.id) {
-          console.log('Found user ID from email cookie:', userData.id);
-          userId = userData.id;
-        }
+        // Create a mock user ID based on email (temporary solution)
+        const mockUserId = userEmailCookie.value.split('@')[0] + '-user';
+        console.log('Using mock user ID for authentication:', mockUserId);
+        userId = mockUserId;
       }
     } else if (session && session.user) {
       console.log('User authenticated from session:', session.user.email);

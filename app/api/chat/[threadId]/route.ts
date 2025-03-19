@@ -39,23 +39,10 @@ export async function GET(
       if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
         console.log('Attempting to use backup cookies for:', userEmailCookie.value);
         
-        try {
-          // Try to get user by email from Supabase
-          const { data: userData, error: userError } = await supabase
-            .from('profiles')
-            .select('id, email')
-            .eq('email', userEmailCookie.value)
-            .single();
-          
-          if (userData?.id) {
-            console.log('Found user ID from email cookie:', userData.id);
-            userId = userData.id;
-          } else if (userError) {
-            console.error('Error looking up user by email:', userError);
-          }
-        } catch (userLookupError) {
-          console.error('Error in user lookup process:', userLookupError);
-        }
+        // Create a mock user ID based on email (temporary solution)
+        const mockUserId = userEmailCookie.value.split('@')[0] + '-user';
+        console.log('Using mock user ID for authentication:', mockUserId);
+        userId = mockUserId;
       }
     }
     
@@ -121,23 +108,10 @@ export async function PUT(
       if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
         console.log('Attempting to use backup cookies for:', userEmailCookie.value);
         
-        try {
-          // Try to get user by email from Supabase
-          const { data: userData, error: userError } = await supabase
-            .from('profiles')
-            .select('id, email')
-            .eq('email', userEmailCookie.value)
-            .single();
-          
-          if (userData?.id) {
-            console.log('Found user ID from email cookie:', userData.id);
-            userId = userData.id;
-          } else if (userError) {
-            console.error('Error looking up user by email:', userError);
-          }
-        } catch (userLookupError) {
-          console.error('Error in user lookup process:', userLookupError);
-        }
+        // Create a mock user ID based on email (temporary solution)
+        const mockUserId = userEmailCookie.value.split('@')[0] + '-user';
+        console.log('Using mock user ID for authentication:', mockUserId);
+        userId = mockUserId;
       }
     }
     
@@ -219,23 +193,10 @@ export async function DELETE(
       if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
         console.log('Attempting to use backup cookies for:', userEmailCookie.value);
         
-        try {
-          // Try to get user by email from Supabase
-          const { data: userData, error: userError } = await supabase
-            .from('profiles')
-            .select('id, email')
-            .eq('email', userEmailCookie.value)
-            .single();
-          
-          if (userData?.id) {
-            console.log('Found user ID from email cookie:', userData.id);
-            userId = userData.id;
-          } else if (userError) {
-            console.error('Error looking up user by email:', userError);
-          }
-        } catch (userLookupError) {
-          console.error('Error in user lookup process:', userLookupError);
-        }
+        // Create a mock user ID based on email (temporary solution)
+        const mockUserId = userEmailCookie.value.split('@')[0] + '-user';
+        console.log('Using mock user ID for authentication:', mockUserId);
+        userId = mockUserId;
       }
     }
     

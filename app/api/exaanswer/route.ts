@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       
       if (userAuthCookie && userEmailCookie?.value) {
         console.log('Found backup authentication cookies for:', userEmailCookie.value);
+        // Accept the cookie auth as valid without database checks
         isAuthenticated = true;
         userEmail = userEmailCookie.value;
       }
