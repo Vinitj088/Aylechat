@@ -69,22 +69,32 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
         password,
         options: {
           data: { name },
+          emailRedirectTo: undefined
         }
       });
       
       if (error) throw error;
       
-      // After signup, we might want to update the user profile with additional data
-      if (data.user && name) {
-        await supabase
-          .from('profiles')
-          .upsert({ 
-            id: data.user.id, 
-            name,
-            email,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
+      // After signup, automatically sign in the user
+      if (data.user) {
+        // Update profile data
+        if (name) {
+          await supabase
+            .from('profiles')
+            .upsert({ 
+              id: data.user.id, 
+              name,
+              email,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+        }
+        
+        // Immediately try to sign in with the same credentials
+        await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
       }
       
       router.refresh();
