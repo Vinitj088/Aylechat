@@ -1,119 +1,160 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 
-// Protected routes that require authentication
-const protectedRoutes = [
-  '/chat',
-  '/settings',
-  '/profile',
-];
+// Protected client routes that should redirect to the sign-in page
+const PROTECTED_ROUTES = ['/chat', '/settings', '/profile']
 
-// Public routes that don't require API authentication
-const publicApiRoutes = [
-  '/api/auth',
-  '/api/migration',
-  '/api/debug',
-  '/api/auth-debug'
-];
+// Public API routes that don't need auth
+const PUBLIC_API_ROUTES = ['/api/auth', '/api/migration', '/api/debug', '/api/auth-debug']
 
-// API routes that require authentication
-const protectedApiRoutes = [
-  '/api/chat',
-  '/api/exaanswer',
-  '/api/groq',
-];
+// Protected API routes that return 401 unauthorized
+const PROTECTED_API_ROUTES = ['/api/chat', '/api/exaanswer', '/api/groq']
 
 export async function middleware(request: NextRequest) {
-  const { pathname, searchParams } = request.nextUrl;
-  console.log(`Middleware processing: ${pathname}`);
+  const path = request.nextUrl.pathname
   
-  // Create response to modify
-  const res = NextResponse.next();
+  // Clone the request headers and set a new response
+  const requestHeaders = new Headers(request.headers)
+  const res = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  })
   
-  // Create Supabase client for auth
-  const supabase = createMiddlewareClient({ req: request, res });
+  // Create supabase middleware client
+  const supabase = createMiddlewareClient({ req: request, res })
+
+  console.log('Middleware processing:', path)
   
-  // Get the Supabase session
-  const { data: { session }, error } = await supabase.auth.getSession();
+  // Check for auth-related cookies
+  const cookies = request.cookies
+  const hasBackupAuth = cookies.has('user-authenticated')
+  const hasBackupEmail = cookies.has('user-email')
+  const userEmail = cookies.get('user-email')?.value || 'unknown'
   
-  // Check for backup cookies if no session is found
-  let hasBackupCookies = false;
-  if (!session) {
-    // See if we have our custom auth cookies as a backup mechanism
-    const authCookie = request.cookies.get('user-authenticated');
-    const emailCookie = request.cookies.get('user-email');
-    hasBackupCookies = !!(authCookie && emailCookie);
+  if (hasBackupAuth && hasBackupEmail) {
+    console.log('Using backup cookies for', userEmail)
+    // Set a header so the API routes know we've authenticated with cookies
+    requestHeaders.set('x-auth-email', userEmail)
+    requestHeaders.set('x-auth-method', 'cookie')
+  }
+  
+  // For public API routes, skip session check
+  if (PUBLIC_API_ROUTES.some(route => path.startsWith(route))) {
+    console.log('Public API route detected:', path)
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    })
+  }
+  
+  // Check if we're dealing with a protected page
+  const isProtectedPage = PROTECTED_ROUTES.some(route => path.startsWith(route))
+  const isProtectedApi = PROTECTED_API_ROUTES.some(route => path.startsWith(route))
+  
+  // If not a protected route, continue without checking auth
+  if (!isProtectedPage && !isProtectedApi) {
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    })
+  }
+  
+  try {
+    // Get the user's session
+    const { data: { session } } = await supabase.auth.getSession()
     
-    if (hasBackupCookies) {
-      console.log(`Using backup cookies for ${emailCookie?.value}`);
+    // If we have a session, add the user email to headers
+    if (session?.user) {
+      console.log('User authenticated in middleware:', session.user.email || 'no-email')
+      if (session.user.email) {
+        requestHeaders.set('x-auth-email', session.user.email)
+      }
+      requestHeaders.set('x-auth-method', 'session')
+      requestHeaders.set('x-auth-user-id', session.user.id)
+      
+      // Set a secure cookie for the client to know it's authenticated
+      res.cookies.set('user-authenticated', 'true', { 
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+        httpOnly: false,
+        secure: true,
+        sameSite: 'lax'
+      })
+      
+      // Only set the email cookie if email exists
+      if (session.user.email) {
+        res.cookies.set('user-email', session.user.email, {
+          maxAge: 30 * 24 * 60 * 60, // 30 days
+          httpOnly: false,
+          secure: true,
+          sameSite: 'lax'
+        })
+      }
+      
+      return res
     }
-  }
-  
-  if (error) {
-    console.error('Middleware auth error:', error);
-  }
-  
-  if (session) {
-    console.log(`Authenticated user: ${session.user.email} accessing ${pathname}`);
     
-    // Add these headers to debug
-    if (session.user.id) {
-      res.headers.set('x-user-id', session.user.id);
-    }
-    if (session.user.email) {
-      res.headers.set('x-user-email', session.user.email);
+    // If no session but we have backup cookies, allow access for now
+    if (hasBackupAuth && hasBackupEmail) {
+      console.log('No session, but using backup cookies for:', userEmail)
+      
+      // For API routes, allow the API to decide if it accepts the backup auth
+      if (isProtectedApi) {
+        return NextResponse.next({
+          request: {
+            headers: requestHeaders,
+          },
+        })
+      }
+      
+      // For protected pages, allow access with backup cookies
+      return res
     }
     
-    // Set a secure cookie to validate session on the client side
-    // This is a backup mechanism to help track auth state
-    res.cookies.set('auth-state', 'authenticated', { 
-      path: '/',
-      httpOnly: false, // Make it available to client JS
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-      sameSite: 'lax'
-    });
-  } else {
-    console.log(`Unauthenticated access to ${pathname}`);
-    // Clear the auth state cookie if no session
-    res.cookies.set('auth-state', '', { maxAge: 0, path: '/' });
+    // If we reach here, no authentication was found
+    console.log('Unauthenticated access to', path)
+    
+    // For API routes, return unauthorized
+    if (isProtectedApi) {
+      return NextResponse.json(
+        { error: 'Unauthorized', message: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+    
+    // For pages, redirect to sign in
+    const redirectUrl = new URL('/', request.url)
+    redirectUrl.searchParams.set('redirectedFrom', path)
+    return NextResponse.redirect(redirectUrl)
+    
+  } catch (error) {
+    console.error('Middleware error:', error)
+    
+    // On error, allow requests to continue but mark as unauthenticated
+    requestHeaders.set('x-auth-error', 'true')
+    
+    // For API routes, return error
+    if (isProtectedApi) {
+      return NextResponse.json(
+        { error: 'Authentication error', message: 'Failed to validate authentication' },
+        { status: 500 }
+      )
+    }
+    
+    // For client routes, redirect to sign in
+    if (isProtectedPage) {
+      const redirectUrl = new URL('/', request.url)
+      return NextResponse.redirect(redirectUrl)
+    }
+    
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    })
   }
-  
-  // Skip auth check for public API routes
-  if (publicApiRoutes.some(route => pathname.startsWith(route))) {
-    console.log(`Public API route detected: ${pathname}`);
-    return res;
-  }
-  
-  // Check for protected routes that require authentication
-  const isProtectedRoute = protectedRoutes.some(route => 
-    pathname.startsWith(route)
-  );
-  
-  // Check for protected API routes
-  const isProtectedApiRoute = protectedApiRoutes.some(route => 
-    pathname.startsWith(route)
-  );
-  
-  // If it's a protected API route and there's no session, return 401
-  // But allow access if we have backup cookies
-  if (isProtectedApiRoute && !session && !hasBackupCookies) {
-    console.log(`Unauthorized API access to ${pathname}`);
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
-  }
-  
-  // If it's a protected client route and there's no session, redirect to home
-  // But allow access if we have backup cookies
-  if (isProtectedRoute && !session && !hasBackupCookies) {
-    console.log(`Redirecting unauthenticated user from ${pathname} to home`);
-    const url = new URL('/?authRequired=true', request.url);
-    return NextResponse.redirect(url);
-  }
-  
-  return res;
 }
 
 export const config = {

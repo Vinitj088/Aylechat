@@ -23,65 +23,127 @@ export const SupabaseAuthProvider = ({ children }: { children: React.ReactNode }
   const router = useRouter();
 
   useEffect(() => {
-    // Initialize session from local storage on mount
     const initializeSession = async () => {
       setIsLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      // Debug logging for session state
-      if (session) {
-        console.log('Session initialized with user:', session.user.email);
-        // Ensure cookies are set
-        document.cookie = `user-authenticated=true; path=/; max-age=86400; SameSite=Lax`;
-        document.cookie = `user-email=${session.user.email}; path=/; max-age=86400; SameSite=Lax`;
-      } else {
-        console.log('No session found during initialization');
-      }
-      
-      setIsLoading(false);
-
-      // Set up listener for auth state changes
-      const { data: { subscription } } = await supabase.auth.onAuthStateChange(
-        (event, session) => {
-          console.log('Auth state changed:', event, session?.user?.email);
-          setSession(session);
-          setUser(session?.user ?? null);
-          setIsLoading(false);
-          
-          // Set a debug-only cookie when authentication state changes
-          if (session?.user) {
-            document.cookie = `user-authenticated=true; path=/; max-age=86400; SameSite=Lax`;
-            document.cookie = `user-email=${session.user.email}; path=/; max-age=86400; SameSite=Lax`;
-            
-            // Force refresh to ensure middleware picks up the session
-            if (event === 'SIGNED_IN') {
-              console.log('User signed in, refreshing...');
-              // Small delay to ensure cookies are set
-              setTimeout(() => {
-                router.refresh();
-              }, 500);
-            }
-          } else {
-            document.cookie = 'user-authenticated=; path=/; max-age=0';
-            document.cookie = 'user-email=; path=/; max-age=0';
-            
-            if (event === 'SIGNED_OUT') {
-              console.log('User signed out, refreshing...');
-              router.refresh();
-            }
-          }
+      try {
+        // Get initial session
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        // Set cookies whenever we have a session, even if it's from local storage
+        if (session) {
+          document.cookie = `user-authenticated=true; path=/; max-age=2592000; SameSite=Lax; Secure`; // 30 days
+          document.cookie = `user-email=${session.user.email}; path=/; max-age=2592000; SameSite=Lax; Secure`; // 30 days
+          document.cookie = `debug-authenticated=true; path=/; max-age=2592000; SameSite=Lax; Secure`; // 30 days
+          console.log('Set session cookies from initialized session');
         }
-      );
+        
+        // Set up auth state change listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+          console.log(`Auth state changed: ${event}`);
+          
+          // Only update if we have a real change
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            setSession(newSession);
+            setUser(newSession?.user ?? null);
+            
+            // Set cookies on sign in or token refresh
+            if (newSession) {
+              document.cookie = `user-authenticated=true; path=/; max-age=2592000; SameSite=Lax; Secure`; // 30 days
+              document.cookie = `user-email=${newSession.user.email}; path=/; max-age=2592000; SameSite=Lax; Secure`; // 30 days
+              document.cookie = `debug-authenticated=true; path=/; max-age=2592000; SameSite=Lax; Secure`; // 30 days
+              console.log('Set session cookies after auth state change');
+            }
+          } else if (event === 'SIGNED_OUT') {
+            setSession(null);
+            setUser(null);
+            
+            // Clear cookies on sign out
+            document.cookie = 'user-authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            document.cookie = 'user-email=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            document.cookie = 'debug-authenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            console.log('Cleared session cookies after sign out');
+          }
+        });
 
-      return () => {
-        subscription.unsubscribe();
-      };
+        return () => {
+          subscription.unsubscribe();
+        };
+      } catch (error) {
+        console.error('Error initializing session:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     initializeSession();
-  }, [router]);
+  }, [supabase.auth, router]);
+
+  // Force refresh token periodically to keep session alive
+  useEffect(() => {
+    // Helper to refresh the token every 10 minutes to keep session alive
+    const refreshToken = async () => {
+      try {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error) {
+          console.error('Error refreshing token:', error);
+          // If we can't refresh the token but have backup cookies, make sure we don't lose session
+          const cookies = document.cookie.split(';').map(c => c.trim());
+          const hasCookieAuth = cookies.some(c => c.startsWith('user-authenticated='));
+          const hasEmailCookie = cookies.some(c => c.startsWith('user-email='));
+          
+          if (hasCookieAuth && hasEmailCookie) {
+            console.log('Session refresh failed but backup cookies exist, maintaining session');
+            // Don't clear session state, let backup cookie auth handle it
+          } else {
+            console.log('No valid session or backup cookies, clearing session state');
+            setSession(null);
+            setUser(null);
+          }
+        } else if (data.session) {
+          console.log('Session refreshed successfully');
+          setSession(data.session);
+          setUser(data.session.user);
+          
+          // Refresh the cookies too
+          document.cookie = `user-authenticated=true; path=/; max-age=2592000; SameSite=Lax; Secure`; // 30 days
+          document.cookie = `user-email=${data.session.user.email}; path=/; max-age=2592000; SameSite=Lax; Secure`; // 30 days
+          document.cookie = `debug-authenticated=true; path=/; max-age=2592000; SameSite=Lax; Secure`; // 30 days
+        }
+      } catch (e) {
+        console.error('Exception during token refresh:', e);
+      }
+    };
+
+    // Only set up the refresh interval if we have a session
+    if (session) {
+      const interval = setInterval(refreshToken, 10 * 60 * 1000); // 10 minutes
+      return () => clearInterval(interval);
+    }
+  }, [session, supabase.auth]);
+
+  // Re-check auth state whenever the page becomes visible again
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        // When page becomes visible again, try to refresh the token
+        try {
+          const { data, error } = await supabase.auth.refreshSession();
+          if (!error && data.session) {
+            console.log('Session refreshed on visibility change');
+            setSession(data.session);
+            setUser(data.session.user);
+          }
+        } catch (e) {
+          console.error('Error refreshing session on visibility change:', e);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [supabase.auth]);
 
   const signIn = async (email: string, password: string) => {
     try {
