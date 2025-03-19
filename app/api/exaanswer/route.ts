@@ -2,7 +2,8 @@
 import { NextRequest } from 'next/server';
 import Exa from "exa-js";
 import { Message } from '@/app/types';
-import { getToken } from 'next-auth/jwt';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -11,13 +12,11 @@ const exa = new Exa(process.env.EXA_API_KEY as string);
 
 export async function POST(req: NextRequest) {
   try {
-    // Check if user is authenticated using Auth.js JWT
-    const token = await getToken({
-      req,
-      secret: process.env.NEXTAUTH_SECRET
-    });
+    // Check if user is authenticated using Supabase
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!token || !token.id) {
+    if (!session || !session.user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 

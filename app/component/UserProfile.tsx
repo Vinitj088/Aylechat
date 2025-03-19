@@ -1,23 +1,22 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
 import { useRouter } from "next/navigation";
-import { ROUTES } from "@/lib/constants";
 
 export function UserProfile() {
-  const { data: session, status } = useSession();
+  const { user, session, isLoading, signOut } = useSupabaseAuth();
   const router = useRouter();
 
   const handleSignOut = async () => {
-    await signOut({ redirect: false });
-    router.push(ROUTES.HOME);
+    await signOut();
+    router.push('/');
   };
 
-  if (status === "loading") {
+  if (isLoading) {
     return <div className="p-4">Loading profile...</div>;
   }
 
-  if (status === "unauthenticated" || !session?.user) {
+  if (!session || !user) {
     return (
       <div className="p-4">
         <p>You are not signed in.</p>
@@ -28,8 +27,8 @@ export function UserProfile() {
   return (
     <div className="p-4">
       <div className="mb-4">
-        <h2 className="text-xl font-semibold">Welcome, {session.user.name || session.user.email}</h2>
-        <p className="text-gray-600">Email: {session.user.email}</p>
+        <h2 className="text-xl font-semibold">Welcome, {user.user_metadata?.name || user.email}</h2>
+        <p className="text-gray-600">Email: {user.email}</p>
       </div>
 
       <button

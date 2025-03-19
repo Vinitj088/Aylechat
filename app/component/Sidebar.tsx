@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ChatThread } from '@/lib/redis';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useSupabaseAuth } from '@/context/SupabaseAuthContext';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -24,8 +24,10 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, signOut } = useAuth();
+  const { user, signOut } = useSupabaseAuth();
   
+  const isAuthenticated = !!user;
+
   // Improved function to fetch threads with better error handling
   const fetchThreads = useCallback(async (force = false) => {
     // Skip if there's already a fetch in progress
@@ -129,9 +131,11 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       // Clear threads for immediate UI feedback
       setThreads([]);
       
-      console.log("Redirecting to force-logout endpoint");
-      // No need for complex client-side logout logic - just redirect to our force-logout endpoint
-      window.location.href = `/api/auth/force-logout?t=${Date.now()}&r=${Math.random().toString(36).substring(7)}`;
+      // Use Supabase signOut function
+      await signOut();
+      
+      // Navigate to home
+      router.push('/');
     } catch (error) {
       console.error("Error during sign out:", error);
       // If something goes wrong, still try to get to homepage with auth dialog
@@ -265,7 +269,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
             <div className="p-3 border-t-2 border-black">
               <div className="flex justify-between items-center">
                 <div className="text-sm truncate">
-                  <span className="font-medium">{user.name || user.email}</span>
+                  <span className="font-medium">{user.user_metadata?.name || user.email}</span>
                 </div>
                 <button
                   onClick={handleSignOut}
