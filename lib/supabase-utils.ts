@@ -184,18 +184,53 @@ export async function getAuthenticatedUser() {
     const cookieStore = cookies();
     const supabaseClient = getServerSupabaseClient();
     
+    // Get cookies
+    const allCookies = cookieStore.getAll();
+    console.log('Available cookies:', allCookies.map(c => c.name));
+    
+    // Try getting session directly first
+    const { data: { session: directSession } } = await supabaseClient.auth.getSession();
+    
+    if (directSession?.user) {
+      console.log('Found session directly:', directSession.user.email);
+      return { user: directSession.user, error: null };
+    }
+    
+    // Look for Supabase cookies with various possible names
+    const accessToken = 
+      cookieStore.get('sb-access-token') || 
+      cookieStore.get('sb-authed') ||
+      cookieStore.get('supabase-auth-token');
+      
+    const refreshToken = cookieStore.get('sb-refresh-token');
+    
+    if (!accessToken) {
+      console.log('No Supabase access token found in cookies');
+      return { user: null, error: 'No access token' };
+    }
+    
+    console.log('Found access token, setting session...');
+    
     // Get session from cookie
-    await supabaseClient.auth.setSession({
-      access_token: cookieStore.get('sb-access-token')?.value || '',
-      refresh_token: cookieStore.get('sb-refresh-token')?.value || ''
+    const sessionResult = await supabaseClient.auth.setSession({
+      access_token: accessToken.value,
+      refresh_token: refreshToken?.value || ''
     });
     
+    if (sessionResult.error) {
+      console.error('Error setting session:', sessionResult.error);
+      return { user: null, error: sessionResult.error.message };
+    }
+    
+    // Get the session
     const { data: { session } } = await supabaseClient.auth.getSession();
     
     if (!session || !session.user) {
+      console.log('No session or user found after setting session');
       return { user: null, error: 'Not authenticated' };
     }
     
+    console.log('Successfully authenticated user:', session.user.email);
     return { user: session.user, error: null };
   } catch (error) {
     console.error('Error getting authenticated user:', error);

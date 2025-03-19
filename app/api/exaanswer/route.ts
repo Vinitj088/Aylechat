@@ -10,15 +10,21 @@ export const dynamic = 'force-dynamic';
 const exa = new Exa(process.env.EXA_API_KEY as string);
 
 export async function POST(req: NextRequest) {
+  console.log('Exa API called');
   try {
     // Get authenticated user
+    console.log('Getting authenticated user...');
     const { user, error } = await getAuthenticatedUser();
     
     if (error || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+      console.error('Authentication error:', error);
+      return new Response(JSON.stringify({ error: 'Unauthorized', details: error }), { status: 401 });
     }
 
+    console.log('User authenticated:', user.email);
     const { query, messages } = await req.json();
+    console.log('Request body:', { query, messageCount: messages?.length });
+    
     if (!query) {
       return new Response(JSON.stringify({ error: 'query is required' }), { status: 400 });
     }
@@ -34,12 +40,14 @@ export async function POST(req: NextRequest) {
 
     // Create Exa stream - just pass the raw query since Exa is a search API
     // Using the options according to exa-js documentation
+    console.log('Calling Exa API with query:', query);
     const streamPromise = exa.streamAnswer(query, { 
       model: "exa-pro"
     });
     
     // Use Promise.race to implement timeout
     const stream = await Promise.race([streamPromise, timeoutPromise]) as AsyncIterable<any>;
+    console.log('Exa stream created, now streaming response...');
     
     const encoder = new TextEncoder();
 

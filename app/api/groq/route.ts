@@ -6,15 +6,21 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Maximum allowed for Vercel Hobby plan
 
 export async function POST(req: NextRequest) {
+  console.log('Groq API called');
   try {
     // Get authenticated user from supabase-utils
+    console.log('Getting authenticated user...');
     const { user, error } = await getAuthenticatedUser();
     
     if (error || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+      console.error('Authentication error:', error);
+      return new Response(JSON.stringify({ error: 'Unauthorized', details: error }), { status: 401 });
     }
 
+    console.log('User authenticated:', user.email);
     const { query, model, messages } = await req.json();
+    console.log('Request body:', { query, model, messageCount: messages?.length });
+    
     if (!query) {
       return new Response(JSON.stringify({ error: 'query is required' }), { status: 400 });
     }
@@ -32,6 +38,7 @@ export async function POST(req: NextRequest) {
     // Get API key from environment variable
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
+      console.error('GROQ_API_KEY not configured');
       return new Response(JSON.stringify({ error: 'GROQ_API_KEY is not configured' }), { status: 500 });
     }
 

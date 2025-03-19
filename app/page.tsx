@@ -14,6 +14,16 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useSupabaseAuth } from '@/context/SupabaseAuthContext';
 import SupabaseAuthDialog from './component/SupabaseAuthDialog';
 import { toast } from 'sonner';
+import Link from 'next/link';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 // Create a new component that uses useSearchParams
 function PageContent() {
@@ -35,10 +45,11 @@ function PageContent() {
   const [autoprompt, setAutoprompt] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [showAuthRequiredModal, setShowAuthRequiredModal] = useState<boolean>(false);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { user, session } = useSupabaseAuth();
+  const { user, session, isLoading: authLoading } = useSupabaseAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -73,11 +84,26 @@ function PageContent() {
     }
   }, [searchParams]);
 
+  // Check for authRequired query param
+  useEffect(() => {
+    if (searchParams.get('authRequired') === 'true') {
+      setShowAuthRequiredModal(true);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     // Add Exa as the first option and then add all Groq models
     const groqModels = modelsData.models.filter(model => model.providerId === 'groq');
     setModels(prevModels => [...prevModels, ...groqModels]);
   }, []);
+
+  // Set a debug cookie to test authentication
+  useEffect(() => {
+    if (user) {
+      document.cookie = 'debug-authenticated=true; path=/; max-age=86400';
+      console.log('Set debug cookie');
+    }
+  }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     setInput(e.target.value);
@@ -330,6 +356,22 @@ function PageContent() {
     setInput('');
     setCurrentThreadId(null);
     router.push('/');
+  };
+
+  const handleStartChat = () => {
+    if (user) {
+      router.push('/chat/new');
+    } else {
+      setShowAuthDialog(true);
+    }
+  };
+
+  const handleCreateThread = async () => {
+    try {
+      router.push('/chat/new');
+    } catch (error) {
+      toast.error('Failed to create new thread');
+    }
   };
 
   return (
