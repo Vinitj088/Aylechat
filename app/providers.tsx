@@ -1,11 +1,11 @@
 'use client';
 
-import { SessionProvider } from 'next-auth/react';
+import { SupabaseAuthProvider } from '@/context/SupabaseAuthContext';
 import { SonnerToaster } from './component/ui/sonner-toast';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
+    <SupabaseAuthProvider>
       {children}
       <SonnerToaster 
         position="bottom-right"
@@ -16,6 +16,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
           zIndex: 9999,
         }}
       />
-    </SessionProvider>
+    </SupabaseAuthProvider>
   );
 } 

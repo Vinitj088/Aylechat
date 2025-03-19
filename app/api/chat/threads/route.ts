@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { RedisService } from '@/lib/redis';
-import { getToken } from 'next-auth/jwt';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    // Use JWT token to get user
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET
-    });
+    // Use Supabase to get user
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!token || !token.id) {
+    if (!session || !session.user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { 
@@ -25,7 +24,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userId = token.id as string;
+    const userId = session.user.id;
     const threads = await RedisService.getUserChatThreads(userId);
     
     return NextResponse.json(
@@ -48,13 +47,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Use JWT token to get user
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET
-    });
+    // Use Supabase to get user
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!token || !token.id) {
+    if (!session || !session.user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { 
@@ -67,9 +64,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userId = token.id as string;
+    const userId = session.user.id;
     const body = await request.json();
-    const { title, messages } = body;
+    const { title, messages, model } = body;
 
     if (!title) {
       return NextResponse.json(
@@ -78,7 +75,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const thread = await RedisService.createChatThread(userId, title, messages || []);
+    const thread = await RedisService.createChatThread(userId, title, messages || [], model || 'exa');
     
     if (!thread) {
       return NextResponse.json(

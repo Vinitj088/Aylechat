@@ -10,9 +10,9 @@ import DesktopSearchUI from './component/DesktopSearchUI';
 import Sidebar from './component/Sidebar';
 import { fetchResponse } from './api/apiService';
 import modelsData from '../models.json';
-import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import AuthDialog from './component/AuthDialog';
+import { useSupabaseAuth } from '@/context/SupabaseAuthContext';
+import SupabaseAuthDialog from './component/SupabaseAuthDialog';
 import { toast } from 'sonner';
 
 // Create a new component that uses useSearchParams
@@ -38,12 +38,11 @@ function PageContent() {
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { data: session, status, update } = useSession();
+  const { user, session } = useSupabaseAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const user = session?.user;
-  const isAuthenticated = !!session?.user;
+  const isAuthenticated = !!user;
 
   // Check URL parameters for auth dialog control
   useEffect(() => {
@@ -98,8 +97,7 @@ function PageContent() {
 
   // Handle successful auth
   const handleAuthSuccess = async () => {
-    // Force update session
-    await update();
+    // Refresh sidebar to show latest threads
     setRefreshSidebar(prev => prev + 1);
     
     // Process pending input if any
@@ -406,7 +404,7 @@ function PageContent() {
       )}
 
       {/* Auth Dialog */}
-      <AuthDialog 
+      <SupabaseAuthDialog 
         isOpen={showAuthDialog}
         onClose={() => setShowAuthDialog(false)}
         onSuccess={handleAuthSuccess}

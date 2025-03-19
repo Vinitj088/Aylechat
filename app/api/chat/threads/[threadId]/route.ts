@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { RedisService } from '@/lib/redis';
-import { getToken } from 'next-auth/jwt';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,20 +19,18 @@ const CACHE_HEADERS = {
 
 export async function GET(request: NextRequest, { params }: Params) {
   try {
-    // Use JWT token to get user
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET
-    });
+    // Use Supabase to get user
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!token || !token.id) {
+    if (!session || !session.user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401, headers: CACHE_HEADERS }
       );
     }
 
-    const userId = token.id as string;
+    const userId = session.user.id;
     const { threadId } = params;
     const thread = await RedisService.getChatThread(userId, threadId);
 
@@ -57,64 +56,47 @@ export async function GET(request: NextRequest, { params }: Params) {
 
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
-    // Use JWT token to get user
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET
-    });
+    // Use Supabase to get user
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!token || !token.id) {
+    if (!session || !session.user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401, headers: CACHE_HEADERS }
       );
     }
 
-    const userId = token.id as string;
+    const userId = session.user.id;
     const { threadId } = params;
     const body = await request.json();
-    const { messages, title } = body;
 
-    // Log information for debugging
-    console.log(`Updating thread ${threadId} for user ${userId}`);
-    console.log(`Message count: ${messages?.length || 0}`);
-
-    // Create updates object with only provided fields
-    const updates: any = {};
-    if (messages) updates.messages = messages;
-    if (title) updates.title = title;
-
-    // Validate message format
-    if (messages) {
-      try {
-        // Quick test serialization to catch issues early
-        JSON.parse(JSON.stringify(messages));
-      } catch (error) {
-        console.error('Invalid message format:', error);
-        return NextResponse.json(
-          { success: false, error: 'Invalid message format' },
-          { status: 400, headers: CACHE_HEADERS }
-        );
-      }
-    }
-
-    const thread = await RedisService.updateChatThread(userId, threadId, updates);
-
-    if (!thread) {
+    // Ensure the thread exists
+    const existingThread = await RedisService.getChatThread(userId, threadId);
+    if (!existingThread) {
       return NextResponse.json(
         { success: false, error: 'Thread not found' },
         { status: 404, headers: CACHE_HEADERS }
       );
     }
 
+    // Update the thread
+    const updatedThread = await RedisService.updateChatThread(userId, threadId, body);
+    if (!updatedThread) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to update thread' },
+        { status: 500, headers: CACHE_HEADERS }
+      );
+    }
+
     return NextResponse.json(
-      { success: true, thread },
+      { success: true, thread: updatedThread },
       { headers: CACHE_HEADERS }
     );
   } catch (error) {
     console.error('Error updating chat thread:', error);
     return NextResponse.json(
-      { success: false, error: `Failed to update chat thread: ${error instanceof Error ? error.message : 'Unknown error'}` },
+      { success: false, error: 'Failed to update chat thread' },
       { status: 500, headers: CACHE_HEADERS }
     );
   }
@@ -122,27 +104,35 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
-    // Use JWT token to get user
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET
-    });
+    // Use Supabase to get user
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!token || !token.id) {
+    if (!session || !session.user) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401, headers: CACHE_HEADERS }
       );
     }
 
-    const userId = token.id as string;
+    const userId = session.user.id;
     const { threadId } = params;
-    const success = await RedisService.deleteChatThread(userId, threadId);
 
-    if (!success) {
+    // Ensure the thread exists
+    const existingThread = await RedisService.getChatThread(userId, threadId);
+    if (!existingThread) {
       return NextResponse.json(
         { success: false, error: 'Thread not found' },
         { status: 404, headers: CACHE_HEADERS }
+      );
+    }
+
+    // Delete the thread
+    const success = await RedisService.deleteChatThread(userId, threadId);
+    if (!success) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to delete thread' },
+        { status: 500, headers: CACHE_HEADERS }
       );
     }
 

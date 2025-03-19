@@ -8,8 +8,8 @@ import ChatInput from '../../component/ChatInput';
 import Sidebar from '../../component/Sidebar';
 import { fetchResponse } from '../../api/apiService';
 import modelsData from '../../../models.json';
-import AuthDialog from '@/app/component/AuthDialog';
-import { useAuth } from '@/lib/hooks/useAuth';
+import SupabaseAuthDialog from '@/app/component/SupabaseAuthDialog';
+import { useSupabaseAuth } from '@/context/SupabaseAuthContext';
 import { useRouter } from 'next/navigation';
 import { ChatThread } from '@/lib/redis';
 import { toast } from 'sonner';
@@ -36,9 +36,11 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { user, isAuthenticated, signIn, signUp } = useAuth();
+  const { user, session } = useSupabaseAuth();
   const router = useRouter();
   const { threadId } = params;
+
+  const isAuthenticated = !!user;
 
   useEffect(() => {
     // Add Exa as the first option and then add all Groq models
@@ -322,11 +324,44 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
       />
 
       {/* Auth Dialog */}
-      <AuthDialog 
+      <SupabaseAuthDialog 
         isOpen={showAuthDialog} 
         onClose={() => setShowAuthDialog(false)}
-        onLogin={signIn}
-        onSignup={signUp}
+        onSuccess={() => {
+          setRefreshSidebar(prev => prev + 1);
+          // Reload the thread data
+          if (threadId) {
+            setIsThreadLoading(true);
+            const fetchData = async () => {
+              try {
+                // Add a timestamp to ensure we don't get a cached response
+                const timestamp = Date.now();
+                const response = await fetch(`/api/chat/threads/${threadId}?t=${timestamp}`, {
+                  cache: 'no-store',
+                  credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                if (data.thread) {
+                  setThread(data.thread);
+                  setMessages(data.thread.messages || []);
+                  setSelectedModel(data.thread.model || 'exa');
+                }
+              } catch (error) {
+                console.error('Error fetching thread:', error);
+                toast.error('Failed to load chat. Please try again.');
+              } finally {
+                setIsThreadLoading(false);
+              }
+            };
+            
+            fetchData();
+          }
+        }}
       />
     </main>
   );

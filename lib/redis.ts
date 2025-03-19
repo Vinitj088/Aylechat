@@ -17,6 +17,7 @@ export interface ChatThread {
   id: string;
   title: string;
   messages: Message[];
+  model?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -70,7 +71,7 @@ export class RedisService {
   }
 
   // Create a new chat thread
-  static async createChatThread(userId: string, title: string, messages: any[]): Promise<ChatThread | null> {
+  static async createChatThread(userId: string, title: string, messages: any[], model: string = 'exa'): Promise<ChatThread | null> {
     try {
       const threadId = crypto.randomUUID();
       const now = new Date().toISOString();
@@ -79,19 +80,16 @@ export class RedisService {
         id: threadId,
         title,
         messages,
+        model,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       };
       
-      // Store thread data
+      // Store the thread
       await redis.set(`thread:${userId}:${threadId}`, JSON.stringify(thread));
       
       // Add to user's thread list
-      await redis.rpush(`user:${userId}:threads`, JSON.stringify({
-        id: threadId,
-        title,
-        updatedAt: now
-      }));
+      await redis.lpush(`user:${userId}:threads`, JSON.stringify(thread));
       
       return thread;
     } catch (error) {
