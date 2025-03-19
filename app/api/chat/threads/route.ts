@@ -14,64 +14,60 @@ const CACHE_HEADERS = {
 export async function GET(request: NextRequest) {
   try {
     // Get authenticated user using Supabase's route handler
-    console.log('Getting authenticated user with createRouteHandlerClient...');
-    const supabase = createRouteHandlerClient({ cookies });
+    console.log('API: Getting threads - retrieving auth session');
+    
+    // Create the Supabase client with cookie handling
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const { data: { session }, error: authError } = await supabase.auth.getSession();
+    
+    // Log session details for debugging
+    if (session) {
+      console.log(`API: User session found - User: ${session.user.email}`);
+    } else {
+      console.log('API: No session found');
+      if (authError) {
+        console.error('API: Auth error:', authError.message);
+      }
+
+      const headerUserId = request.headers.get('x-auth-user-id');
+      console.log(`API: User ID from header: ${headerUserId || 'none'}`);
+    }
     
     // Handle normal authentication
     if (session?.user) {
-      console.log('User authenticated from session:', session.user.email);
+      console.log('API: Fetching threads for user:', session.user.id);
       const userId = session.user.id;
       const threads = await RedisService.getUserChatThreads(userId);
       
+      console.log(`API: Found ${threads.length} threads`);
       return NextResponse.json(
         { success: true, threads },
         { headers: CACHE_HEADERS }
       );
     }
     
-    // Fallback to custom cookies if session not found
-    const cookieStore = cookies();
-    const userAuthCookie = cookieStore.get('user-authenticated');
-    const userEmailCookie = cookieStore.get('user-email');
-    
-    // If we have our custom cookies, try to use them
-    if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
-      console.log('Attempting to use backup cookies for:', userEmailCookie.value);
+    // If no session found, try header-based authentication as fallback
+    // This is for middleware support
+    const headerUserId = request.headers.get('x-auth-user-id');
+    if (headerUserId) {
+      console.log('API: Using user ID from header:', headerUserId);
+      const threads = await RedisService.getUserChatThreads(headerUserId);
       
-      try {
-        // Create a mock user ID based on email if we can't query the database
-        // This is a temporary solution until the profiles table is created
-        const mockUserId = userEmailCookie.value.split('@')[0] + '-user';
-        console.log('Using mock user ID for authentication:', mockUserId);
-        const userId = mockUserId;
-        const threads = await RedisService.getUserChatThreads(userId);
-        
-        return NextResponse.json(
-          { success: true, threads },
-          { headers: CACHE_HEADERS }
-        );
-      } catch (userLookupError) {
-        console.error('Error in user lookup process:', userLookupError);
-      }
-    }
-    
-    // If all auth methods fail, return unauthorized
-    if (authError) {
-      console.error('Authentication error:', authError);
+      console.log(`API: Found ${threads.length} threads using header auth`);
       return NextResponse.json(
-        { success: false, error: 'Authentication error: ' + authError.message },
-        { status: 401, headers: CACHE_HEADERS }
+        { success: true, threads },
+        { headers: CACHE_HEADERS }
       );
     }
     
-    console.error('No session or user found');
+    // If no session, unauthorized
     return NextResponse.json(
-      { success: false, error: 'Unauthorized: No session found' },
+      { success: false, error: 'Unauthorized: No valid session found' },
       { status: 401, headers: CACHE_HEADERS }
     );
   } catch (error) {
-    console.error('Error getting chat threads:', error);
+    console.error('API Error getting chat threads:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to get chat threads' },
       { status: 500, headers: CACHE_HEADERS }
@@ -82,39 +78,27 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Get authenticated user using Supabase's route handler
-    console.log('Getting authenticated user with createRouteHandlerClient...');
-    const supabase = createRouteHandlerClient({ cookies });
+    console.log('API: Creating thread - retrieving auth session');
+    
+    // Create the Supabase client with cookie handling
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const { data: { session }, error: authError } = await supabase.auth.getSession();
     
-    let userId = session?.user?.id;
+    // Try header auth as fallback
+    const headerUserId = request.headers.get('x-auth-user-id');
+    let userId = session?.user?.id || headerUserId;
     
-    // If no session, try backup cookies
+    // If no user ID, return unauthorized
     if (!userId) {
-      const cookieStore = cookies();
-      const userAuthCookie = cookieStore.get('user-authenticated');
-      const userEmailCookie = cookieStore.get('user-email');
-      
-      if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
-        console.log('Attempting to use backup cookies for:', userEmailCookie.value);
-        
-        // Create a mock user ID based on email (temporary solution)
-        const mockUserId = userEmailCookie.value.split('@')[0] + '-user';
-        console.log('Using mock user ID for authentication:', mockUserId);
-        userId = mockUserId;
-      }
-    } else if (session && session.user) {
-      console.log('User authenticated from session:', session.user.email);
-    }
-    
-    // If we still don't have a user ID, return unauthorized
-    if (!userId) {
-      console.error('No user ID found after trying all authentication methods');
+      console.error('API: No valid user ID found for thread creation');
       return NextResponse.json(
-        { success: false, error: 'Unauthorized: No user found' },
+        { success: false, error: 'Unauthorized: No valid user found' },
         { status: 401, headers: CACHE_HEADERS }
       );
     }
-
+    
+    console.log('API: Creating thread for user:', userId);
     const body = await request.json();
     const { title, messages, model } = body;
 
@@ -134,12 +118,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log(`API: Thread created successfully with ID: ${thread.id}`);
     return NextResponse.json(
       { success: true, thread },
       { headers: CACHE_HEADERS }
     );
   } catch (error) {
-    console.error('Error creating chat thread:', error);
+    console.error('API Error creating chat thread:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create chat thread' },
       { status: 500 }

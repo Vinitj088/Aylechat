@@ -19,46 +19,34 @@ export async function GET(
     const { threadId } = params;
 
     // Get authenticated user using Supabase's route handler
-    console.log('Getting authenticated user with createRouteHandlerClient...');
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    console.log('API: Thread GET - retrieving auth session');
     
-    let userId = null;
+    // Create the Supabase client with cookie handling
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const { data: { session } } = await supabase.auth.getSession();
     
-    // Handle normal authentication
-    if (session?.user) {
-      console.log('User authenticated from session:', session.user.email);
-      userId = session.user.id;
-    } else {
-      // Fallback to custom cookies if session not found
-      const cookieStore = cookies();
-      const userAuthCookie = cookieStore.get('user-authenticated');
-      const userEmailCookie = cookieStore.get('user-email');
-      
-      // If we have our custom cookies, try to use them
-      if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
-        console.log('Attempting to use backup cookies for:', userEmailCookie.value);
-        
-        // Create a mock user ID based on email (temporary solution)
-        const mockUserId = userEmailCookie.value.split('@')[0] + '-user';
-        console.log('Using mock user ID for authentication:', mockUserId);
-        userId = mockUserId;
-      }
-    }
+    let userId = session?.user?.id;
     
-    // If still no user ID, return unauthorized
+    // If no session, try header auth
     if (!userId) {
-      if (authError) {
-        console.error('Authentication error:', authError);
+      const headerUserId = request.headers.get('x-auth-user-id');
+      if (headerUserId) {
+        console.log('API: Thread GET - Using header auth:', headerUserId);
+        userId = headerUserId;
+      } else {
+        console.log('API: Thread GET - No valid authentication found');
+        return NextResponse.json(
+          { success: false, error: 'Unauthorized: No session found' },
+          { status: 401, headers: CACHE_HEADERS }
+        );
       }
-      console.error('No valid user authentication found');
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: No valid authentication found' },
-        { status: 401, headers: CACHE_HEADERS }
-      );
+    } else {
+      console.log('API: Thread GET - User authenticated from session:', session?.user?.email || 'unknown');
     }
 
     // Get thread
+    console.log(`API: Thread GET - Retrieving thread ${threadId} for user ${userId}`);
     const thread = await RedisService.getChatThread(userId, threadId);
     if (!thread) {
       return NextResponse.json(
@@ -72,7 +60,7 @@ export async function GET(
       { headers: CACHE_HEADERS }
     );
   } catch (error) {
-    console.error('Error getting thread:', error);
+    console.error('API: Thread GET error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to get thread' },
       { status: 500, headers: CACHE_HEADERS }
@@ -92,40 +80,15 @@ export async function PUT(
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session }, error: authError } = await supabase.auth.getSession();
     
-    let userId = null;
-    
-    // Handle normal authentication
-    if (session?.user) {
-      console.log('User authenticated from session:', session.user.email);
-      userId = session.user.id;
-    } else {
-      // Fallback to custom cookies if session not found
-      const cookieStore = cookies();
-      const userAuthCookie = cookieStore.get('user-authenticated');
-      const userEmailCookie = cookieStore.get('user-email');
-      
-      // If we have our custom cookies, try to use them
-      if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
-        console.log('Attempting to use backup cookies for:', userEmailCookie.value);
-        
-        // Create a mock user ID based on email (temporary solution)
-        const mockUserId = userEmailCookie.value.split('@')[0] + '-user';
-        console.log('Using mock user ID for authentication:', mockUserId);
-        userId = mockUserId;
-      }
-    }
-    
-    // If still no user ID, return unauthorized
-    if (!userId) {
-      if (authError) {
-        console.error('Authentication error:', authError);
-      }
-      console.error('No valid user authentication found');
+    if (!session?.user) {
       return NextResponse.json(
-        { success: false, error: 'Unauthorized: No valid authentication found' },
+        { success: false, error: 'Unauthorized: No session found' },
         { status: 401, headers: CACHE_HEADERS }
       );
     }
+
+    const userId = session.user.id;
+    console.log('User authenticated:', session.user.email);
 
     // Verify thread exists and is owned by user
     const existingThread = await RedisService.getChatThread(userId, threadId);
@@ -177,40 +140,15 @@ export async function DELETE(
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session }, error: authError } = await supabase.auth.getSession();
     
-    let userId = null;
-    
-    // Handle normal authentication
-    if (session?.user) {
-      console.log('User authenticated from session:', session.user.email);
-      userId = session.user.id;
-    } else {
-      // Fallback to custom cookies if session not found
-      const cookieStore = cookies();
-      const userAuthCookie = cookieStore.get('user-authenticated');
-      const userEmailCookie = cookieStore.get('user-email');
-      
-      // If we have our custom cookies, try to use them
-      if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
-        console.log('Attempting to use backup cookies for:', userEmailCookie.value);
-        
-        // Create a mock user ID based on email (temporary solution)
-        const mockUserId = userEmailCookie.value.split('@')[0] + '-user';
-        console.log('Using mock user ID for authentication:', mockUserId);
-        userId = mockUserId;
-      }
-    }
-    
-    // If still no user ID, return unauthorized
-    if (!userId) {
-      if (authError) {
-        console.error('Authentication error:', authError);
-      }
-      console.error('No valid user authentication found');
+    if (!session?.user) {
       return NextResponse.json(
-        { success: false, error: 'Unauthorized: No valid authentication found' },
+        { success: false, error: 'Unauthorized: No session found' },
         { status: 401, headers: CACHE_HEADERS }
       );
     }
+
+    const userId = session.user.id;
+    console.log('User authenticated:', session.user.email);
 
     // Delete thread
     const success = await RedisService.deleteChatThread(userId, threadId);

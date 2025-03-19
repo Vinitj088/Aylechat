@@ -1,45 +1,43 @@
 import { createClient } from '@supabase/supabase-js';
-import { AuthChangeEvent, Session } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
 
-// Helper function to check if we're on the client side
-export const isClient = typeof window !== 'undefined';
-
-// Create Supabase client
+// Create a single, simplified Supabase client with minimal logging
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
-    // Use pkce flow which is more secure for SPA
+    // Use pkce flow for browser auth
     flowType: 'pkce',
-    // Enable debug logging in development
-    debug: process.env.NODE_ENV === 'development',
-    // Callbacks for session events
-    ...(isClient && {
-      async onAuthStateChange(event: AuthChangeEvent, session: Session | null) {
-        console.log('Supabase Auth State Change:', event, session?.user?.email);
-        
-        // Set secure cookies for cross-api auth
-        if (session?.user) {
-          document.cookie = `user-authenticated=true; path=/; max-age=2592000; SameSite=Lax`;
-          document.cookie = `user-email=${session.user.email}; path=/; max-age=2592000; SameSite=Lax`;
-        }
-      }
-    })
+    // Disable debug logs
+    debug: false,
+    detectSessionInUrl: true,
+    // Don't filter logs for cleaner output
   },
-  // Global error handler
-  global: {
-    headers: {
-      'x-client-info': 'exachat-web-app'
-    }
-  }
 });
+
+// Simplify the client even more: disable console logs
+if (typeof window !== 'undefined') {
+  // Only in browser environment
+  const originalConsoleLog = console.log;
+  // Filter out GoTrueClient logs
+  console.log = function(...args) {
+    if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('GoTrueClient')) {
+      // Skip GoTrueClient logs
+      return;
+    }
+    originalConsoleLog.apply(console, args);
+  };
+}
 
 // For server-side operations with service role (admin)
 export const getServiceSupabase = () => {
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  return createClient(supabaseUrl, supabaseServiceKey);
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    }
+  });
 }; 

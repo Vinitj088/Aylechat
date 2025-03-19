@@ -13,40 +13,15 @@ const groq = new Groq({
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('Getting authenticated user with createRouteHandlerClient...');
+    // Get authenticated user using Supabase's route handler
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session }, error: authError } = await supabase.auth.getSession();
     
-    let isAuthenticated = false;
-    let userEmail = null;
-    
-    // Regular Supabase auth check
-    if (session?.user) {
-      console.log('User authenticated from session:', session.user.email);
-      isAuthenticated = true;
-      userEmail = session.user.email;
-    } 
-    // Fallback to cookies if no session
-    else {
-      console.log('No session, trying backup cookies...');
-      const cookieStore = cookies();
-      const userAuthCookie = cookieStore.get('user-authenticated');
-      const userEmailCookie = cookieStore.get('user-email');
-      
-      if (userAuthCookie && userEmailCookie?.value) {
-        console.log('Found backup authentication cookies for:', userEmailCookie.value);
-        // Accept the cookie auth as valid without database checks
-        isAuthenticated = true;
-        userEmail = userEmailCookie.value;
-      }
-    }
-    
-    if (!isAuthenticated) {
-      console.error('No valid authentication found');
-      return new Response(JSON.stringify({ error: 'Unauthorized', details: 'No valid authentication found' }), { status: 401 });
+    if (!session?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized', details: 'No session found' }), { status: 401 });
     }
 
-    console.log('User authenticated:', userEmail);
+    console.log('User authenticated:', session.user.email);
     const { messages, model = 'llama3-70b-8192' } = await req.json();
     
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
