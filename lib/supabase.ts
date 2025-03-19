@@ -13,14 +13,20 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    // Use implicit flow which works better with Next.js
-    flowType: 'implicit',
+    // Use pkce flow which is more secure for SPA
+    flowType: 'pkce',
     // Enable debug logging in development
     debug: process.env.NODE_ENV === 'development',
     // Callbacks for session events
     ...(isClient && {
       async onAuthStateChange(event: AuthChangeEvent, session: Session | null) {
         console.log('Supabase Auth State Change:', event, session?.user?.email);
+        
+        // Set secure cookies for cross-api auth
+        if (session?.user) {
+          document.cookie = `user-authenticated=true; path=/; max-age=2592000; SameSite=Lax`;
+          document.cookie = `user-email=${session.user.email}; path=/; max-age=2592000; SameSite=Lax`;
+        }
       }
     })
   },

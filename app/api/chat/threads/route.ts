@@ -18,6 +18,47 @@ export async function GET(request: NextRequest) {
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session }, error: authError } = await supabase.auth.getSession();
     
+    // Handle normal authentication
+    if (session?.user) {
+      console.log('User authenticated from session:', session.user.email);
+      const userId = session.user.id;
+      const threads = await RedisService.getUserChatThreads(userId);
+      
+      return NextResponse.json(
+        { success: true, threads },
+        { headers: CACHE_HEADERS }
+      );
+    }
+    
+    // Fallback to custom cookies if session not found
+    const cookieStore = cookies();
+    const userAuthCookie = cookieStore.get('user-authenticated');
+    const userEmailCookie = cookieStore.get('user-email');
+    
+    // If we have our custom cookies, try to use them
+    if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
+      console.log('Attempting to use backup cookies for:', userEmailCookie.value);
+      
+      // Try to get user by email from Supabase
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', userEmailCookie.value)
+        .single();
+      
+      if (userData?.id) {
+        console.log('Found user ID from email cookie:', userData.id);
+        const userId = userData.id;
+        const threads = await RedisService.getUserChatThreads(userId);
+        
+        return NextResponse.json(
+          { success: true, threads },
+          { headers: CACHE_HEADERS }
+        );
+      }
+    }
+    
+    // If all auth methods fail, return unauthorized
     if (authError) {
       console.error('Authentication error:', authError);
       return NextResponse.json(
@@ -26,21 +67,10 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    if (!session || !session.user) {
-      console.error('No session or user found');
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: No session found' },
-        { status: 401, headers: CACHE_HEADERS }
-      );
-    }
-
-    console.log('User authenticated:', session.user.email);
-    const userId = session.user.id;
-    const threads = await RedisService.getUserChatThreads(userId);
-    
+    console.error('No session or user found');
     return NextResponse.json(
-      { success: true, threads },
-      { headers: CACHE_HEADERS }
+      { success: false, error: 'Unauthorized: No session found' },
+      { status: 401, headers: CACHE_HEADERS }
     );
   } catch (error) {
     console.error('Error getting chat threads:', error);
@@ -58,24 +88,42 @@ export async function POST(request: NextRequest) {
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session }, error: authError } = await supabase.auth.getSession();
     
-    if (authError) {
-      console.error('Authentication error:', authError);
-      return NextResponse.json(
-        { success: false, error: 'Authentication error: ' + authError.message },
-        { status: 401, headers: CACHE_HEADERS }
-      );
+    let userId = session?.user?.id;
+    
+    // If no session, try backup cookies
+    if (!userId) {
+      const cookieStore = cookies();
+      const userAuthCookie = cookieStore.get('user-authenticated');
+      const userEmailCookie = cookieStore.get('user-email');
+      
+      if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
+        console.log('Attempting to use backup cookies for:', userEmailCookie.value);
+        
+        // Try to get user by email from Supabase
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', userEmailCookie.value)
+          .single();
+        
+        if (userData?.id) {
+          console.log('Found user ID from email cookie:', userData.id);
+          userId = userData.id;
+        }
+      }
+    } else if (session && session.user) {
+      console.log('User authenticated from session:', session.user.email);
     }
     
-    if (!session || !session.user) {
-      console.error('No session or user found');
+    // If we still don't have a user ID, return unauthorized
+    if (!userId) {
+      console.error('No user ID found after trying all authentication methods');
       return NextResponse.json(
-        { success: false, error: 'Unauthorized: No session found' },
+        { success: false, error: 'Unauthorized: No user found' },
         { status: 401, headers: CACHE_HEADERS }
       );
     }
 
-    console.log('User authenticated:', session.user.email);
-    const userId = session.user.id;
     const body = await request.json();
     const { title, messages, model } = body;
 

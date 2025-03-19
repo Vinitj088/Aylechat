@@ -30,11 +30,24 @@ export async function middleware(request: NextRequest) {
   // Create response to modify
   const res = NextResponse.next();
   
-  // Create Supabase client for auth with cookie settings
+  // Create Supabase client for auth
   const supabase = createMiddlewareClient({ req: request, res });
   
   // Get the Supabase session
   const { data: { session }, error } = await supabase.auth.getSession();
+  
+  // Check for backup cookies if no session is found
+  let hasBackupCookies = false;
+  if (!session) {
+    // See if we have our custom auth cookies as a backup mechanism
+    const authCookie = request.cookies.get('user-authenticated');
+    const emailCookie = request.cookies.get('user-email');
+    hasBackupCookies = !!(authCookie && emailCookie);
+    
+    if (hasBackupCookies) {
+      console.log(`Using backup cookies for ${emailCookie?.value}`);
+    }
+  }
   
   if (error) {
     console.error('Middleware auth error:', error);
@@ -57,7 +70,7 @@ export async function middleware(request: NextRequest) {
       path: '/',
       httpOnly: false, // Make it available to client JS
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: 60 * 60 * 24 * 30, // 30 days
       sameSite: 'lax'
     });
   } else {
@@ -83,7 +96,8 @@ export async function middleware(request: NextRequest) {
   );
   
   // If it's a protected API route and there's no session, return 401
-  if (isProtectedApiRoute && !session) {
+  // But allow access if we have backup cookies
+  if (isProtectedApiRoute && !session && !hasBackupCookies) {
     console.log(`Unauthorized API access to ${pathname}`);
     return NextResponse.json(
       { error: 'Unauthorized' },
@@ -92,7 +106,8 @@ export async function middleware(request: NextRequest) {
   }
   
   // If it's a protected client route and there's no session, redirect to home
-  if (isProtectedRoute && !session) {
+  // But allow access if we have backup cookies
+  if (isProtectedRoute && !session && !hasBackupCookies) {
     console.log(`Redirecting unauthenticated user from ${pathname} to home`);
     const url = new URL('/?authRequired=true', request.url);
     return NextResponse.redirect(url);
