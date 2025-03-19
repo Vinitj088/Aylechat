@@ -64,15 +64,6 @@ export async function middleware(request: NextRequest) {
     }
   }
   
-  // Check for expired flag in URL
-  const expired = searchParams.get('expired');
-  
-  if (expired === 'true') {
-    // If expired parameter is detected, redirect to force-logout
-    console.log('Middleware: Detected expired=true, redirecting to force-logout');
-    return NextResponse.redirect(new URL('/api/auth/force-logout', request.url));
-  }
-  
   // Add cache control headers to API requests to prevent caching
   if (pathname.startsWith('/api/')) {
     const response = NextResponse.next();
