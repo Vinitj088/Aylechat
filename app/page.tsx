@@ -44,8 +44,6 @@ function PageContent() {
   ]);
   const [autoprompt, setAutoprompt] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const [showAuthRequiredModal, setShowAuthRequiredModal] = useState<boolean>(false);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -65,7 +63,7 @@ function PageContent() {
     
     // Show auth dialog if any of these params are present
     if (authRequired === 'true' || expired === 'true' || error) {
-      setShowAuthDialog(true);
+      openAuthDialog();
       
       // Show toast message if session expired
       if (expired === 'true') {
@@ -106,7 +104,7 @@ function PageContent() {
                 });
                 
                 // Force sign in dialog
-                setShowAuthDialog(true);
+                openAuthDialog();
               } else {
                 toast.error('Could not fix session cookies');
               }
@@ -124,14 +122,14 @@ function PageContent() {
       url.searchParams.delete('cookie_error');
       window.history.replaceState({}, '', url);
     }
-  }, [searchParams]);
+  }, [searchParams, openAuthDialog]);
 
   // Check for authRequired query param
   useEffect(() => {
     if (searchParams.get('authRequired') === 'true') {
-      setShowAuthRequiredModal(true);
+      openAuthDialog();
     }
-  }, [searchParams]);
+  }, [searchParams, openAuthDialog]);
 
   useEffect(() => {
     // Add Exa as the first option and then add all Groq models
@@ -146,20 +144,6 @@ function PageContent() {
       openAuthDialog();
     }
   }, [openAuthDialog]);
-
-  // Set up auth dialog control functions
-  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  
-  // Register the dialog open function
-  useEffect(() => {
-    // Just use the openAuthDialog function directly
-    const showAuthDialog = () => {
-      setIsAuthDialogOpen(true);
-    };
-    
-    // In a real implementation, you would register this with a global
-    // event system or context, but for now we'll just use the state directly
-  }, []);
 
   // Function to handle login button click
   const handleLoginClick = useCallback(() => {
@@ -215,7 +199,7 @@ function PageContent() {
       error.message.includes('Unauthorized')
     ) {
       // Handle authentication errors by showing the auth dialog
-      setShowAuthDialog(true);
+      openAuthDialog();
     } else if (error.message.includes('Rate limit')) {
       // Handle rate limit errors
       // This is a custom error with timeout info from the API service
@@ -238,7 +222,7 @@ function PageContent() {
   const createOrUpdateThread = async (threadContent: { messages: Message[], title?: string }) => {
     if (!isAuthenticated || !user) {
       // Show auth dialog instead of redirecting
-      setShowAuthDialog(true);
+      openAuthDialog();
       return null;
     }
 
@@ -269,7 +253,7 @@ function PageContent() {
       if (!response.ok) {
         if (response.status === 401) {
           // Auth error - show auth dialog
-          setShowAuthDialog(true);
+          openAuthDialog();
           return null;
         }
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -316,12 +300,7 @@ function PageContent() {
 
     // If not authenticated, show auth dialog and keep the message in the input
     if (!isAuthenticated || !user) {
-      setShowAuthDialog(true);
-      return;
-    }
-
-    // Prevent submitting if auth dialog is open
-    if (showAuthDialog) {
+      openAuthDialog();
       return;
     }
 
@@ -470,7 +449,7 @@ function PageContent() {
     if (user) {
       router.push('/chat/new');
     } else {
-      setShowAuthDialog(true);
+      openAuthDialog();
     }
   };
 
@@ -489,7 +468,7 @@ function PageContent() {
       <Sidebar 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
-        onSignInClick={() => setShowAuthDialog(true)}
+        onSignInClick={openAuthDialog}
         refreshTrigger={refreshSidebar}
       />
       
@@ -552,13 +531,6 @@ function PageContent() {
           )}
         </>
       )}
-
-      {/* Auth Dialog */}
-      <AuthDialog 
-        isOpen={showAuthDialog}
-        onClose={() => setShowAuthDialog(false)}
-        onSuccess={handleAuthSuccess}
-      />
     </main>
   );
 }

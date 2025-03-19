@@ -5,6 +5,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { AuthDialog } from '@/components/AuthDialog';
 
 interface AuthContextType {
   user: User | null;
@@ -14,6 +15,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  openAuthDialog: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,6 +24,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const router = useRouter();
 
   // Initial session loading
@@ -206,6 +209,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
   
+  // Function to open the auth dialog
+  const openAuthDialog = () => {
+    setIsAuthDialogOpen(true);
+  };
+  
   const value = {
     user,
     session,
@@ -214,9 +222,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signUp,
     signOut,
     refreshSession,
+    openAuthDialog
   };
   
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <AuthDialog 
+        isOpen={isAuthDialogOpen}
+        onClose={() => setIsAuthDialogOpen(false)}
+        onSuccess={() => {
+          setIsAuthDialogOpen(false);
+          router.refresh();
+        }}
+      />
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
