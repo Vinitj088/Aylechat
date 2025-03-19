@@ -1,5 +1,5 @@
 // Create a new file to handle auth session restoration
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/client';
 import { cookies } from 'next/headers';
 
 export async function getAuthSession() {
@@ -28,7 +28,7 @@ export async function getAuthSession() {
     }
     
     // Create client
-    const supabase = createClientComponentClient();
+    const supabase = createClient();
     
     // Set session manually from token data
     if (tokenData.data?.access_token && tokenData.data?.refresh_token) {

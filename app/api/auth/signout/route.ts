@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAPIRouteClient } from '@/lib/supabase-server';
+import { createClient } from '@/utils/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
  * API endpoint to handle signing out and cleaning up cookies
  */
 export async function POST(request: NextRequest) {
-  const supabase = createAPIRouteClient();
+  const supabase = createClient();
   
   try {
     // Sign out

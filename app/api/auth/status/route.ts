@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAPIRouteClient } from '@/lib/supabase-server';
+import { createClient } from '@/utils/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
  * API endpoint to check authentication status
  */
 export async function GET(request: NextRequest) {
-  const supabase = createAPIRouteClient();
+  const supabase = createClient();
   
   try {
     // Get the session

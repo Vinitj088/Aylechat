@@ -2,8 +2,7 @@
 import { NextRequest } from 'next/server';
 import Exa from "exa-js";
 import { Message } from '@/app/types';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';

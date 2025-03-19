@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 
 export function SessionFixer() {
   const [isFixing, setIsFixing] = useState(false);
+  const supabase = createClient();
 
   const clearLocalStorage = () => {
     // Clear any Supabase-related items from localStorage

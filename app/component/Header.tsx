@@ -69,7 +69,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
 
         {/* Right side controls */}
         <div className="flex items-center gap-2">
-          {/* Auth Controls */}
+          {/* Auth Controls
           {user ? (
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium hidden sm:inline truncate max-w-[120px]">
@@ -104,7 +104,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                 {isFixingSession ? 'Fixing...' : 'Fix Session'}
               </Button>
             </div>
-          )}
+          )} */}
           
           {/* Source Code Link */}
           <a 

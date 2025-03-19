@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { Message } from '@/app/types';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Maximum allowed for Vercel Hobby plan
