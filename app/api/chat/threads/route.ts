@@ -1,30 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { RedisService } from '@/lib/redis';
+import { getAuthenticatedUser, unauthorizedResponse } from '@/lib/supabase-utils';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    // Use Supabase to get user
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { 
-          status: 401,
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache'
-          }
-        }
-      );
+    // Get authenticated user
+    const { user, error } = await getAuthenticatedUser();
+    
+    if (error || !user) {
+      return unauthorizedResponse();
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
     const threads = await RedisService.getUserChatThreads(userId);
     
     return NextResponse.json(
@@ -47,24 +36,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Use Supabase to get user
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { 
-          status: 401,
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache'
-          }
-        }
-      );
+    // Get authenticated user
+    const { user, error } = await getAuthenticatedUser();
+    
+    if (error || !user) {
+      return unauthorizedResponse();
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
     const body = await request.json();
     const { title, messages, model } = body;
 

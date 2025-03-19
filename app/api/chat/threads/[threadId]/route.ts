@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { RedisService } from '@/lib/redis';
+import { getAuthenticatedUser, unauthorizedResponse } from '@/lib/supabase-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,18 +18,14 @@ const CACHE_HEADERS = {
 
 export async function GET(request: NextRequest, { params }: Params) {
   try {
-    // Use Supabase to get user
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401, headers: CACHE_HEADERS }
-      );
+    // Get authenticated user
+    const { user, error } = await getAuthenticatedUser();
+    
+    if (error || !user) {
+      return unauthorizedResponse();
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
     const { threadId } = params;
     const thread = await RedisService.getChatThread(userId, threadId);
 
@@ -56,18 +51,14 @@ export async function GET(request: NextRequest, { params }: Params) {
 
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
-    // Use Supabase to get user
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401, headers: CACHE_HEADERS }
-      );
+    // Get authenticated user
+    const { user, error } = await getAuthenticatedUser();
+    
+    if (error || !user) {
+      return unauthorizedResponse();
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
     const { threadId } = params;
     const body = await request.json();
 
@@ -104,18 +95,14 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
-    // Use Supabase to get user
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401, headers: CACHE_HEADERS }
-      );
+    // Get authenticated user
+    const { user, error } = await getAuthenticatedUser();
+    
+    if (error || !user) {
+      return unauthorizedResponse();
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
     const { threadId } = params;
 
     // Ensure the thread exists

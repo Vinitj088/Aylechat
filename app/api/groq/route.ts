@@ -1,18 +1,16 @@
 import { NextRequest } from 'next/server';
 import { Message } from '@/app/types';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { getAuthenticatedUser } from '@/lib/supabase-utils';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Maximum allowed for Vercel Hobby plan
 
 export async function POST(req: NextRequest) {
   try {
-    // Check if user is authenticated using Supabase
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session || !session.user) {
+    // Get authenticated user from supabase-utils
+    const { user, error } = await getAuthenticatedUser();
+    
+    if (error || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 

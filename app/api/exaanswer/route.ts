@@ -2,8 +2,7 @@
 import { NextRequest } from 'next/server';
 import Exa from "exa-js";
 import { Message } from '@/app/types';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { getAuthenticatedUser } from '@/lib/supabase-utils';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -12,11 +11,10 @@ const exa = new Exa(process.env.EXA_API_KEY as string);
 
 export async function POST(req: NextRequest) {
   try {
-    // Check if user is authenticated using Supabase
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session || !session.user) {
+    // Get authenticated user
+    const { user, error } = await getAuthenticatedUser();
+    
+    if (error || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
     }
 

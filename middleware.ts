@@ -14,6 +14,13 @@ const publicApiRoutes = [
   '/api/migration'
 ];
 
+// API routes that require authentication
+const protectedApiRoutes = [
+  '/api/chat',
+  '/api/exaanswer',
+  '/api/groq',
+];
+
 export async function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
   
@@ -34,12 +41,23 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(route)
   );
   
-  if (isProtectedRoute) {
-    // If no session, redirect to home
-    if (!session) {
-      const url = new URL('/?authRequired=true', request.url);
-      return NextResponse.redirect(url);
-    }
+  // Check for protected API routes
+  const isProtectedApiRoute = protectedApiRoutes.some(route => 
+    pathname.startsWith(route)
+  );
+  
+  // If it's a protected API route and there's no session, return 401
+  if (isProtectedApiRoute && !session) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+  
+  // If it's a protected client route and there's no session, redirect to home
+  if (isProtectedRoute && !session) {
+    const url = new URL('/?authRequired=true', request.url);
+    return NextResponse.redirect(url);
   }
   
   return res;

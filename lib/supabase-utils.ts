@@ -1,5 +1,8 @@
 import { supabase, getServiceSupabase } from './supabase';
 import { Message, Model } from '@/app/types';
+import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
 // Type definitions for database tables
 export type Profile = {
@@ -162,4 +165,54 @@ export async function deleteThread(threadId: string) {
 
   if (error) throw error;
   return true;
+}
+
+// Helper function to get Supabase client on the server
+export const getServerSupabaseClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false
+    }
+  });
+};
+
+// Helper function to get the authenticated user in API routes
+export async function getAuthenticatedUser() {
+  try {
+    const cookieStore = cookies();
+    const supabaseClient = getServerSupabaseClient();
+    
+    // Get session from cookie
+    await supabaseClient.auth.setSession({
+      access_token: cookieStore.get('sb-access-token')?.value || '',
+      refresh_token: cookieStore.get('sb-refresh-token')?.value || ''
+    });
+    
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    
+    if (!session || !session.user) {
+      return { user: null, error: 'Not authenticated' };
+    }
+    
+    return { user: session.user, error: null };
+  } catch (error) {
+    console.error('Error getting authenticated user:', error);
+    return { user: null, error: 'Authentication error' };
+  }
+}
+
+// Helper function to handle unauthorized requests
+export function unauthorizedResponse() {
+  return NextResponse.json(
+    { success: false, error: 'Unauthorized' },
+    { 
+      status: 401,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache'
+      }
+    }
+  );
 } 
