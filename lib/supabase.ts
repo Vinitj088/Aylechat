@@ -13,7 +13,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     // Don't use custom storage key to ensure compatibility with default cookie names
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    flowType: 'implicit'
+    flowType: 'implicit',
+    debug: process.env.NODE_ENV === 'development'
+    // Note: Email verification must be disabled in the Supabase dashboard settings
   }
 });
 
