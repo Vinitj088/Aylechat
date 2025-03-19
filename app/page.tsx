@@ -139,14 +139,6 @@ function PageContent() {
     setModels(prevModels => [...prevModels, ...groqModels]);
   }, []);
 
-  // Set a debug cookie to test authentication
-  useEffect(() => {
-    if (user) {
-      document.cookie = 'debug-authenticated=true; path=/; max-age=86400';
-      console.log('Set debug cookie');
-    }
-  }, [user]);
-
   // Handle showing the auth dialog if opened via URL param
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -211,43 +203,36 @@ function PageContent() {
     }
   }, [isAuthenticated]);
 
-  // Add improved error handling for auth issues  
-  const handleAuthError = async (error: any) => {
-    console.error('Authentication error:', error);
-    
-    // Check for cookie parsing errors
-    if (error.message && (error.message.includes('parse') || error.message.includes('JSON'))) {
-      toast.error('Session error detected', {
-        description: 'Trying to fix your session automatically...'
-      });
-      
-      try {
-        // Call the fix-session API endpoint
-        const response = await fetch('/api/fix-session', {
-          method: 'POST',
-          credentials: 'include',
-        });
-        
-        if (response.ok) {
-          toast.success('Session fixed successfully', {
-            description: 'Please try your action again'
-          });
-          
-          // Force a refresh of the page to get a clean state
-          window.location.reload();
-          return;
-        }
-      } catch (e) {
-        console.error('Error fixing session:', e);
-      }
-      
-      // If we get here, we couldn't fix the session automatically
+  // Error handler callback function
+  const handleRequestError = async (error: Error) => {
+    // Check if the error is an authentication error
+    if (
+      error.message.includes('authentication') || 
+      error.message.includes('Authentication') || 
+      error.message.includes('auth') || 
+      error.message.includes('Auth') ||
+      error.message.includes('401') ||
+      error.message.includes('Unauthorized')
+    ) {
+      // Handle authentication errors by showing the auth dialog
       setShowAuthDialog(true);
-      return;
+    } else if (error.message.includes('Rate limit')) {
+      // Handle rate limit errors
+      // This is a custom error with timeout info from the API service
+      // @ts-ignore - We're adding custom props to the error
+      const waitTime = error.waitTime || 30;
+      
+      toast.error('RATE LIMIT', {
+        description: `Please wait ${waitTime} seconds before trying again`,
+        duration: 5000,
+      });
+    } else {
+      // Handle other errors - show a toast
+      toast.error('Error Processing Request', {
+        description: error.message || 'Please try again later',
+        duration: 5000,
+      });
     }
-    
-    // For other auth errors, show auth dialog
-    setShowAuthDialog(true);
   };
 
   const createOrUpdateThread = async (threadContent: { messages: Message[], title?: string }) => {
@@ -316,7 +301,7 @@ function PageContent() {
         (error.message && error.message.toLowerCase().includes('unauthorized')) ||
         (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
       ) {
-        await handleAuthError(error);
+        await handleRequestError(error);
       } else {
         toast.error('Error saving conversation');
       }
@@ -441,7 +426,7 @@ function PageContent() {
         (error.message && error.message.toLowerCase().includes('unauthorized')) ||
         (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
       ) {
-        await handleAuthError(error);
+        await handleRequestError(error);
         
         // Update the message with auth error info
         updatedMessages[assistantMessageIndex] = {

@@ -1,63 +1,50 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createServerComponentClient, createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cache } from 'react';
 
 // Get environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Validate required environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-// Use cache() to deduplicate requests and improve performance
-export const createServerComponentClient = cache(() => {
+/**
+ * Creates a Supabase client for Server Components
+ */
+export const createServerClient = cache(() => {
   const cookieStore = cookies();
-  
-  return createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value, ...options });
-          } catch (error) {
-            // This can happen in route handlers when the response is already sent
-            console.error('Error setting cookie in server component:', error);
-          }
-        },
-        remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value: '', ...options, maxAge: 0 });
-          } catch (error) {
-            console.error('Error removing cookie in server component:', error);
-          }
-        },
-      },
-    }
-  );
+  return createServerComponentClient({
+    cookies: () => cookieStore,
+  });
 });
 
-// For route handlers (API routes)
-export const createAPIRouteClient = () => {
-  const cookieStore = cookies();
-  
-  // Check for debug cookie
-  const userId = cookieStore.get('app-user-id')?.value;
-  if (userId) {
-    console.log('Found debug user ID cookie:', userId);
-  }
-  
-  return createRouteHandlerClient({ 
+/**
+ * Creates a Supabase client for Route Handlers
+ */
+export const createAPIRouteClient = (cookieStore = cookies()) => {
+  return createRouteHandlerClient({
     cookies: () => cookieStore,
   });
 };
+
+/**
+ * Gets the current session from a server component
+ */
+export async function getServerSession() {
+  const supabase = createServerClient();
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      throw error;
+    }
+    return data.session;
+  } catch (error) {
+    console.error('Error getting session:', error);
+    return null;
+  }
+}
 
 // For middleware
 export const createMiddlewareClient = async (request: any, response: any) => {

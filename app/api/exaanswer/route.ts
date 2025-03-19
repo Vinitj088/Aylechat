@@ -20,10 +20,6 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'query is required' }), { status: 400 });
     }
 
-    // Skip authentication checks - allow all requests
-    // Log the query for debugging
-    console.log(`Processing Exa search for query: ${query}`);
-
     // Add timeout promise to avoid hanging requests
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Exa API request timed out')), 20000); // 20 seconds timeout

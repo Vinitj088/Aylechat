@@ -33,9 +33,6 @@ const NO_CACHE_HEADERS = {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // Log the request path for debugging
-  console.log(`Middleware handling request: ${pathname}`)
-  
   // Skip middleware for static assets and public routes
   if (
     pathname.startsWith('/_next') || 
@@ -48,7 +45,6 @@ export async function middleware(request: NextRequest) {
     pathname.endsWith('.gif') ||
     PUBLIC_API_ROUTES.some(route => pathname.startsWith(route))
   ) {
-    console.log(`Skipping middleware for public route: ${pathname}`)
     return NextResponse.next()
   }
   
@@ -56,11 +52,8 @@ export async function middleware(request: NextRequest) {
   const isProtectedPage = PROTECTED_ROUTES.some(route => pathname.startsWith(route))
   const isProtectedApi = PROTECTED_API_ROUTES.some(route => pathname.startsWith(route))
   
-  console.log(`Route protection: isProtectedPage=${isProtectedPage}, isProtectedApi=${isProtectedApi}`)
-  
   // Skip auth check for non-protected routes
   if (!isProtectedPage && !isProtectedApi) {
-    console.log(`Skipping auth check for non-protected route: ${pathname}`)
     return NextResponse.next()
   }
   
@@ -71,27 +64,12 @@ export async function middleware(request: NextRequest) {
   res.headers.set('Cache-Control', 'no-store, max-age=0');
 
   try {
-    // Check for debug cookie first - if present, we'll use it for auth
-    const debugCookieUserId = request.cookies.get('app-user-id')?.value;
-    if (debugCookieUserId) {
-      console.log(`Middleware: Using debug cookie auth for user ID: ${debugCookieUserId}`);
-      
-      // Add user info to request headers
-      res.headers.set('x-user-id', debugCookieUserId);
-      res.headers.set('x-user-authenticated', 'true');
-      
-      return res;
-    }
-    
-    // Fall back to Supabase auth
-    // Get the auth cookie
+    // Use Supabase auth
     const supabase = createMiddlewareClient({ req: request, res });
     
     // Refresh session to ensure it's valid
     const authResponse = await supabase.auth.getSession()
     const { data: { session }, error } = authResponse
-    
-    console.log(`Auth check: session=${!!session}, error=${!!error}`)
     
     // Try refreshing the token if we have a session but there was an error
     if (session && error) {

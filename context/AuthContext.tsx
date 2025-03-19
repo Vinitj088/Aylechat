@@ -1,322 +1,228 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { Session, User, AuthError } from '@supabase/supabase-js';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
-type AuthContextType = {
+interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name?: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  refreshSession: () => Promise<boolean>;
-  openAuthDialog: () => void;
-};
+  refreshSession: () => Promise<void>;
+}
 
-// Create context with a default value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Global state for authentication dialog
-let globalOpenAuthDialog: (() => void) | null = null;
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [authDialogCallback, setAuthDialogCallback] = useState<() => void>(() => {
-    // Default implementation does nothing
-    return () => {};
-  });
   const router = useRouter();
 
-  // Function to expose opening the auth dialog
-  const openAuthDialog = useCallback(() => {
-    if (authDialogCallback) {
-      authDialogCallback();
-    }
-  }, [authDialogCallback]);
-
-  // Expose the callback globally so it can be accessed outside React
-  globalOpenAuthDialog = openAuthDialog;
-
-  // Allow external components to set the auth dialog callback
-  const setOpenAuthDialog = useCallback((callback: () => void) => {
-    setAuthDialogCallback(() => callback);
-  }, []);
-
-  // After successful sign-in, set a debug cookie
-  const setDebugCookie = (userId: string) => {
-    try {
-      // Set a simple debug cookie
-      document.cookie = `app-user-id=${userId}; path=/; max-age=86400; SameSite=Lax`;
-      console.log('Set debug cookie with user ID');
-    } catch (e) {
-      console.error('Failed to set debug cookie:', e);
-    }
-  };
-
-  // Function to refresh session
-  const refreshSession = useCallback(async (): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase.auth.refreshSession();
-      
-      if (error) {
-        console.error('Error refreshing session:', error);
-        
-        // Try the fix-session endpoint as a fallback
-        try {
-          const fixResponse = await fetch('/api/fix-session', {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-cache, no-store, must-revalidate'
-            }
-          });
-          
-          if (fixResponse.ok) {
-            // Get the updated session after fixing
-            const { data: refreshData } = await supabase.auth.getSession();
-            if (refreshData.session) {
-              setSession(refreshData.session);
-              setUser(refreshData.session.user);
-              setDebugCookie(refreshData.session.user.id);
-              return true;
-            }
-          }
-          
-          // If we got here, session fixing failed
-          // Open the auth dialog to prompt the user to sign in
-          openAuthDialog();
-          return false;
-        } catch (e) {
-          console.error('Error calling fix-session endpoint:', e);
-          // Open the auth dialog to prompt the user to sign in
-          openAuthDialog();
-          return false;
-        }
-      }
-      
-      if (data.session) {
-        setSession(data.session);
-        setUser(data.session.user);
-        setDebugCookie(data.session.user.id);
-        return true;
-      }
-      
-      // If no session was returned, prompt the user to sign in
-      openAuthDialog();
-      return false;
-    } catch (error) {
-      console.error('Exception refreshing session:', error);
-      // Open the auth dialog to prompt the user to sign in
-      openAuthDialog();
-      return false;
-    }
-  }, [openAuthDialog]);
-
-  // Initialize auth state
+  // Initial session loading
   useEffect(() => {
-    const initializeAuth = async () => {
-      setIsLoading(true);
-      
+    const loadSession = async () => {
       try {
-        // Get initial session
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Error getting session:', error);
-        } else {
-          setSession(session);
-          setUser(session?.user ?? null);
+          console.error('Error loading session:', error.message);
+          return;
         }
         
-        // Set up auth state change listener
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          (event, newSession) => {
-            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-              setSession(newSession);
-              setUser(newSession?.user ?? null);
-              router.refresh();
-            } else if (event === 'SIGNED_OUT') {
-              setSession(null);
-              setUser(null);
-              router.refresh();
-            }
-          }
-        );
-        
-        return () => {
-          subscription.unsubscribe();
-        };
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+        }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error('Unexpected error loading session:', error);
       } finally {
         setIsLoading(false);
       }
     };
     
-    initializeAuth();
-  }, [router]);
-
-  // Periodic session refresh
-  useEffect(() => {
-    if (!session) return;
+    loadSession();
     
-    // Refresh token every 10 minutes if session exists
-    const refreshInterval = setInterval(refreshSession, 10 * 60 * 1000);
-    
-    // Refresh when tab becomes visible
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        refreshSession();
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user || null);
+      setIsLoading(false);
+    });
     
     return () => {
-      clearInterval(refreshInterval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      subscription.unsubscribe();
     };
-  }, [session, refreshSession]);
-
-  // Sign in function
+  }, []);
+  
+  // Refresh the session token
+  const refreshSession = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        throw error;
+      }
+      
+      const { session: refreshData } = data;
+      
+      if (refreshData) {
+        setSession(refreshData);
+        setUser(refreshData.user);
+        return;
+      }
+      
+      throw new Error('No session returned from refresh');
+    } catch (error: any) {
+      console.error('Error refreshing session:', error.message);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Sign in with email and password
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       
-      if (error) throw error;
-      
-      // Set debug cookie if sign-in was successful
-      if (data.user) {
-        setDebugCookie(data.user.id);
+      if (error) {
+        throw error;
       }
       
+      setSession(data.session);
+      setUser(data.user);
+      
+      // Refresh router data with new auth state
       router.refresh();
-    } catch (error) {
-      if (error instanceof AuthError) {
-        toast.error(error.message || 'Error signing in');
-      } else {
-        toast.error('An unexpected error occurred');
-      }
+      
+    } catch (error: any) {
+      console.error('Sign in error:', error.message);
+      toast.error('Failed to sign in', {
+        description: error.message,
+      });
       throw error;
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Sign up function
-  const signUp = async (email: string, password: string, name?: string) => {
+  
+  // Sign up with email and password
+  const signUp = async (email: string, password: string) => {
     try {
       setIsLoading(true);
       
-      const { error, data } = await supabase.auth.signUp({ 
+      // Get the current URL's origin for the redirect
+      const origin = window.location.origin;
+      
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { name: name || email.split('@')[0] }
-        }
+          emailRedirectTo: `${origin}/auth/callback`,
+        },
       });
       
-      if (error) throw error;
-      
-      // Create profile (this is optional and depends on your database schema)
-      if (data.user) {
-        try {
-          await supabase.from('profiles').upsert({
-            id: data.user.id,
-            email: email,
-            name: name || email.split('@')[0],
-            created_at: new Date().toISOString()
-          });
-        } catch (e) {
-          console.error('Error creating profile:', e);
-          // Continue anyway as the user is created
-        }
+      if (error) {
+        throw error;
       }
       
-      toast.success('Account created successfully! Please check your email to confirm your account.');
-      router.refresh();
-    } catch (error) {
-      if (error instanceof AuthError) {
-        toast.error(error.message || 'Error signing up');
+      // In Supabase, signUp might either:
+      // 1. Create the user and return session (if email verification is disabled)
+      // 2. Create the user but not return session (if email confirmation is required)
+      if (data.session) {
+        setSession(data.session);
+        setUser(data.user);
+        
+        // Refresh router data
+        router.refresh();
       } else {
-        toast.error('An unexpected error occurred');
+        // Email confirmation is required
+        toast.success('Please check your email', {
+          description: 'A confirmation link has been sent to your email',
+          duration: 5000,
+        });
       }
+      
+    } catch (error: any) {
+      console.error('Sign up error:', error.message);
+      toast.error('Failed to sign up', {
+        description: error.message,
+      });
       throw error;
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Sign out function
+  
+  // Sign out
   const signOut = async () => {
     try {
       setIsLoading(true);
       
-      // Call the API endpoint to ensure cookies are properly cleared
+      // Call the backend signout endpoint to clear server-side cookies
       const response = await fetch('/api/auth/signout', {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
         },
       });
       
-      // Also try to sign out client-side
+      if (!response.ok) {
+        const data = await response.json();
+        console.error('Error from signout API:', data);
+      }
+      
+      // Also sign out on the client
       await supabase.auth.signOut();
       
-      // Ensure state is cleared
+      // Clear user and session state
       setUser(null);
       setSession(null);
       
+      // Redirect to home page and refresh router
       router.push('/');
       router.refresh();
-    } catch (error) {
-      if (error instanceof AuthError) {
-        toast.error(error.message || 'Error signing out');
-      } else {
-        toast.error('An unexpected error occurred');
-      }
-      throw error;
+      
+    } catch (error: any) {
+      console.error('Sign out error:', error.message);
+      toast.error('Failed to sign out', {
+        description: 'An unexpected error occurred',
+      });
     } finally {
       setIsLoading(false);
     }
   };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        isLoading,
-        isAuthenticated: !!user,
-        signIn,
-        signUp,
-        signOut,
-        refreshSession,
-        openAuthDialog,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-// Custom hook to use the auth context
-export function useAuth() {
-  const context = useContext(AuthContext);
   
+  const value = {
+    user,
+    session,
+    isLoading,
+    signIn,
+    signUp,
+    signOut,
+    refreshSession,
+  };
+  
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-  
   return context;
-} 
+}; 

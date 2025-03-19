@@ -8,28 +8,22 @@ export const dynamic = 'force-dynamic';
 // GET endpoint to list all threads for a user
 export async function GET(req: NextRequest) {
   try {
-    // Get user from cookie or auth
+    // Get user from Supabase auth
     const cookieStore = cookies();
-    const userId = cookieStore.get('app-user-id')?.value;
-    let authenticatedUserId = userId;
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    // If no debug cookie, check Supabase auth
-    if (!authenticatedUserId) {
-      const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user) {
-        return NextResponse.json(
-          { error: 'Unauthorized', message: 'Authentication required' },
-          { status: 401 }
-        );
-      }
-      
-      authenticatedUserId = session.user.id;
+    if (sessionError || !session?.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized', message: 'Authentication required' },
+        { status: 401 }
+      );
     }
     
+    const userId = session.user.id;
+    
     // Get threads from Redis
-    const threads = await RedisService.getUserChatThreads(authenticatedUserId);
+    const threads = await RedisService.getUserChatThreads(userId);
     
     return NextResponse.json({
       success: true,
@@ -59,32 +53,26 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
     
-    // Get user from cookie or auth
+    // Get user from Supabase auth
     const cookieStore = cookies();
-    const userId = cookieStore.get('app-user-id')?.value;
-    let authenticatedUserId = userId;
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    // If no debug cookie, check Supabase auth
-    if (!authenticatedUserId) {
-      const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user) {
-        return NextResponse.json(
-          { error: 'Unauthorized', message: 'Authentication required' },
-          { status: 401 }
-        );
-      }
-      
-      authenticatedUserId = session.user.id;
+    if (sessionError || !session?.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized', message: 'Authentication required' },
+        { status: 401 }
+      );
     }
+    
+    const userId = session.user.id;
     
     // Generate title if not provided
     const threadTitle = title || (messages[0]?.content.substring(0, 50) + '...') || 'New Chat';
     
     // Create the thread
     const thread = await RedisService.createChatThread(
-      authenticatedUserId,
+      userId,
       threadTitle,
       messages,
       model
