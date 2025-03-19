@@ -1,6 +1,12 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/button';
+import { AuthDialog } from '@/components/AuthDialog';
+import { useState } from 'react';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -8,6 +14,8 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
   const router = useRouter();
+  const { user, signOut } = useAuth();
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
 
   const handleHomeClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -32,6 +40,30 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
 
         {/* Right side controls */}
         <div className="flex items-center gap-2">
+          {/* Auth Controls
+          {user ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium hidden sm:inline">
+                {user.email}
+              </span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => signOut()}
+              >
+                Sign Out
+              </Button>
+            </div>
+          ) : (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowAuthDialog(true)}
+            >
+              Sign In
+            </Button>
+          )} */}
+          
           {/* Source Code Link */}
           <a 
             href="https://github.com/Vinitj088/ExaChat" 
@@ -71,6 +103,12 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
           </button>
         </div>
       </div>
+      
+      {/* Auth Dialog */}
+      <AuthDialog 
+        isOpen={showAuthDialog}
+        onClose={() => setShowAuthDialog(false)}
+      />
     </div>
   );
 };

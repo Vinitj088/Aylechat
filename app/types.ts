@@ -3,6 +3,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   citations?: any[];
+  completed?: boolean;
 }
 
 export interface Model {

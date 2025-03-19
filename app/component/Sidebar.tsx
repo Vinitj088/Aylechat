@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ChatThread } from '@/lib/redis';
-import { useSupabaseAuth } from '@/context/SupabaseAuthContext';
+import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
+import { getAssetPath } from '../utils';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -24,85 +26,102 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   
   const router = useRouter();
   const pathname = usePathname();
-  const { user, signOut } = useSupabaseAuth();
+  const { user, signOut, refreshSession } = useAuth();
   
   const isAuthenticated = !!user;
 
   // Improved function to fetch threads with better error handling
-  const fetchThreads = useCallback(async (force = false) => {
-    // Skip if there's already a fetch in progress
-    if (isFetchingRef.current) return;
-    
-    // Skip if sidebar is closed (will fetch when opened)
-    if (!isOpen) return;
-    
-    // Debounce fetches within 5 seconds unless forced
-    const now = Date.now();
-    if (!force && now - lastFetchTime < 5000) return;
-    
-    // Don't fetch if not authenticated
-    if (!isAuthenticated || !user) {
+  const fetchThreads = useCallback(async () => {
+    if (!isAuthenticated) {
       setThreads([]);
-      setFetchError(null);
       setIsLoading(false);
       return;
     }
-    
-    isFetchingRef.current = true;
-    setLastFetchTime(now);
-    
+
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      setFetchError(null);
-      
-      const response = await fetch('/api/chat/threads', {
-        method: 'GET',
+      const response = await fetch(getAssetPath('/api/chat/threads'), {
         credentials: 'include',
-        cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Content-Type': 'application/json'
+          'Pragma': 'no-cache',
         }
       });
       
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Auth error - redirect to auth page
-          setFetchError('Please sign in to view your chat history');
-          setThreads([]);
-          return;
+      if (response.ok) {
+        const data = await response.json();
+        // Ensure threads is always an array
+        if (data.success && Array.isArray(data.threads)) {
+          setThreads(data.threads);
         } else {
-          throw new Error(`Error ${response.status}: ${response.statusText}`);
+          console.error('Threads data is not in expected format:', data);
+          setThreads([]);
         }
-      }
-      
-      const data = await response.json();
-      if (data.success) {
-        // Sort threads by updatedAt date, newest first
-        const sortedThreads = [...data.threads].sort((a, b) => 
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-        );
-        setThreads(sortedThreads);
+      } else if (response.status === 401) {
+        console.error('Authentication failed when fetching threads');
+        toast.error('Authentication issue detected', {
+          description: 'Attempting to fix session...',
+          duration: 3000,
+        });
+        
+        // Try to fix the session
+        try {
+          await refreshSession();
+          toast.success('Session fixed, retrying...');
+          
+          // Try fetching threads again after a short delay
+          setTimeout(async () => {
+            try {
+              const retryResponse = await fetch(getAssetPath('/api/chat/threads'), {
+                credentials: 'include',
+                headers: {
+                  'Cache-Control': 'no-cache, no-store, must-revalidate',
+                  'Pragma': 'no-cache',
+                }
+              });
+              
+              if (retryResponse.ok) {
+                const retryData = await retryResponse.json();
+                // Ensure threads is always an array
+                if (retryData.success && Array.isArray(retryData.threads)) {
+                  setThreads(retryData.threads);
+                } else {
+                  console.error('Retry threads data is not in expected format:', retryData);
+                  setThreads([]);
+                }
+              } else {
+                setThreads([]);
+              }
+            } catch (retryError) {
+              console.error('Error retrying thread fetch:', retryError);
+              setThreads([]);
+            } finally {
+              setIsLoading(false);
+            }
+          }, 1000);
+          return;
+        } catch (refreshError) {
+          console.error('Failed to refresh session:', refreshError);
+          setThreads([]);
+        }
       } else {
-        setFetchError(data.error || 'Failed to load chat history');
+        console.error('Failed to fetch threads');
         setThreads([]);
       }
     } catch (error) {
       console.error('Error fetching threads:', error);
-      setFetchError('Failed to load chat history');
       setThreads([]);
     } finally {
       setIsLoading(false);
-      isFetchingRef.current = false;
     }
-  }, [user, isOpen, isAuthenticated, lastFetchTime]);
+  }, [isAuthenticated, refreshSession]);
 
   // Fetch when refreshTrigger changes
   useEffect(() => {
     if (isAuthenticated && user && isOpen) {
       if (lastRefreshTrigger !== refreshTrigger) {
         setLastRefreshTrigger(refreshTrigger);
-        fetchThreads(true); // Force fetch when refresh trigger changes
+        fetchThreads();
       }
     }
   }, [refreshTrigger, isAuthenticated, user, isOpen, lastRefreshTrigger, fetchThreads]);
@@ -117,7 +136,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   // Fetch when authentication state changes
   useEffect(() => {
     if (isOpen && isAuthenticated && user) {
-      fetchThreads(true);
+      fetchThreads();
     }
   }, [isAuthenticated, user, isOpen, fetchThreads]);
 
@@ -224,7 +243,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
               <div className="text-center py-3">
                 <p className="text-red-500">{fetchError}</p>
                 <button
-                  onClick={() => fetchThreads(true)}
+                  onClick={() => fetchThreads()}
                   className="mt-2 px-3 py-1 bg-[#f5f3e4] rounded-md hover:bg-[#e9e7d8] text-sm border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                 >
                   Try Again

@@ -1,36 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SessionFixer } from '@/components/SessionFixer';
+import { toast } from 'sonner';
 
-interface AuthDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess?: () => void;
-  defaultTab?: 'sign-in' | 'sign-up';
-}
-
-export function AuthDialog({ isOpen, onClose, onSuccess, defaultTab = 'sign-in' }: AuthDialogProps) {
-  const [activeTab, setActiveTab] = useState<'sign-in' | 'sign-up'>(defaultTab);
+export default function AuthPage() {
+  const { user, signIn, signUp, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'sign-in' | 'sign-up'>('sign-in');
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
   
-  const { signIn, signUp } = useAuth();
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user) {
+      router.push('/');
+    }
+  }, [user, router]);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,20 +34,14 @@ export function AuthDialog({ isOpen, onClose, onSuccess, defaultTab = 'sign-in' 
     try {
       if (activeTab === 'sign-in') {
         await signIn(email, password);
+        toast.success('Signed in successfully');
       } else {
         await signUp(email, password, name);
+        toast.success('Account created successfully');
       }
       
-      // Clear form
-      setEmail('');
-      setPassword('');
-      setName('');
-      
-      // Close dialog and trigger success callback
-      onClose();
-      if (onSuccess) {
-        onSuccess();
-      }
+      // Navigate to home page
+      router.push('/');
     } catch (err: any) {
       setError(err.message || 'An error occurred');
     } finally {
@@ -61,29 +49,38 @@ export function AuthDialog({ isOpen, onClose, onSuccess, defaultTab = 'sign-in' 
     }
   };
   
-  const handleTabChange = (tab: 'sign-in' | 'sign-up') => {
-    setActiveTab(tab);
-    setError(null);
-  };
+  // If still checking auth state, show loading
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[400px]">
-        <DialogHeader>
-          <DialogTitle>Authentication</DialogTitle>
-          <DialogDescription>
-            Sign in to your account or create a new one.
-          </DialogDescription>
-        </DialogHeader>
+    <div className="flex min-h-screen flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold">Welcome to ExaChat</h1>
+          <p className="mt-2 text-gray-600">Sign in or create an account to continue</p>
+        </div>
         
-        <Tabs defaultValue={activeTab} onValueChange={(v) => handleTabChange(v as 'sign-in' | 'sign-up')}>
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs 
+          defaultValue={activeTab} 
+          onValueChange={(v) => {
+            setActiveTab(v as 'sign-in' | 'sign-up');
+            setError(null);
+          }}
+          className="w-full"
+        >
+          <TabsList className="grid w-full grid-cols-2 mb-8">
             <TabsTrigger value="sign-in">Sign In</TabsTrigger>
             <TabsTrigger value="sign-up">Sign Up</TabsTrigger>
           </TabsList>
           
           <TabsContent value="sign-in">
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -109,25 +106,19 @@ export function AuthDialog({ isOpen, onClose, onSuccess, defaultTab = 'sign-in' 
               </div>
               
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-md text-sm">
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
                   {error}
                 </div>
               )}
               
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Signing in...' : 'Sign In'}
-                </Button>
-              </div>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Signing in...' : 'Sign In'}
+              </Button>
             </form>
-            <div className="mt-4 text-center">
-              <span className="text-xs text-gray-500">Having trouble signing in?</span>
-              <SessionFixer />
-            </div>
           </TabsContent>
           
           <TabsContent value="sign-up">
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
                 <Input
@@ -164,24 +155,18 @@ export function AuthDialog({ isOpen, onClose, onSuccess, defaultTab = 'sign-in' 
               </div>
               
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-md text-sm">
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
                   {error}
                 </div>
               )}
               
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating account...' : 'Create Account'}
-                </Button>
-              </div>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating account...' : 'Create Account'}
+              </Button>
             </form>
-            <div className="mt-4 text-center">
-              <span className="text-xs text-gray-500">Having trouble signing in?</span>
-              <SessionFixer />
-            </div>
           </TabsContent>
         </Tabs>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 } 

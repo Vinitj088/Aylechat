@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import { Message, Model, ModelType } from '../../types';
 import Header from '../../component/Header';
 import ChatMessages from '../../component/ChatMessages';
@@ -8,8 +8,8 @@ import ChatInput from '../../component/ChatInput';
 import Sidebar from '../../component/Sidebar';
 import { fetchResponse } from '../../api/apiService';
 import modelsData from '../../../models.json';
-import SupabaseAuthDialog from '@/app/component/SupabaseAuthDialog';
-import { useSupabaseAuth } from '@/context/SupabaseAuthContext';
+import { AuthDialog } from '@/components/AuthDialog';
+import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { ChatThread } from '@/lib/redis';
 import { toast } from 'sonner';
@@ -36,7 +36,7 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { user, session } = useSupabaseAuth();
+  const { user, session } = useAuth();
   const router = useRouter();
   const { threadId } = params;
 
@@ -52,7 +52,6 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
     const fetchThread = async () => {
       if (!isAuthenticated || !user) {
         setIsThreadLoading(false);
-        // Don't redirect - let the middleware handle auth redirects if needed
         return;
       }
 
@@ -75,7 +74,47 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
             setIsThreadLoading(false);
             return;
           } else if (response.status === 401) {
-            // No need to refresh, just show auth dialog
+            // Try to refresh the session
+            toast.info('Attempting to fix session...');
+            
+            // Call the fix-session endpoint
+            const fixResponse = await fetch('/api/fix-session', {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+              }
+            });
+            
+            if (fixResponse.ok) {
+              // Try fetching the thread again after fixing the session
+              const retryResponse = await fetch(`/api/chat/threads/${threadId}?t=${Date.now()}`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                  'Cache-Control': 'no-cache, no-store, must-revalidate',
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              if (retryResponse.ok) {
+                // Success! Process the data
+                const data = await retryResponse.json();
+                if (data.success && data.thread) {
+                  setThread(data.thread);
+                  setMessages(data.thread.messages || []);
+                  // If it has an associated model, set it
+                  if (data.thread.model) {
+                    setSelectedModel(data.thread.model as ModelType);
+                  }
+                  setIsThreadLoading(false);
+                  return;
+                }
+              }
+            }
+            
+            // If we got here, fixing the session didn't work
             setShowAuthDialog(true);
             setIsThreadLoading(false);
             return;
@@ -149,74 +188,121 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
     const updatedMessages = [...messages, userMessage, assistantMessage];
     setMessages(updatedMessages);
 
-    try {
-      // Cancel any ongoing request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
+    // Cancel any previous requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
 
-      // Fetch the response with current messages for context
-      const { content, citations } = await fetchResponse(
-        input,
-        messages, // Pass the previous messages for context
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+
+    let content = "";
+    let citations: any[] = [];
+    let contentReceived = false;
+
+    try {
+      // Check if it's a new thread or existing thread
+      const isNewThread = !threadId || threadId === 'new';
+      
+      // First, let's update the thread on the server
+      if (user && isAuthenticated) {
+        await updateThread(updatedMessages);
+      }
+
+      // Then, fetch the model response
+      const response = await fetchResponse(
+        userMessage.content,
+        updatedMessages.slice(0, -1), // Exclude the empty assistant message
         selectedModel,
         abortControllerRef.current,
-        (updatedMsgs: Message[]) => {
-          // This callback updates messages as they stream in
-          setMessages(updatedMsgs);
-        },
+        setMessages,
         assistantMessage
       );
+      
+      content = response.content;
+      citations = response.citations || [];
+      contentReceived = true;
 
-      // Update message with final response
-      const finalMessages = [...messages, userMessage];
-      const finalAssistantMessage = { 
-        ...assistantMessage, 
-        content, 
-        citations 
-      };
-      finalMessages.push(finalAssistantMessage);
-      
-      setMessages(finalMessages);
-
-      // Update thread in database
-      if (isAuthenticated && user && threadId) {
-        updateThread(finalMessages);
-      }
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Request was aborted');
-        return;
-      }
-      
-      console.error('Error in chat submission:', error);
-      
-      // Handle rate limit errors with the enhanced error type
-      if (error instanceof Error && (error.name === 'RateLimitError' || error.message.includes('Rate limit'))) {
-        // Rate limit toast is already handled in apiService.ts
-        // Just update the chat message
-      }
-      
-      // Update error message
-      setMessages(prev => {
-        const updatedMessages = [...prev];
-        const assistantIndex = updatedMessages.findIndex(m => m.id === assistantMessage.id);
-        
-        if (assistantIndex !== -1) {
-          updatedMessages[assistantIndex] = {
-            ...assistantMessage,
-            content: error instanceof Error && (error.name === 'RateLimitError' || error.message.includes('Rate limit'))
-              ? 'Rate limit reached. Please wait a moment before trying again.'
-              : 'I encountered an error processing your request. Please try again.'
-          };
+      // Update the thread again with the completed response
+      if (user && isAuthenticated) {
+        try {
+          // Create a complete array with all messages including the completed response
+          const finalMessages = [...messages]; // Start with previous messages
+          
+          // Find if user message is already in the array, add if not
+          const userMessageExists = finalMessages.some(msg => msg.id === userMessage.id);
+          if (!userMessageExists) {
+            finalMessages.push(userMessage);
+          }
+          
+          // Find if assistant message exists, update it or add it
+          const assistantIndex = finalMessages.findIndex(msg => msg.id === assistantMessage.id);
+          if (assistantIndex !== -1) {
+            finalMessages[assistantIndex] = {
+              ...assistantMessage,
+              content,
+              citations,
+              completed: true
+            };
+          } else {
+            finalMessages.push({
+              ...assistantMessage,
+              content,
+              citations,
+              completed: true
+            });
+          }
+          
+          // Log message count for debugging
+          console.log(`Saving thread with ${finalMessages.length} messages`);
+          
+          // Update thread with all messages
+          await updateThread(finalMessages);
+        } catch (updateError) {
+          console.error('Error saving completed thread:', updateError);
         }
+      }
+    } catch (error: any) {
+      console.error("Error in submission:", error);
+      
+      // Handle authentication errors
+      if (error.message && (
+          error.message.includes('authentication') || 
+          error.message.includes('Authentication') || 
+          error.message.includes('Unauthorized') || 
+          error.message.includes('401') ||
+          error.message.includes('session')
+        )) {
+        // Show the auth dialog first to let the user sign in
+        setShowAuthDialog(true);
         
-        return updatedMessages;
-      });
+        // Set the error message in the assistant message
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.id === assistantMessage.id 
+              ? { ...msg, content: "I couldn't complete your request because your session expired. Please sign in again.", completed: true } 
+              : msg
+          )
+        );
+      } else {
+        // Handle other errors
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.id === assistantMessage.id 
+              ? { ...msg, content: "I'm sorry, there was an error processing your request. Please try again.", completed: true } 
+              : msg
+          )
+        );
+        
+        // Show error toast
+        toast.error(error.message || 'Error processing request');
+      }
     } finally {
-      setIsLoading(false);
+      // Clear the abort controller reference
       abortControllerRef.current = null;
+
+      // Always ensure loading is stopped, regardless of outcome
+      setIsLoading(false);
     }
   };
 
@@ -324,7 +410,7 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
       />
 
       {/* Auth Dialog */}
-      <SupabaseAuthDialog 
+      <AuthDialog 
         isOpen={showAuthDialog} 
         onClose={() => setShowAuthDialog(false)}
         onSuccess={() => {

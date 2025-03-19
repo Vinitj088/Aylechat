@@ -1,11 +1,11 @@
 'use client';
 
-import { SupabaseAuthProvider } from '@/context/SupabaseAuthContext';
+import { AuthProvider } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SupabaseAuthProvider>
+    <AuthProvider>
       {children}
       <Toaster 
         position="bottom-right"
@@ -15,6 +15,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
           zIndex: 9999,
         }}
       />
-    </SupabaseAuthProvider>
+    </AuthProvider>
   );
-} 
+}
+
+export { SessionFixer } from '@/components/SessionFixer'; 

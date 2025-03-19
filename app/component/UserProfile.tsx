@@ -1,10 +1,12 @@
 "use client";
 
-import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
+import React from "react";
+import { useAuth } from '@/context/AuthContext';
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
-export function UserProfile() {
-  const { user, session, isLoading, signOut } = useSupabaseAuth();
+export default function UserProfile() {
+  const { user, session, isLoading, signOut } = useAuth();
   const router = useRouter();
 
   const handleSignOut = async () => {

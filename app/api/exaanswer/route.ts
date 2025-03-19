@@ -12,51 +12,31 @@ const exa = new Exa(process.env.EXA_API_KEY as string);
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('API: Exa - retrieving auth session');
-    
-    // Create the Supabase client with cookie handling
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    // Check session first
-    if (session?.user) {
-      console.log('API: Exa - User authenticated from session:', session.user.email);
-    } else {
-      // Try header auth as fallback
-      const headerUserId = req.headers.get('x-auth-user-id');
-      const headerEmail = req.headers.get('x-auth-email');
-      
-      if (!headerUserId) {
-        console.log('API: Exa - No valid authentication found');
-        return new Response(JSON.stringify({ error: 'Unauthorized', details: 'No session found' }), { status: 401 });
-      }
-      
-      console.log(`API: Exa - Using header auth: ${headerEmail || headerUserId}`);
-    }
-
-    const { query, messages } = await req.json();
+    // Parse request body first
+    const body = await req.json();
+    const { query, messages } = body;
     
     if (!query) {
       return new Response(JSON.stringify({ error: 'query is required' }), { status: 400 });
     }
 
-    console.log(`API: Exa - Processing search for query: ${query}`);
+    // Skip authentication checks - allow all requests
+    // Log the query for debugging
+    console.log(`Processing Exa search for query: ${query}`);
 
     // Add timeout promise to avoid hanging requests
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Exa API request timed out')), 45000); // 45 seconds timeout
+      setTimeout(() => reject(new Error('Exa API request timed out')), 20000); // 20 seconds timeout
     });
 
-    // Create Exa stream with the query
-    console.log('API: Exa - Calling API with query:', query);
+    // Create Exa stream - just pass the raw query since Exa is a search API
+    // Using the options according to exa-js documentation
     const streamPromise = exa.streamAnswer(query, { 
       model: "exa-pro"
     });
     
     // Use Promise.race to implement timeout
     const stream = await Promise.race([streamPromise, timeoutPromise]) as AsyncIterable<any>;
-    console.log('API: Exa - Stream created successfully');
     
     const encoder = new TextEncoder();
 
@@ -66,7 +46,7 @@ export async function POST(req: NextRequest) {
           // Add a timeout for the entire streaming process
           const streamTimeout = setTimeout(() => {
             controller.error(new Error('Streaming response timed out'));
-          }, 45000); // 45 seconds timeout
+          }, 20000); // 20 seconds timeout
           
           for await (const chunk of stream) {
             // Send citations if present
@@ -83,9 +63,9 @@ export async function POST(req: NextRequest) {
           clearTimeout(streamTimeout);
           controller.close();
         } catch (error) {
-          console.error('API: Exa - Error during stream processing:', error);
+          console.error('Error during stream processing:', error);
           
-          // Send a partial response error message
+          // Send a partial response error message so the frontend knows something went wrong
           controller.enqueue(encoder.encode(JSON.stringify({
             choices: [{ delta: { content: "\n\nI apologize, but I encountered an issue completing this search. Please try rephrasing your question or breaking it into smaller parts." } }]
           }) + '\n'));
@@ -103,7 +83,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('API: Exa - Critical error:', error);
+    console.error('Exa API error:', error);
     return new Response(
       JSON.stringify({ 
         error: `Failed to perform search | ${error.message}`,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, Suspense } from 'react';
+import { useState, useRef, useEffect, Suspense, useCallback } from 'react';
 import { Message, Model, ModelType } from './types';
 import Header from './component/Header';
 import ChatMessages from './component/ChatMessages';
@@ -11,8 +11,8 @@ import Sidebar from './component/Sidebar';
 import { fetchResponse } from './api/apiService';
 import modelsData from '../models.json';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useSupabaseAuth } from '@/context/SupabaseAuthContext';
-import SupabaseAuthDialog from './component/SupabaseAuthDialog';
+import { useAuth } from '@/context/AuthContext';
+import { AuthDialog } from '@/components/AuthDialog';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import {
@@ -24,7 +24,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import AuthDebugButton from '@/components/AuthDebugButton';
 
 // Create a new component that uses useSearchParams
 function PageContent() {
@@ -50,7 +49,7 @@ function PageContent() {
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { user, session, isLoading: authLoading } = useSupabaseAuth();
+  const { user, session, isLoading: authLoading, openAuthDialog } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -61,6 +60,8 @@ function PageContent() {
     const authRequired = searchParams.get('authRequired');
     const expired = searchParams.get('expired');
     const error = searchParams.get('error');
+    const sessionError = searchParams.get('session_error');
+    const cookieError = searchParams.get('cookie_error');
     
     // Show auth dialog if any of these params are present
     if (authRequired === 'true' || expired === 'true' || error) {
@@ -81,6 +82,46 @@ function PageContent() {
       url.searchParams.delete('authRequired');
       url.searchParams.delete('expired');
       url.searchParams.delete('error');
+      window.history.replaceState({}, '', url);
+    }
+
+    // Handle session format errors
+    if (sessionError === 'true' || cookieError === 'true') {
+      toast.error('Session format issue detected', {
+        description: 'Please click the "Auth Debug" button and use "Fix Session Issues"',
+        duration: 10000,
+        action: {
+          label: 'Fix Now',
+          onClick: async () => {
+            try {
+              // Call the fix-session API
+              const response = await fetch('/api/fix-session', {
+                method: 'POST',
+                credentials: 'include',
+              });
+              
+              if (response.ok) {
+                toast.success('Session cookies cleared', {
+                  description: 'Please sign in again to get a fresh session'
+                });
+                
+                // Force sign in dialog
+                setShowAuthDialog(true);
+              } else {
+                toast.error('Could not fix session cookies');
+              }
+            } catch (e) {
+              console.error('Error fixing session:', e);
+              toast.error('Error fixing session');
+            }
+          }
+        }
+      });
+      
+      // Clean URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('session_error');
+      url.searchParams.delete('cookie_error');
       window.history.replaceState({}, '', url);
     }
   }, [searchParams]);
@@ -105,6 +146,33 @@ function PageContent() {
       console.log('Set debug cookie');
     }
   }, [user]);
+
+  // Handle showing the auth dialog if opened via URL param
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('signIn') === 'true' || urlParams.get('auth') === 'true') {
+      openAuthDialog();
+    }
+  }, [openAuthDialog]);
+
+  // Set up auth dialog control functions
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  
+  // Register the dialog open function
+  useEffect(() => {
+    // Just use the openAuthDialog function directly
+    const showAuthDialog = () => {
+      setIsAuthDialogOpen(true);
+    };
+    
+    // In a real implementation, you would register this with a global
+    // event system or context, but for now we'll just use the state directly
+  }, []);
+
+  // Function to handle login button click
+  const handleLoginClick = useCallback(() => {
+    openAuthDialog();
+  }, [openAuthDialog]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     setInput(e.target.value);
@@ -142,6 +210,45 @@ function PageContent() {
       setRefreshSidebar(prev => prev + 1);
     }
   }, [isAuthenticated]);
+
+  // Add improved error handling for auth issues  
+  const handleAuthError = async (error: any) => {
+    console.error('Authentication error:', error);
+    
+    // Check for cookie parsing errors
+    if (error.message && (error.message.includes('parse') || error.message.includes('JSON'))) {
+      toast.error('Session error detected', {
+        description: 'Trying to fix your session automatically...'
+      });
+      
+      try {
+        // Call the fix-session API endpoint
+        const response = await fetch('/api/fix-session', {
+          method: 'POST',
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          toast.success('Session fixed successfully', {
+            description: 'Please try your action again'
+          });
+          
+          // Force a refresh of the page to get a clean state
+          window.location.reload();
+          return;
+        }
+      } catch (e) {
+        console.error('Error fixing session:', e);
+      }
+      
+      // If we get here, we couldn't fix the session automatically
+      setShowAuthDialog(true);
+      return;
+    }
+    
+    // For other auth errors, show auth dialog
+    setShowAuthDialog(true);
+  };
 
   const createOrUpdateThread = async (threadContent: { messages: Message[], title?: string }) => {
     if (!isAuthenticated || !user) {
@@ -201,8 +308,19 @@ function PageContent() {
       }
       
       return null;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving thread:', error);
+      
+      // Check if it's an auth error
+      if (
+        (error.message && error.message.toLowerCase().includes('unauthorized')) ||
+        (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
+      ) {
+        await handleAuthError(error);
+      } else {
+        toast.error('Error saving conversation');
+      }
+      
       return null;
     }
   };
@@ -311,32 +429,36 @@ function PageContent() {
           window.history.pushState({}, '', `/chat/${threadId}`);
         }
       }
-    } catch (error) {
-      console.error('Error in chat submission:', error);
-      setMessages(prev => {
-        const assistantIndex = prev.findIndex(m => m.id === assistantMessage.id);
+    } catch (error: any) {
+      console.error('Error fetching response:', error);
+      
+      // Add the error message to the assistant's message
+      const updatedMessages = [...messages];
+      const assistantMessageIndex = updatedMessages.length - 1;
+      
+      // Check if it's an auth error
+      if (
+        (error.message && error.message.toLowerCase().includes('unauthorized')) ||
+        (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
+      ) {
+        await handleAuthError(error);
         
-        if (assistantIndex !== -1) {
-          // Update the assistant message with an error
-          const updatedMessages = [...prev];
-          updatedMessages[assistantIndex] = {
-            ...assistantMessage,
-            content: 'I encountered an error processing your request. Please try again.'
-          };
-          return updatedMessages;
-        }
+        // Update the message with auth error info
+        updatedMessages[assistantMessageIndex] = {
+          ...updatedMessages[assistantMessageIndex],
+          content: 'I encountered an authentication error. Please try again after fixing your session.'
+        };
+      } else {
+        // For other errors
+        updatedMessages[assistantMessageIndex] = {
+          ...updatedMessages[assistantMessageIndex],
+          content: `Error: ${error.message || 'Something went wrong. Please try again.'}`
+        };
         
-        // If assistant message not found, add an error message
-        return [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            content: 'I encountered an error processing your request. Please try again.'
-          }
-        ];
-      });
-    } finally {
+        toast.error('Error generating response');
+      }
+      
+      setMessages(updatedMessages);
       setIsLoading(false);
       abortControllerRef.current = null;
     }
@@ -447,16 +569,11 @@ function PageContent() {
       )}
 
       {/* Auth Dialog */}
-      <SupabaseAuthDialog 
+      <AuthDialog 
         isOpen={showAuthDialog}
         onClose={() => setShowAuthDialog(false)}
         onSuccess={handleAuthSuccess}
       />
-
-      {/* Add the debug button */}
-      <div className="fixed bottom-4 right-4 z-50">
-        <AuthDebugButton />
-      </div>
     </main>
   );
 }

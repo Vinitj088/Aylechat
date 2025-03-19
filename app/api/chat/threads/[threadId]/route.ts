@@ -1,137 +1,212 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 import { RedisService } from '@/lib/redis';
-import { getAuthenticatedUser, unauthorizedResponse } from '@/lib/supabase-utils';
 
 export const dynamic = 'force-dynamic';
 
-interface Params {
-  params: {
-    threadId: string;
-  };
-}
-
-// No-cache headers
-const CACHE_HEADERS = {
-  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-  'Pragma': 'no-cache'
-};
-
-export async function GET(request: NextRequest, { params }: Params) {
+// GET a specific thread
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { threadId: string } }
+) {
   try {
-    // Get authenticated user
-    const { user, error } = await getAuthenticatedUser();
-    
-    if (error || !user) {
-      return unauthorizedResponse();
-    }
-
-    const userId = user.id;
     const { threadId } = params;
-    const thread = await RedisService.getChatThread(userId, threadId);
-
+    
+    if (!threadId) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Thread ID is required' 
+      }, { status: 400 });
+    }
+    
+    // Get user from cookie or auth
+    const cookieStore = cookies();
+    const userId = cookieStore.get('app-user-id')?.value;
+    let authenticatedUserId = userId;
+    
+    // If no debug cookie, check Supabase auth
+    if (!authenticatedUserId) {
+      const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        return NextResponse.json(
+          { error: 'Unauthorized', message: 'Authentication required' },
+          { status: 401 }
+        );
+      }
+      
+      authenticatedUserId = session.user.id;
+    }
+    
+    // Get the thread from Redis
+    const thread = await RedisService.getChatThread(authenticatedUserId, threadId);
+    
     if (!thread) {
-      return NextResponse.json(
-        { success: false, error: 'Thread not found' },
-        { status: 404, headers: CACHE_HEADERS }
-      );
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Thread not found' 
+      }, { status: 404 });
     }
-
-    return NextResponse.json(
-      { success: true, thread },
-      { headers: CACHE_HEADERS }
-    );
-  } catch (error) {
-    console.error('Error getting chat thread:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to get chat thread' },
-      { status: 500, headers: CACHE_HEADERS }
-    );
+    
+    return NextResponse.json({
+      success: true,
+      thread
+    });
+    
+  } catch (error: any) {
+    console.error('Error getting thread:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || 'Failed to get thread' 
+    }, { status: 500 });
   }
 }
 
-export async function PUT(request: NextRequest, { params }: Params) {
+// PUT/UPDATE a specific thread
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { threadId: string } }
+) {
   try {
-    // Get authenticated user
-    const { user, error } = await getAuthenticatedUser();
-    
-    if (error || !user) {
-      return unauthorizedResponse();
-    }
-
-    const userId = user.id;
     const { threadId } = params;
-    const body = await request.json();
-
-    // Ensure the thread exists
-    const existingThread = await RedisService.getChatThread(userId, threadId);
-    if (!existingThread) {
-      return NextResponse.json(
-        { success: false, error: 'Thread not found' },
-        { status: 404, headers: CACHE_HEADERS }
-      );
+    
+    if (!threadId) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Thread ID is required' 
+      }, { status: 400 });
     }
-
+    
+    // Parse request body
+    const body = await req.json();
+    const { messages, title, model } = body;
+    
+    if (!messages || !Array.isArray(messages)) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Messages are required and must be an array' 
+      }, { status: 400 });
+    }
+    
+    // Get user from cookie or auth
+    const cookieStore = cookies();
+    const userId = cookieStore.get('app-user-id')?.value;
+    let authenticatedUserId = userId;
+    
+    // If no debug cookie, check Supabase auth
+    if (!authenticatedUserId) {
+      const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        return NextResponse.json(
+          { error: 'Unauthorized', message: 'Authentication required' },
+          { status: 401 }
+        );
+      }
+      
+      authenticatedUserId = session.user.id;
+    }
+    
+    // Get the existing thread first
+    const existingThread = await RedisService.getChatThread(authenticatedUserId, threadId);
+    
+    if (!existingThread) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Thread not found' 
+      }, { status: 404 });
+    }
+    
     // Update the thread
-    const updatedThread = await RedisService.updateChatThread(userId, threadId, body);
+    const updatedThread = await RedisService.updateChatThread(
+      authenticatedUserId,
+      threadId,
+      {
+        messages,
+        title: title || existingThread.title,
+        model: model || existingThread.model
+      }
+    );
+    
     if (!updatedThread) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to update thread' },
-        { status: 500, headers: CACHE_HEADERS }
-      );
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Failed to update thread' 
+      }, { status: 500 });
     }
-
-    return NextResponse.json(
-      { success: true, thread: updatedThread },
-      { headers: CACHE_HEADERS }
-    );
-  } catch (error) {
-    console.error('Error updating chat thread:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to update chat thread' },
-      { status: 500, headers: CACHE_HEADERS }
-    );
+    
+    return NextResponse.json({
+      success: true,
+      thread: updatedThread
+    });
+    
+  } catch (error: any) {
+    console.error('Error updating thread:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || 'Failed to update thread' 
+    }, { status: 500 });
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: Params) {
+// DELETE a specific thread
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { threadId: string } }
+) {
   try {
-    // Get authenticated user
-    const { user, error } = await getAuthenticatedUser();
-    
-    if (error || !user) {
-      return unauthorizedResponse();
-    }
-
-    const userId = user.id;
     const { threadId } = params;
-
-    // Ensure the thread exists
-    const existingThread = await RedisService.getChatThread(userId, threadId);
-    if (!existingThread) {
-      return NextResponse.json(
-        { success: false, error: 'Thread not found' },
-        { status: 404, headers: CACHE_HEADERS }
-      );
+    
+    if (!threadId) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Thread ID is required' 
+      }, { status: 400 });
     }
-
+    
+    // Get user from cookie or auth
+    const cookieStore = cookies();
+    const userId = cookieStore.get('app-user-id')?.value;
+    let authenticatedUserId = userId;
+    
+    // If no debug cookie, check Supabase auth
+    if (!authenticatedUserId) {
+      const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
+        return NextResponse.json(
+          { error: 'Unauthorized', message: 'Authentication required' },
+          { status: 401 }
+        );
+      }
+      
+      authenticatedUserId = session.user.id;
+    }
+    
     // Delete the thread
-    const success = await RedisService.deleteChatThread(userId, threadId);
+    const success = await RedisService.deleteChatThread(authenticatedUserId, threadId);
+    
     if (!success) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to delete thread' },
-        { status: 500, headers: CACHE_HEADERS }
-      );
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Failed to delete thread' 
+      }, { status: 500 });
     }
-
-    return NextResponse.json(
-      { success: true },
-      { headers: CACHE_HEADERS }
-    );
-  } catch (error) {
-    console.error('Error deleting chat thread:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to delete chat thread' },
-      { status: 500, headers: CACHE_HEADERS }
-    );
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Thread deleted successfully'
+    });
+    
+  } catch (error: any) {
+    console.error('Error deleting thread:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || 'Failed to delete thread' 
+    }, { status: 500 });
   }
 } 

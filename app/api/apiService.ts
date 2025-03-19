@@ -5,41 +5,72 @@ import { toast } from 'sonner';
 
 // Character limits for context windows
 const MODEL_LIMITS = {
-  exa: 10000,  // Exa has a 10k character limit
+  exa: 8000,    // Based on Exa RAG best practices
   groq: 128000, // Groq models have a much larger limit
   default: 8000 // Fallback limit
 };
 
 // Function to truncate conversation history to fit within context window
 const truncateConversationHistory = (messages: Message[], modelId: string): Message[] => {
+  // For Exa, just return most recent query - simpler approach to prevent timeouts
+  if (modelId === 'exa') {
+    // For Exa, we only need the very last user query without additional context
+    const userMessages = messages.filter(msg => msg.role === 'user');
+    if (userMessages.length > 0) {
+      // Return only the most recent user message for search
+      return [userMessages[userMessages.length - 1]];
+    }
+    return [];
+  }
+  
+  // For LLMs like Groq, retain conversation history
   // Determine the character limit for the model
   let charLimit = MODEL_LIMITS.default;
-  if (modelId === 'exa') {
-    charLimit = MODEL_LIMITS.exa;
-  } else if (modelId.includes('groq') || modelId.startsWith('llama')) {
+  if (modelId.includes('groq') || modelId.startsWith('llama')) {
     charLimit = MODEL_LIMITS.groq;
   }
   
-  // Clone the messages array to avoid mutations
-  const messagesCopy = [...messages];
-  let totalChars = 0;
-  let startIndex = messagesCopy.length - 1;
-  
-  // Always include the most recent message and work backward
-  // Count characters from newest to oldest
-  for (let i = messagesCopy.length - 1; i >= 0; i--) {
-    const msgLength = messagesCopy[i].content.length;
-    if (totalChars + msgLength > charLimit) {
-      // If adding this message would exceed the limit, stop here
-      startIndex = i + 1;
-      break;
-    }
-    totalChars += msgLength;
-    startIndex = i; // Update the starting index
+  // If there are fewer than 2 messages or the history fits in the limit, return all messages
+  if (messages.length <= 2) {
+    return messages;
   }
   
-  // Return the truncated messages
-  return messagesCopy.slice(startIndex);
+  // Calculate total character count in all messages
+  const totalChars = messages.reduce((sum, msg) => sum + msg.content.length, 0);
+  
+  // If all messages fit within limit, return them all
+  if (totalChars <= charLimit) {
+    return messages;
+  }
+  
+  // Always include the most recent message pairs (user question and assistant response)
+  // and work backward in pairs to maintain context
+  const result: Message[] = [];
+  let usedChars = 0;
+  
+  // Process messages in reverse order (newest first)
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const currentMsg = messages[i];
+    const msgLength = currentMsg.content.length;
+    
+    // Always include the most recent messages
+    if (i >= messages.length - 2) {
+      result.unshift(currentMsg);
+      usedChars += msgLength;
+      continue;
+    }
+    
+    // For older messages, check if we have room
+    if (usedChars + msgLength <= charLimit) {
+      result.unshift(currentMsg);
+      usedChars += msgLength;
+    } else {
+      // If we can't fit any more messages, stop
+      break;
+    }
+  }
+  
+  return result;
 };
 
 // Helper type for message updater function
@@ -92,33 +123,61 @@ export const fetchResponse = async (
   let response;
   
   try {
-    if (selectedModel === 'exa') {
-      // Use Exa API - send the relevant history
-      response = await fetch(getAssetPath('/api/exaanswer'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          query: input, // Send current input as the query
-          messages: relevantHistory // Send truncated message history
-        }),
-        signal: abortController.signal,
-      });
-    } else {
-      // Use Groq API
-      response = await fetch(getAssetPath('/api/groq'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+    const apiEndpoint = selectedModel === 'exa' 
+      ? getAssetPath('/api/exaanswer')
+      : getAssetPath('/api/groq');
+    
+    console.log(`Sending request to ${apiEndpoint} with model ${selectedModel}`);
+    
+    // Common request options
+    const requestOptions = {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      },
+      signal: abortController.signal,
+      credentials: 'include' as RequestCredentials, // Add credentials to include cookies
+    };
+    
+    // Prepare request body based on the API
+    const requestBody = selectedModel === 'exa' 
+      ? { 
+          // For Exa, just use the direct query without additional context
+          query: input,
+          // Don't include previous messages to avoid timeouts
+          messages: []
+        } 
+      : { 
+          // For Groq and other LLMs, include the full conversation history
           query: fullQuery,
-          model: selectedModel,
-          messages: relevantHistory // Add messages array for Groq
-        }),
-        signal: abortController.signal,
-      });
-    }
+          model: selectedModel, 
+          messages: relevantHistory
+        };
+    
+    // Make the fetch request
+    response = await fetch(
+      apiEndpoint, 
+      {
+        ...requestOptions,
+        body: JSON.stringify(requestBody),
+      }
+    );
 
     // Check if it's JSON and parse it for error info
     if (!response.ok) {
+      console.error(`API request failed with status ${response.status}`);
+      
+      // Special handling for authentication errors
+      if (response.status === 401) {
+        toast.error('Authentication required', {
+          description: 'Please sign in to continue using this feature',
+          duration: 5000
+        });
+        
+        throw new Error('Authentication required. Please sign in and try again.');
+      }
+      
       // Check content type to determine if it's JSON
       const contentType = response.headers.get('content-type');
       
@@ -170,7 +229,7 @@ export const fetchResponse = async (
           throw rateLimitError;
         }
         
-        throw new Error(errorData.error?.message || 'API request failed');
+        throw new Error(errorData.error?.message || errorData.message || 'API request failed');
       }
       
       throw new Error(`Request failed with status ${response.status}`);
@@ -211,7 +270,12 @@ export const fetchResponse = async (
             updateMessages(setMessages, (prev: Message[]) => 
               prev.map((msg: Message) => 
                 msg.id === assistantMessage.id 
-                  ? { ...msg, content: content } 
+                  ? { 
+                      ...msg,
+                      content: content,
+                      // Mark message as completed if we detect we're at the end
+                      completed: line.includes('"finish_reason"') || line.includes('"done":true')
+                    } 
                   : msg
               )
             );
@@ -222,11 +286,11 @@ export const fetchResponse = async (
       }
     }
 
-    // Final update with complete content and citations
+    // After streaming completes, make one final update to ensure message is marked as completed
     updateMessages(setMessages, (prev: Message[]) => 
       prev.map((msg: Message) => 
         msg.id === assistantMessage.id 
-          ? { ...msg, content, citations } 
+          ? { ...msg, content, citations, completed: true } 
           : msg
       )
     );
@@ -234,6 +298,12 @@ export const fetchResponse = async (
     return { content, citations };
   } catch (e) {
     console.error('Error in fetchResponse:', e);
+    
+    if (e instanceof Error && e.message.includes('Authentication')) {
+      // This is an authentication error, show appropriate message
+      throw e;
+    }
+    
     // Make sure to show the toast one more time here in case it failed earlier
     if (e instanceof Error && e.message.includes('Rate limit')) {
       toast.error('RATE LIMIT REACHED', {
@@ -244,7 +314,14 @@ export const fetchResponse = async (
           onClick: () => {}
         }
       });
+    } else {
+      // Generic error toast
+      toast.error('Error processing request', {
+        description: e instanceof Error ? e.message : 'Unknown error occurred',
+        duration: 5000
+      });
     }
+    
     throw e;
   }
 }; 
