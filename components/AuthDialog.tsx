@@ -15,6 +15,7 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
   const [isSignIn, setIsSignIn] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -47,11 +48,15 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
           }, 1500);
         }
       } else {
-        const { error, success } = await signUp(email, password);
+        const { error, success } = await signUp(email, password, name);
         if (error) {
           setError(error.message);
         } else if (success) {
-          setSuccessMessage('Signed up successfully! Please check your email for confirmation.');
+          setSuccessMessage('Signed up successfully! You can now sign in with your new account.');
+          setTimeout(() => {
+            // Switch to sign in mode after successful signup
+            setIsSignIn(true);
+          }, 2000);
         }
       }
     } catch (err) {
@@ -123,6 +128,21 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
         )}
 
         <form onSubmit={handleSubmit}>
+          {!isSignIn && (
+            <div className="mb-4">
+              <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">
+                Name
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="appearance-none border-2 border-black rounded-none w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              />
+            </div>
+          )}
           <div className="mb-4">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
               Email
@@ -173,7 +193,7 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
             </button>
           </div>
           
-          {/* Session fix section */}
+          {/* Session fix section
           <div className="pt-4 mt-4 border-t-2 border-black">
             <p className="text-sm text-gray-700 mb-2">
               Having trouble signing in? Try fixing your session:
@@ -186,7 +206,7 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
             >
               {isFixingSession ? 'Fixing...' : 'Fix Session Issues'}
             </button>
-          </div>
+          </div> */}
         </form>
       </div>
     </div>

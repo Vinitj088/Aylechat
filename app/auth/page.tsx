@@ -36,8 +36,11 @@ export default function AuthPage() {
         await signIn(email, password);
         toast.success('Signed in successfully');
       } else {
-        await signUp(email, password);
-        toast.success('Account created successfully');
+        await signUp(email, password, name);
+        toast.success('Account created successfully! You can now sign in.');
+        
+        // Switch to sign-in tab after successful signup
+        setActiveTab('sign-in');
       }
       
       // Navigate to home page
