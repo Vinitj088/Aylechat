@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import { Message, Model, ModelType } from './types';
 import Header from './component/Header';
 import ChatMessages from './component/ChatMessages';
@@ -15,7 +15,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import AuthDialog from './component/AuthDialog';
 import { toast } from 'sonner';
 
-export default function Page() {
+// Wrapper component that uses useSearchParams
+function PageContent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -253,62 +254,31 @@ export default function Page() {
       }];
       
       setMessages(finalMessages);
-
-      // Create or update the thread only after we have the complete response
-      if (isFirstMessage) {
-        // For first message, create a new thread
-        const threadId = await createOrUpdateThread({
-          messages: finalMessages,
-          title: threadTitle
-        });
-        
-        if (threadId) {
-          setCurrentThreadId(threadId);
-          // Update the URL to the new thread without forcing a reload
-          window.history.pushState({}, '', `/chat/${threadId}`);
-        }
-      } else if (currentThreadId) {
-        // For subsequent messages, update the existing thread
-        await createOrUpdateThread({
-          messages: finalMessages
-        });
-      } else {
-        // If we somehow don't have a thread ID, create a new thread
-        const threadId = await createOrUpdateThread({
-          messages: finalMessages,
-          title: threadTitle
-        });
-        
-        if (threadId) {
-          setCurrentThreadId(threadId);
-          // Update the URL to the new thread without forcing a reload
-          window.history.pushState({}, '', `/chat/${threadId}`);
-        }
-      }
+      
+      // Create or update thread in the database
+      const threadContent = {
+        messages: finalMessages,
+        ...(threadTitle && { title: threadTitle })
+      };
+      
+      createOrUpdateThread(threadContent);
+      
     } catch (error) {
-      console.error('Error in chat submission:', error);
+      console.error('Error fetching response:', error);
+      
+      // Update the assistant message with an error
       setMessages(prev => {
-        const assistantIndex = prev.findIndex(m => m.id === assistantMessage.id);
+        const updatedMessages = [...prev];
+        const lastMessageIndex = updatedMessages.length - 1;
         
-        if (assistantIndex !== -1) {
-          // Update the assistant message with an error
-          const updatedMessages = [...prev];
-          updatedMessages[assistantIndex] = {
-            ...assistantMessage,
-            content: 'I encountered an error processing your request. Please try again.'
+        if (lastMessageIndex >= 0 && updatedMessages[lastMessageIndex].role === 'assistant') {
+          updatedMessages[lastMessageIndex] = {
+            ...updatedMessages[lastMessageIndex],
+            content: 'Sorry, there was an error processing your request. Please try again.'
           };
-          return updatedMessages;
         }
         
-        // If assistant message not found, add an error message
-        return [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            content: 'I encountered an error processing your request. Please try again.'
-          }
-        ];
+        return updatedMessages;
       });
     } finally {
       setIsLoading(false);
@@ -316,101 +286,182 @@ export default function Page() {
     }
   };
 
-  // Determine if we have any messages
-  const hasMessages = messages.length > 0;
-
-  // Determine if the selected model is Exa
-  const isExa = selectedModel === 'exa';
-
-  // Get the provider name for the selected model
-  const selectedModelObj = models.find(model => model.id === selectedModel);
-  const providerName = selectedModelObj?.provider || 'AI';
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
+    }
+  };
 
   const handleNewChat = () => {
+    // Clear the messages
     setMessages([]);
     setInput('');
     setCurrentThreadId(null);
-    router.push('/');
+    
+    // Update URL to root
+    window.history.pushState({}, '', '/');
   };
 
+  const handleClearChat = () => {
+    setMessages([]);
+    setInput('');
+  };
+
+  const handleFullClear = () => {
+    setMessages([]);
+    setInput('');
+    setCurrentThreadId(null);
+    localStorage.removeItem('chatMessages');
+    window.history.pushState({}, '', '/');
+  };
+
+  useEffect(() => {
+    // Check URL for thread ID
+    const path = window.location.pathname;
+    const match = path.match(/\/chat\/([a-zA-Z0-9-]+)/);
+    
+    if (match && match[1]) {
+      const threadId = match[1];
+      setCurrentThreadId(threadId);
+      
+      // Fetch the thread data
+      const fetchThread = async () => {
+        try {
+          const response = await fetch(`/api/chat/threads/${threadId}`);
+          
+          if (!response.ok) {
+            if (response.status === 404) {
+              // Thread not found, redirect to home
+              window.history.pushState({}, '', '/');
+              setCurrentThreadId(null);
+              return;
+            }
+            
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          
+          if (data.thread) {
+            setMessages(data.thread.messages || []);
+            if (data.thread.model) {
+              setSelectedModel(data.thread.model);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching thread:', error);
+          // Handle error - could redirect or show error message
+        }
+      };
+      
+      fetchThread();
+    }
+  }, []);
+  
   return (
-    <main className="flex min-h-screen flex-col">
-      
-      <Header toggleSidebar={toggleSidebar} />
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        onClose={() => setIsSidebarOpen(false)} 
-        onSignInClick={() => setShowAuthDialog(true)}
-        refreshTrigger={refreshSidebar}
-      />
-      
-      {!hasMessages ? (
-        <>
-          <MobileSearchUI 
-            input={input}
-            handleInputChange={handleInputChange}
-            handleSubmit={handleSubmit}
-            isLoading={isLoading}
-            selectedModel={selectedModel}
-            handleModelChange={handleModelChange}
-            models={models}
-            autoprompt={autoprompt}
-            toggleAutoprompt={toggleAutoprompt}
-            setInput={setInput}
-            messages={messages}
-            isExa={selectedModel.includes('exa')}
-            providerName={selectedModel.includes('exa') ? 'Exa' : 'Groq'}
-          />
-          <DesktopSearchUI 
-            input={input}
-            handleInputChange={handleInputChange}
-            handleSubmit={handleSubmit}
-            isLoading={isLoading}
-            selectedModel={selectedModel}
-            handleModelChange={handleModelChange}
-            models={models}
-            autoprompt={autoprompt}
-            toggleAutoprompt={toggleAutoprompt}
-            setInput={setInput}
-            isExa={selectedModel.includes('exa')}
-            providerName={selectedModel.includes('exa') ? 'Exa' : 'Groq'}
-            messages={messages}
-          />
-        </>
-      ) : (
-        <>
-          <ChatMessages 
-            messages={messages} 
-            isLoading={isLoading} 
-            selectedModel={selectedModel}
-            selectedModelObj={selectedModelObj}
-            isExa={isExa}
+    <div className="flex min-h-screen flex-col">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={toggleSidebar}
+          onSignInClick={() => setShowAuthDialog(true)}
+          refreshTrigger={refreshSidebar}
+        />
+
+        {/* Main content */}
+        <div className="flex flex-1 flex-col">
+          <Header
+            toggleSidebar={toggleSidebar}
           />
 
-          {/* Input Form - Only show when there are messages */}
-          {hasMessages && (
-            <ChatInput 
-              input={input}
-              handleInputChange={handleInputChange}
-              handleSubmit={handleSubmit}
-              isLoading={isLoading}
-              selectedModel={selectedModel}
-              handleModelChange={handleModelChange}
-              models={models}
-              isExa={isExa}
-              onNewChat={handleNewChat}
-            />
-          )}
-        </>
-      )}
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {/* Desktop search UI */}
+            {selectedModel === 'exa' && (
+              <div className="hidden md:block">
+                <DesktopSearchUI
+                  input={input}
+                  handleInputChange={handleInputChange}
+                  handleSubmit={handleSubmit}
+                  isLoading={isLoading}
+                  selectedModel={selectedModel}
+                  handleModelChange={handleModelChange}
+                  models={models}
+                  autoprompt={autoprompt}
+                  toggleAutoprompt={toggleAutoprompt}
+                  setInput={setInput}
+                  isExa={true}
+                  providerName="Exa"
+                  messages={messages}
+                />
+              </div>
+            )}
 
-      {/* Auth Dialog */}
-      <AuthDialog 
+            {/* Mobile search UI */}
+            {selectedModel === 'exa' && (
+              <div className="md:hidden">
+                <MobileSearchUI
+                  input={input}
+                  handleInputChange={handleInputChange}
+                  handleSubmit={handleSubmit}
+                  isLoading={isLoading}
+                  selectedModel={selectedModel}
+                  handleModelChange={handleModelChange}
+                  models={models}
+                  autoprompt={autoprompt}
+                  toggleAutoprompt={toggleAutoprompt}
+                  setInput={setInput}
+                  isExa={true}
+                  providerName="Exa"
+                  messages={messages}
+                />
+              </div>
+            )}
+
+            {/* Chat UI (for non-search models) */}
+            {selectedModel !== 'exa' && (
+              <div className="flex flex-1 flex-col overflow-hidden px-4">
+                <ChatMessages 
+                  messages={messages}
+                  isLoading={isLoading}
+                  selectedModel={selectedModel}
+                  isExa={false}
+                />
+                <ChatInput
+                  input={input}
+                  handleInputChange={handleInputChange}
+                  handleSubmit={handleSubmit}
+                  isLoading={isLoading}
+                  selectedModel={selectedModel}
+                  handleModelChange={handleModelChange}
+                  models={models}
+                  isExa={false}
+                  onNewChat={handleNewChat}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Auth dialog */}
+      <AuthDialog
         isOpen={showAuthDialog}
         onClose={() => setShowAuthDialog(false)}
         onSuccess={handleAuthSuccess}
       />
-    </main>
+    </div>
+  );
+}
+
+// Export the component with Suspense boundary
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PageContent />
+    </Suspense>
   );
 }
  
