@@ -130,8 +130,8 @@ export function useAuth() {
       console.error("Error during sign out:", error);
       setLoading(false);
       
-      // If something goes wrong, still try to get to auth page
-      window.location.href = `/auth?error=signout&t=${Date.now()}`;
+      // If something goes wrong, still try to get to homepage with error parameter
+      window.location.href = `/?error=signout&t=${Date.now()}`;
       return false;
     }
   };

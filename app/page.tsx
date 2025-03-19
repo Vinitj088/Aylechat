@@ -11,7 +11,7 @@ import Sidebar from './component/Sidebar';
 import { fetchResponse } from './api/apiService';
 import modelsData from '../models.json';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AuthDialog from './component/AuthDialog';
 import { toast } from 'sonner';
 
@@ -39,9 +39,39 @@ export default function Page() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const { data: session, status, update } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const user = session?.user;
   const isAuthenticated = !!session?.user;
+
+  // Check URL parameters for auth dialog control
+  useEffect(() => {
+    const authRequired = searchParams.get('authRequired');
+    const expired = searchParams.get('expired');
+    const error = searchParams.get('error');
+    
+    // Show auth dialog if any of these params are present
+    if (authRequired === 'true' || expired === 'true' || error) {
+      setShowAuthDialog(true);
+      
+      // Show toast message if session expired
+      if (expired === 'true') {
+        toast.error('Your session has expired. Please sign in again.');
+      }
+      
+      // Show toast message if there was an error
+      if (error) {
+        toast.error('Authentication error. Please sign in again.');
+      }
+      
+      // Clean URL by removing query parameters without reloading the page
+      const url = new URL(window.location.href);
+      url.searchParams.delete('authRequired');
+      url.searchParams.delete('expired');
+      url.searchParams.delete('error');
+      window.history.replaceState({}, '', url);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     // Add Exa as the first option and then add all Groq models

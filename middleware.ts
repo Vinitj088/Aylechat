@@ -59,7 +59,7 @@ export async function middleware(request: NextRequest) {
   if (isProtectedRoute) {
     // If no token, redirect to home
     if (!token) {
-      const url = new URL('/', request.url);
+      const url = new URL('/?authRequired=true', request.url);
       return NextResponse.redirect(url);
     }
   }
@@ -96,8 +96,8 @@ export async function middleware(request: NextRequest) {
   }
   
   // For non-API protected routes, redirect to auth page if not authenticated
-  if (!token) {
-    return NextResponse.redirect(new URL('/auth', request.url));
+  if (!token && pathname !== '/') {
+    return NextResponse.redirect(new URL('/?authRequired=true', request.url));
   }
   
   return NextResponse.next();

@@ -113,8 +113,8 @@ export const authOptions: NextAuthOptions = {
     }
   },
   pages: {
-    signIn: "/auth",
-    error: "/auth",
+    signIn: "/?authRequired=true",
+    error: "/?error=auth",
   },
   cookies: {
     sessionToken: {

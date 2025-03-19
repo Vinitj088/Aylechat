@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   console.log("Executing force-logout API endpoint");
   
-  // Create a response that redirects to the auth page with expired=true
-  const response = NextResponse.redirect(new URL('/auth?expired=true&t=' + Date.now(), request.url), {
+  // Create a response that redirects to the homepage with expired=true
+  const response = NextResponse.redirect(new URL(`/?expired=true&t=${Date.now()}`, request.url), {
     status: 302
   });
   
@@ -72,6 +72,6 @@ export async function GET(request: NextRequest) {
   response.headers.set('Pragma', 'no-cache');
   response.headers.set('Expires', '0');
   
-  console.log("Force logout completed, redirecting to auth page with expired=true");
+  console.log("Force logout completed, redirecting to homepage with expired=true");
   return response;
 } 

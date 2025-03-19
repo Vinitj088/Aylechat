@@ -134,8 +134,8 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       window.location.href = `/api/auth/force-logout?t=${Date.now()}&r=${Math.random().toString(36).substring(7)}`;
     } catch (error) {
       console.error("Error during sign out:", error);
-      // If something goes wrong, still try to get to auth page
-      window.location.href = `/auth?error=signout&t=${Date.now()}`;
+      // If something goes wrong, still try to get to homepage with auth dialog
+      window.location.href = `/?error=signout&t=${Date.now()}`;
     }
   };
 
@@ -198,11 +198,11 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-3">
             {!isAuthenticated ? (
-              <div className="flex flex-col items-center justify-center h-full">
-                <p className="text-gray-700 mb-3 text-center">Sign in to view your chat history</p>
+              <div className="flex flex-col items-center justify-center h-full space-y-4">
+                <p className="text-sm text-center text-gray-700">Sign in to view your chat history</p>
                 <button
                   onClick={onSignInClick}
-                  className="px-3 py-1.5 bg-black text-white rounded-md hover:bg-gray-800 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                  className="px-4 py-2 text-sm font-medium text-white bg-black rounded-none border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
                 >
                   Sign In
                 </button>
