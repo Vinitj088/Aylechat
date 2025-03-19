@@ -266,6 +266,11 @@ export const fetchResponse = async (
             const newContent = data.choices[0].delta.content;
             content += newContent;
             
+            // Check if this is the end of the stream
+            const isEndOfStream = line.includes('"finish_reason"') || 
+              line.includes('"done":true') ||
+              data.choices[0]?.finish_reason;
+            
             // Update message with new content
             updateMessages(setMessages, (prev: Message[]) => 
               prev.map((msg: Message) => 
@@ -274,7 +279,7 @@ export const fetchResponse = async (
                       ...msg,
                       content: content,
                       // Mark message as completed if we detect we're at the end
-                      completed: line.includes('"finish_reason"') || line.includes('"done":true')
+                      completed: isEndOfStream
                     } 
                   : msg
               )

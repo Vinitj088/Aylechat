@@ -1,20 +1,16 @@
 'use client';
 
+import { ReactNode } from 'react';
 import { AuthProvider } from '@/context/AuthContext';
+import { AuthDialog } from '@/components/AuthDialog';
 import { Toaster } from '@/components/ui/sonner';
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       {children}
-      <Toaster 
-        position="bottom-right"
-        closeButton
-        expand={false}
-        style={{
-          zIndex: 9999,
-        }}
-      />
+      <AuthDialog />
+      <Toaster />
     </AuthProvider>
   );
 }

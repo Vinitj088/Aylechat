@@ -20,15 +20,30 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 }) => {
   // Check if the last assistant message is completed to stop loading animation
   const lastAssistantMessageCompleted = useMemo(() => {
-    // Find the last assistant message
+    // Find all assistant messages
     const assistantMessages = messages.filter(msg => msg.role === 'assistant');
-    if (assistantMessages.length === 0) return false;
+    if (assistantMessages.length === 0) return true; // If no assistant messages, consider it complete
     
     // Get the last assistant message
     const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
-    // If it's marked as completed, return true
-    return !!lastAssistantMessage.completed;
-  }, [messages]);
+    
+    // If it's explicitly marked as completed, return true
+    if (lastAssistantMessage.completed) return true;
+    
+    // Treat empty assistant messages (not started streaming yet) as incomplete
+    if (!lastAssistantMessage.content.trim()) return false;
+    
+    // If it's the very last message in the conversation and has content but no completed flag
+    const isLastMessageInConversation = messages[messages.length - 1].id === lastAssistantMessage.id;
+    
+    // For backwards compatibility with messages created before the completed flag was introduced:
+    // Check if it's been at least 2 seconds since isLoading was set to false, which likely means
+    // the response is complete but wasn't marked as such
+    return !isLoading && isLastMessageInConversation && lastAssistantMessage.content.length > 0;
+  }, [messages, isLoading]);
+
+  // Determine if we should show the loading indicator
+  const shouldShowLoading = isLoading && !lastAssistantMessageCompleted;
 
   return (
     <div className="pt-16 pb-32 w-full overflow-x-hidden">
@@ -58,8 +73,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
           </div>
         ))}
 
-        {/* Loading indicator - hide if last assistant message is completed */}
-        {isLoading && !lastAssistantMessageCompleted && (
+        {/* Loading indicator - only show when actively loading and last assistant message is not completed */}
+        {shouldShowLoading && (
           <div className="flex items-center gap-2 text-gray-500 animate-pulse">
             <div className="w-2 h-2 rounded-full bg-[var(--secondary-accent2x)] animate-[bounce_1s_infinite]"></div>
             <div className="w-2 h-2 rounded-full bg-[var(--secondary-accent2x)] animate-[bounce_1s_infinite_200ms]"></div>

@@ -357,7 +357,8 @@ function PageContent() {
       const finalMessages = [...messages, userMessage, {
         ...assistantMessage,
         content,
-        citations
+        citations,
+        completed: true
       }];
       
       setMessages(finalMessages);
@@ -393,6 +394,10 @@ function PageContent() {
           window.history.pushState({}, '', `/chat/${threadId}`);
         }
       }
+      
+      // Reset loading state after successful response
+      setIsLoading(false);
+      abortControllerRef.current = null;
     } catch (error: any) {
       console.error('Error fetching response:', error);
       
@@ -410,13 +415,15 @@ function PageContent() {
         // Update the message with auth error info
         updatedMessages[assistantMessageIndex] = {
           ...updatedMessages[assistantMessageIndex],
-          content: 'I encountered an authentication error. Please try again after fixing your session.'
+          content: 'I encountered an authentication error. Please try again after fixing your session.',
+          completed: true
         };
       } else {
         // For other errors
         updatedMessages[assistantMessageIndex] = {
           ...updatedMessages[assistantMessageIndex],
-          content: `Error: ${error.message || 'Something went wrong. Please try again.'}`
+          content: `Error: ${error.message || 'Something went wrong. Please try again.'}`,
+          completed: true
         };
         
         toast.error('Error generating response');

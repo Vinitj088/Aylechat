@@ -6,6 +6,18 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
+// Verify Redis connection
+export async function verifyRedisConnection() {
+  try {
+    await redis.ping();
+    console.log('Redis connection verified successfully');
+    return true;
+  } catch (error) {
+    console.error('Redis connection failed:', error);
+    return false;
+  }
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';

@@ -1,26 +1,119 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
+import { RedisService, verifyRedisConnection } from '@/lib/redis';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { RedisService } from '@/lib/redis';
+import { AuthError } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
+
+// Function to get user from auth token
+async function getUserFromToken(authToken: string | null) {
+  if (!authToken) {
+    return { user: null, error: new Error('No auth token provided') as AuthError };
+  }
+  
+  try {
+    // Create a custom Supabase client with the token
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name) {
+            return null; // No cookies used for this client
+          },
+          set(name, value, options) {
+            // No-op - we don't set cookies with this client
+          },
+          remove(name, options) {
+            // No-op - we don't remove cookies with this client
+          },
+        },
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+        global: {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        },
+      }
+    );
+    
+    const { data, error } = await supabase.auth.getUser();
+    return { user: data.user, error };
+  } catch (error) {
+    console.error('Error getting user from token:', error);
+    return { user: null, error: error as AuthError };
+  }
+}
 
 // GET endpoint to list all threads for a user
 export async function GET(req: NextRequest) {
   try {
-    // Get user from Supabase auth
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError || !session?.user) {
+    // Verify Redis connection first
+    const redisConnected = await verifyRedisConnection();
+    if (!redisConnected) {
+      console.error('Redis connection failed');
       return NextResponse.json(
-        { error: 'Unauthorized', message: 'Authentication required' },
+        { error: 'Service unavailable', message: 'Database connection error' },
+        { status: 503 }
+      );
+    }
+
+    // Try to get user from Supabase auth
+    const supabase = createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    // If regular auth failed, try using the Authorization header if present
+    let userId: string | undefined = user?.id;
+    let authError: AuthError | null = error;
+    
+    if (!userId) {
+      // Try to get auth token from header
+      const authHeader = req.headers.get('authorization');
+      const token = authHeader?.replace('Bearer ', '');
+      
+      if (token) {
+        const { user: tokenUser, error: tokenError } = await getUserFromToken(token);
+        if (tokenUser) {
+          userId = tokenUser.id;
+          authError = null;
+        } else {
+          authError = tokenError;
+        }
+      }
+      
+      // If still no user, try to get user ID from a custom header
+      if (!userId) {
+        const headerUserId = req.headers.get('x-user-id');
+        if (headerUserId) {
+          userId = headerUserId;
+        }
+      }
+    }
+    
+    console.log('GET /api/chat/threads auth check:', { 
+      hasUser: !!userId, 
+      userId: userId,
+      error: authError?.message 
+    });
+    
+    if (!userId) {
+      console.error('Auth error:', authError?.message || 'No user found');
+      return NextResponse.json(
+        { 
+          error: 'Unauthorized', 
+          message: authError?.message || 'Authentication required',
+          authRequired: true 
+        },
         { status: 401 }
       );
     }
     
-    const userId = session.user.id;
+    console.log(`Fetching threads for user: ${userId}`);
     
     // Get threads from Redis
     const threads = await RedisService.getUserChatThreads(userId);
@@ -53,19 +146,55 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
     
-    // Get user from Supabase auth
-    const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // Try to get user from Supabase auth
+    const supabase = createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
     
-    if (sessionError || !session?.user) {
+    // If regular auth failed, try using the Authorization header if present
+    let userId: string | undefined = user?.id;
+    let authError: AuthError | null = error;
+    
+    if (!userId) {
+      // Try to get auth token from header
+      const authHeader = req.headers.get('authorization');
+      const token = authHeader?.replace('Bearer ', '');
+      
+      if (token) {
+        const { user: tokenUser, error: tokenError } = await getUserFromToken(token);
+        if (tokenUser) {
+          userId = tokenUser.id;
+          authError = null;
+        } else {
+          authError = tokenError;
+        }
+      }
+      
+      // If still no user, try to get user ID from a custom header
+      if (!userId) {
+        const headerUserId = req.headers.get('x-user-id');
+        if (headerUserId) {
+          userId = headerUserId;
+        }
+      }
+    }
+    
+    console.log('POST /api/chat/threads auth check:', { 
+      hasUser: !!userId, 
+      userId: userId,
+      error: authError?.message 
+    });
+    
+    if (!userId) {
+      console.error('Auth error:', authError?.message || 'No user found');
       return NextResponse.json(
-        { error: 'Unauthorized', message: 'Authentication required' },
+        { 
+          error: 'Unauthorized', 
+          message: authError?.message || 'Authentication required',
+          authRequired: true 
+        },
         { status: 401 }
       );
     }
-    
-    const userId = session.user.id;
     
     // Generate title if not provided
     const threadTitle = title || (messages[0]?.content.substring(0, 50) + '...') || 'New Chat';

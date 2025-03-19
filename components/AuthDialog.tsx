@@ -2,186 +2,193 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SessionFixer } from '@/components/SessionFixer';
+import { toast } from 'sonner';
 
+// Update the component to accept props
 interface AuthDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
   onSuccess?: () => void;
-  defaultTab?: 'sign-in' | 'sign-up';
 }
 
-export function AuthDialog({ isOpen, onClose, onSuccess, defaultTab = 'sign-in' }: AuthDialogProps) {
-  const [activeTab, setActiveTab] = useState<'sign-in' | 'sign-up'>(defaultTab);
+export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
+  const [isSignIn, setIsSignIn] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isFixingSession, setIsFixingSession] = useState(false);
   
-  const { signIn, signUp } = useAuth();
-  
+  const { signIn, signUp, isAuthDialogOpen, closeAuthDialog } = useAuth();
+
+  // Determine if dialog should be open based on prop or context
+  const shouldBeOpen = isOpen !== undefined ? isOpen : isAuthDialogOpen;
+  // Use provided onClose or fallback to context
+  const handleClose = onClose || closeAuthDialog;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setIsSubmitting(true);
+    setSuccessMessage(null);
+    setIsLoading(true);
     
     try {
-      if (activeTab === 'sign-in') {
-        await signIn(email, password);
+      if (isSignIn) {
+        const { error, success } = await signIn(email, password);
+        if (error) {
+          setError(error.message);
+        } else if (success) {
+          setSuccessMessage('Signed in successfully!');
+          setTimeout(() => {
+            handleClose();
+            // Call onSuccess if provided
+            if (onSuccess) onSuccess();
+          }, 1500);
+        }
       } else {
-        await signUp(email, password, name);
+        const { error, success } = await signUp(email, password);
+        if (error) {
+          setError(error.message);
+        } else if (success) {
+          setSuccessMessage('Signed up successfully! Please check your email for confirmation.');
+        }
       }
-      
-      // Clear form
-      setEmail('');
-      setPassword('');
-      setName('');
-      
-      // Close dialog and trigger success callback
-      onClose();
-      if (onSuccess) {
-        onSuccess();
-      }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err) {
+      setError('An unexpected error occurred');
+      console.error(err);
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
-  
-  const handleTabChange = (tab: 'sign-in' | 'sign-up') => {
-    setActiveTab(tab);
+
+  const handleFixSession = async () => {
+    setIsFixingSession(true);
     setError(null);
+    
+    try {
+      const response = await fetch('/api/fix-session', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        toast.success('Session cookies cleared', {
+          description: 'Please sign in again to get a fresh session'
+        });
+        setSuccessMessage('Session cookies cleared. Please sign in again.');
+      } else {
+        setError('Could not fix session cookies');
+      }
+    } catch (err) {
+      setError('An error occurred while fixing the session');
+      console.error('Error fixing session:', err);
+    } finally {
+      setIsFixingSession(false);
+    }
   };
-  
+
+  if (!shouldBeOpen) {
+    return null;
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[400px]">
-        <DialogHeader>
-          <DialogTitle>Authentication</DialogTitle>
-          <DialogDescription>
-            Sign in to your account or create a new one.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <Tabs defaultValue={activeTab} onValueChange={(v) => handleTabChange(v as 'sign-in' | 'sign-up')}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="sign-in">Sign In</TabsTrigger>
-            <TabsTrigger value="sign-up">Sign Up</TabsTrigger>
-          </TabsList>
+    <div className="fixed inset-0 flex items-center justify-center z-50">
+      <div className="bg-[#fffdf5] border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none p-6 max-w-md w-full">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold">
+            {isSignIn ? 'Sign In' : 'Sign Up'}
+          </h2>
+          <button 
+            onClick={handleClose}
+            className="p-1.5 rounded-md hover:bg-[#f5f3e4] border border-black"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {error && (
+          <div className="bg-red-100 border-2 border-red-400 text-red-700 px-4 py-3 mb-4">
+            {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="bg-green-100 border-2 border-green-400 text-green-700 px-4 py-3 mb-4">
+            {successMessage}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="appearance-none border-2 border-black rounded-none w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              required
+            />
+          </div>
+          <div className="mb-6">
+            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="appearance-none border-2 border-black rounded-none w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              required
+              minLength={6}
+            />
+          </div>
+          <div className="flex items-center justify-between mb-4">
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`px-4 py-2 text-sm font-medium text-white bg-black border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all ${
+                isLoading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {isLoading 
+                ? 'Loading...' 
+                : isSignIn 
+                  ? 'Sign In' 
+                  : 'Sign Up'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSignIn(!isSignIn)}
+              className="text-sm font-medium text-black hover:underline"
+            >
+              {isSignIn ? 'Need an account?' : 'Already have an account?'}
+            </button>
+          </div>
           
-          <TabsContent value="sign-in">
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your.email@example.com"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  required
-                />
-              </div>
-              
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-md text-sm">
-                  {error}
-                </div>
-              )}
-              
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Signing in...' : 'Sign In'}
-                </Button>
-              </div>
-            </form>
-            <div className="mt-4 text-center">
-              <span className="text-xs text-gray-500">Having trouble signing in?</span>
-              <SessionFixer />
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="sign-up">
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your name"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email-signup">Email</Label>
-                <Input
-                  id="email-signup"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your.email@example.com"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password-signup">Password</Label>
-                <Input
-                  id="password-signup"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Create a password"
-                  required
-                />
-              </div>
-              
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-md text-sm">
-                  {error}
-                </div>
-              )}
-              
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating account...' : 'Create Account'}
-                </Button>
-              </div>
-            </form>
-            <div className="mt-4 text-center">
-              <span className="text-xs text-gray-500">Having trouble signing in?</span>
-              <SessionFixer />
-            </div>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+          {/* Session fix section */}
+          <div className="pt-4 mt-4 border-t-2 border-black">
+            <p className="text-sm text-gray-700 mb-2">
+              Having trouble signing in? Try fixing your session:
+            </p>
+            <button
+              type="button"
+              onClick={handleFixSession}
+              disabled={isFixingSession}
+              className="w-full px-4 py-2 text-sm font-medium bg-[#f5f3e4] border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+            >
+              {isFixingSession ? 'Fixing...' : 'Fix Session Issues'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 } 

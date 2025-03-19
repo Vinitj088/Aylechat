@@ -26,7 +26,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   
   const router = useRouter();
   const pathname = usePathname();
-  const { user, signOut, refreshSession } = useAuth();
+  const { user, signOut, refreshSession, openAuthDialog } = useAuth();
   
   const isAuthenticated = !!user;
 
@@ -224,7 +224,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
               <div className="flex flex-col items-center justify-center h-full space-y-4">
                 <p className="text-sm text-center text-gray-700">Sign in to view your chat history</p>
                 <button
-                  onClick={onSignInClick}
+                  onClick={onSignInClick || openAuthDialog}
                   className="px-4 py-2 text-sm font-medium text-white bg-black rounded-none border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
                 >
                   Sign In
