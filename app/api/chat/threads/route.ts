@@ -39,22 +39,48 @@ export async function GET(request: NextRequest) {
     if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
       console.log('Attempting to use backup cookies for:', userEmailCookie.value);
       
-      // Try to get user by email from Supabase
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', userEmailCookie.value)
-        .single();
-      
-      if (userData?.id) {
-        console.log('Found user ID from email cookie:', userData.id);
-        const userId = userData.id;
-        const threads = await RedisService.getUserChatThreads(userId);
+      try {
+        // Try to get user by email from Supabase
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .eq('email', userEmailCookie.value)
+          .single();
         
-        return NextResponse.json(
-          { success: true, threads },
-          { headers: CACHE_HEADERS }
-        );
+        if (userError) {
+          console.error('Error looking up user by email:', userError);
+          // Try a different approach - look up in auth.users directly
+          const serviceClient = await supabase.auth.admin.listUsers();
+          const matchingUser = serviceClient.data?.users?.find(
+            u => u.email === userEmailCookie.value
+          );
+          
+          if (matchingUser) {
+            console.log('Found user from auth.users:', matchingUser.id);
+            const userId = matchingUser.id;
+            const threads = await RedisService.getUserChatThreads(userId);
+            
+            return NextResponse.json(
+              { success: true, threads },
+              { headers: CACHE_HEADERS }
+            );
+          }
+        }
+        
+        if (userData?.id) {
+          console.log('Found user ID from email cookie:', userData.id);
+          const userId = userData.id;
+          const threads = await RedisService.getUserChatThreads(userId);
+          
+          return NextResponse.json(
+            { success: true, threads },
+            { headers: CACHE_HEADERS }
+          );
+        } else {
+          console.error('No profile found for email:', userEmailCookie.value);
+        }
+      } catch (userLookupError) {
+        console.error('Error in user lookup process:', userLookupError);
       }
     }
     

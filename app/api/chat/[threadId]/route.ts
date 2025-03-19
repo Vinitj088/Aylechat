@@ -23,24 +23,53 @@ export async function GET(
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session }, error: authError } = await supabase.auth.getSession();
     
-    if (authError) {
-      console.error('Authentication error:', authError);
-      return NextResponse.json(
-        { success: false, error: 'Authentication error: ' + authError.message },
-        { status: 401, headers: CACHE_HEADERS }
-      );
+    let userId = null;
+    
+    // Handle normal authentication
+    if (session?.user) {
+      console.log('User authenticated from session:', session.user.email);
+      userId = session.user.id;
+    } else {
+      // Fallback to custom cookies if session not found
+      const cookieStore = cookies();
+      const userAuthCookie = cookieStore.get('user-authenticated');
+      const userEmailCookie = cookieStore.get('user-email');
+      
+      // If we have our custom cookies, try to use them
+      if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
+        console.log('Attempting to use backup cookies for:', userEmailCookie.value);
+        
+        try {
+          // Try to get user by email from Supabase
+          const { data: userData, error: userError } = await supabase
+            .from('profiles')
+            .select('id, email')
+            .eq('email', userEmailCookie.value)
+            .single();
+          
+          if (userData?.id) {
+            console.log('Found user ID from email cookie:', userData.id);
+            userId = userData.id;
+          } else if (userError) {
+            console.error('Error looking up user by email:', userError);
+          }
+        } catch (userLookupError) {
+          console.error('Error in user lookup process:', userLookupError);
+        }
+      }
     }
     
-    if (!session || !session.user) {
-      console.error('No session or user found');
+    // If still no user ID, return unauthorized
+    if (!userId) {
+      if (authError) {
+        console.error('Authentication error:', authError);
+      }
+      console.error('No valid user authentication found');
       return NextResponse.json(
-        { success: false, error: 'Unauthorized: No session found' },
+        { success: false, error: 'Unauthorized: No valid authentication found' },
         { status: 401, headers: CACHE_HEADERS }
       );
     }
-
-    console.log('User authenticated:', session.user.email);
-    const userId = session.user.id;
 
     // Get thread
     const thread = await RedisService.getChatThread(userId, threadId);
@@ -76,24 +105,53 @@ export async function PUT(
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session }, error: authError } = await supabase.auth.getSession();
     
-    if (authError) {
-      console.error('Authentication error:', authError);
-      return NextResponse.json(
-        { success: false, error: 'Authentication error: ' + authError.message },
-        { status: 401, headers: CACHE_HEADERS }
-      );
+    let userId = null;
+    
+    // Handle normal authentication
+    if (session?.user) {
+      console.log('User authenticated from session:', session.user.email);
+      userId = session.user.id;
+    } else {
+      // Fallback to custom cookies if session not found
+      const cookieStore = cookies();
+      const userAuthCookie = cookieStore.get('user-authenticated');
+      const userEmailCookie = cookieStore.get('user-email');
+      
+      // If we have our custom cookies, try to use them
+      if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
+        console.log('Attempting to use backup cookies for:', userEmailCookie.value);
+        
+        try {
+          // Try to get user by email from Supabase
+          const { data: userData, error: userError } = await supabase
+            .from('profiles')
+            .select('id, email')
+            .eq('email', userEmailCookie.value)
+            .single();
+          
+          if (userData?.id) {
+            console.log('Found user ID from email cookie:', userData.id);
+            userId = userData.id;
+          } else if (userError) {
+            console.error('Error looking up user by email:', userError);
+          }
+        } catch (userLookupError) {
+          console.error('Error in user lookup process:', userLookupError);
+        }
+      }
     }
     
-    if (!session || !session.user) {
-      console.error('No session or user found');
+    // If still no user ID, return unauthorized
+    if (!userId) {
+      if (authError) {
+        console.error('Authentication error:', authError);
+      }
+      console.error('No valid user authentication found');
       return NextResponse.json(
-        { success: false, error: 'Unauthorized: No session found' },
+        { success: false, error: 'Unauthorized: No valid authentication found' },
         { status: 401, headers: CACHE_HEADERS }
       );
     }
-
-    console.log('User authenticated:', session.user.email);
-    const userId = session.user.id;
 
     // Verify thread exists and is owned by user
     const existingThread = await RedisService.getChatThread(userId, threadId);
@@ -145,24 +203,53 @@ export async function DELETE(
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session }, error: authError } = await supabase.auth.getSession();
     
-    if (authError) {
-      console.error('Authentication error:', authError);
-      return NextResponse.json(
-        { success: false, error: 'Authentication error: ' + authError.message },
-        { status: 401, headers: CACHE_HEADERS }
-      );
+    let userId = null;
+    
+    // Handle normal authentication
+    if (session?.user) {
+      console.log('User authenticated from session:', session.user.email);
+      userId = session.user.id;
+    } else {
+      // Fallback to custom cookies if session not found
+      const cookieStore = cookies();
+      const userAuthCookie = cookieStore.get('user-authenticated');
+      const userEmailCookie = cookieStore.get('user-email');
+      
+      // If we have our custom cookies, try to use them
+      if (userAuthCookie && userEmailCookie && userEmailCookie.value) {
+        console.log('Attempting to use backup cookies for:', userEmailCookie.value);
+        
+        try {
+          // Try to get user by email from Supabase
+          const { data: userData, error: userError } = await supabase
+            .from('profiles')
+            .select('id, email')
+            .eq('email', userEmailCookie.value)
+            .single();
+          
+          if (userData?.id) {
+            console.log('Found user ID from email cookie:', userData.id);
+            userId = userData.id;
+          } else if (userError) {
+            console.error('Error looking up user by email:', userError);
+          }
+        } catch (userLookupError) {
+          console.error('Error in user lookup process:', userLookupError);
+        }
+      }
     }
     
-    if (!session || !session.user) {
-      console.error('No session or user found');
+    // If still no user ID, return unauthorized
+    if (!userId) {
+      if (authError) {
+        console.error('Authentication error:', authError);
+      }
+      console.error('No valid user authentication found');
       return NextResponse.json(
-        { success: false, error: 'Unauthorized: No session found' },
+        { success: false, error: 'Unauthorized: No valid authentication found' },
         { status: 401, headers: CACHE_HEADERS }
       );
     }
-
-    console.log('User authenticated:', session.user.email);
-    const userId = session.user.id;
 
     // Delete thread
     const success = await RedisService.deleteChatThread(userId, threadId);

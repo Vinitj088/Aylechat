@@ -18,17 +18,35 @@ export async function POST(req: NextRequest) {
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session }, error: authError } = await supabase.auth.getSession();
     
-    if (authError) {
-      console.error('Authentication error:', authError);
-      return new Response(JSON.stringify({ error: 'Unauthorized', details: authError.message }), { status: 401 });
+    let isAuthenticated = false;
+    let userEmail = null;
+    
+    // Regular Supabase auth check
+    if (session?.user) {
+      console.log('User authenticated from session:', session.user.email);
+      isAuthenticated = true;
+      userEmail = session.user.email;
+    } 
+    // Fallback to cookies if no session
+    else {
+      console.log('No session, trying backup cookies...');
+      const cookieStore = cookies();
+      const userAuthCookie = cookieStore.get('user-authenticated');
+      const userEmailCookie = cookieStore.get('user-email');
+      
+      if (userAuthCookie && userEmailCookie?.value) {
+        console.log('Found backup authentication cookies for:', userEmailCookie.value);
+        isAuthenticated = true;
+        userEmail = userEmailCookie.value;
+      }
     }
     
-    if (!session || !session.user) {
-      console.error('No session or user found');
-      return new Response(JSON.stringify({ error: 'Unauthorized', details: 'No session found' }), { status: 401 });
+    if (!isAuthenticated) {
+      console.error('No valid authentication found');
+      return new Response(JSON.stringify({ error: 'Unauthorized', details: 'No valid authentication found' }), { status: 401 });
     }
 
-    console.log('User authenticated:', session.user.email);
+    console.log('User authenticated:', userEmail);
     const { query, messages } = await req.json();
     console.log('Request body:', { query, messageCount: messages?.length });
     
