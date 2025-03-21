@@ -4,28 +4,32 @@ import remarkGfm from 'remark-gfm';
 
 // Add the parseMessageContent helper function
 const parseMessageContent = (content: string) => {
+  // Check if content is undefined or null
+  if (!content) {
+    return { thinking: '', visible: '' };
+  }
+  
   // If we find a complete think tag
   if (content.includes('</think>')) {
     const [thinking, ...rest] = content.split('</think>');
     return {
       thinking: thinking.replace('<think>', '').trim(),
-      finalResponse: rest.join('</think>').trim(),
-      isComplete: true
+      visible: rest.join('</think>').trim()
     };
   }
-  // If we only find opening think tag, everything after it is thinking
+  
+  // If only opening think tag is found (incomplete thinking)
   if (content.includes('<think>')) {
     return {
       thinking: content.replace('<think>', '').trim(),
-      finalResponse: '',
-      isComplete: false
+      visible: ''
     };
   }
-  // No think tags, everything is final response
+  
+  // No thinking tags
   return {
     thinking: '',
-    finalResponse: content,
-    isComplete: true
+    visible: content
   };
 };
 
@@ -35,17 +39,19 @@ interface MessageContentProps {
 }
 
 export default function MessageContent({ content, role }: MessageContentProps) {
-  const { thinking, finalResponse, isComplete } = parseMessageContent(content);
+  const { thinking, visible } = parseMessageContent(content || '');
   const [copied, setCopied] = useState(false);
   
   // Check if this is an AI response with actual content to copy
   const isAIResponse = role === 'assistant';
-  const hasContent = (isComplete && finalResponse) || thinking;
+  const hasContent = visible;
   const showCopyButton = isAIResponse && hasContent;
   
-  // Check if this is an error message
-  const isErrorMessage = content.includes('Sorry, there was an error') || 
-                         content.includes('error processing your request');
+  // Check if this is an error message - with null check
+  const isErrorMessage = content ? (
+    content.includes('Sorry, there was an error') || 
+    content.includes('error processing your request')
+  ) : false;
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(
@@ -61,7 +67,7 @@ export default function MessageContent({ content, role }: MessageContentProps) {
 
   return (
     <div className="relative">
-      {(thinking || !isComplete) && (
+      {thinking && (
         <div className="my-6 space-y-3">
           <div className="flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -75,9 +81,9 @@ export default function MessageContent({ content, role }: MessageContentProps) {
           </div>
         </div>
       )}
-      {isComplete && finalResponse && (
+      {visible && (
         <div className="prose prose-base max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalResponse}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{visible}</ReactMarkdown>
         </div>
       )}
       
@@ -85,7 +91,7 @@ export default function MessageContent({ content, role }: MessageContentProps) {
       {showCopyButton && !isErrorMessage && (
         <div className="flex justify-end mt-4">
           <button
-            onClick={() => copyToClipboard(finalResponse || thinking)}
+            onClick={() => copyToClipboard(visible)}
             className="flex items-center gap-1 py-1 px-2 text-xs bg-[var(--secondary-darker)] border-2 border-black rounded hover:bg-[var(--secondary-darkest)] transition-colors"
             title="Copy to clipboard"
           >
@@ -110,4 +116,4 @@ export default function MessageContent({ content, role }: MessageContentProps) {
       )}
     </div>
   );
-} 
+}
