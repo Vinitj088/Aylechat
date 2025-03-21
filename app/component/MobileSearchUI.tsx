@@ -45,7 +45,7 @@ interface MobileSearchUIProps {
   handleSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
   selectedModel: string;
-  handleModelChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  handleModelChange: (modelId: string) => void;
   models: Model[];
   autoprompt: boolean;
   toggleAutoprompt: () => void;
@@ -93,16 +93,6 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
       }
     }
   }, [input]);
-
-  // Handle model selection from dropdown
-  const handleModelSelect = (modelId: string) => {
-    // Create a synthetic event object that mimics the onChange event from a select
-    const syntheticEvent = {
-      target: { value: modelId }
-    } as React.ChangeEvent<HTMLSelectElement>;
-    
-    handleModelChange(syntheticEvent);
-  };
 
   // Get the current model name for display
   const currentModelName = models.find(model => model.id === selectedModel)?.name || 'Select Model';
@@ -215,7 +205,7 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
                     {models.map((model) => (
                       <DropdownMenuItem 
                         key={model.id}
-                        onClick={() => handleModelSelect(model.id)}
+                        onClick={() => handleModelChange(model.id)}
                         className={`text-sm py-1 ${selectedModel === model.id ? "bg-blue-50 text-blue-600" : ""}`}
                       >
                         {model.name}

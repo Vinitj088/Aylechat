@@ -151,8 +151,8 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
     setInput(e.target.value);
   };
 
-  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedModel(e.target.value as ModelType);
+  const handleModelChange = (modelId: string) => {
+    setSelectedModel(modelId as ModelType);
   };
 
   const toggleSidebar = () => {

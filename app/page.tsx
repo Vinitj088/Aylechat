@@ -154,8 +154,8 @@ function PageContent() {
     setInput(e.target.value);
   };
 
-  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedModel(e.target.value as ModelType);
+  const handleModelChange = (modelId: string) => {
+    setSelectedModel(modelId as ModelType);
   };
 
   const toggleAutoprompt = () => {
@@ -435,21 +435,25 @@ function PageContent() {
     }
   };
 
-  // Determine if we have any messages
+  // Derived variables
+  const isExa = selectedModel === 'exa';
+  const selectedModelObj = models.find(model => model.id === selectedModel);
   const hasMessages = messages.length > 0;
 
-  // Determine if the selected model is Exa
-  const isExa = selectedModel === 'exa';
-
   // Get the provider name for the selected model
-  const selectedModelObj = models.find(model => model.id === selectedModel);
   const providerName = selectedModelObj?.provider || 'AI';
 
   const handleNewChat = () => {
+    // Ensure we're at the top of the page
+    window.scrollTo(0, 0);
+    
+    // Clear messages and reset state
     setMessages([]);
     setInput('');
     setCurrentThreadId(null);
-    router.push('/');
+    
+    // Update router without full navigation for smoother transition
+    window.history.pushState({}, '', '/');
   };
 
   const handleStartChat = () => {
@@ -516,13 +520,12 @@ function PageContent() {
         <>
           <ChatMessages 
             messages={messages} 
-            isLoading={isLoading} 
+            isLoading={isLoading}
             selectedModel={selectedModel}
             selectedModelObj={selectedModelObj}
             isExa={isExa}
           />
 
-          {/* Input Form - Only show when there are messages */}
           {hasMessages && (
             <ChatInput 
               input={input}
