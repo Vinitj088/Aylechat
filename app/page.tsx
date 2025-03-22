@@ -222,6 +222,33 @@ function PageContent() {
     }
   }, [isAuthenticated]);
 
+  // Add a check for session validity on initial load and tab visibility changes
+  useEffect(() => {
+    // Validate session on initial page load
+    if (user) {
+      console.log('Validating session on initial load');
+      refreshSession().catch(e => {
+        console.error('Session refresh on load failed:', e);
+      });
+    }
+    
+    // Also revalidate on visibility change (tab focus)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && user) {
+        console.log('Tab became visible, validating session');
+        refreshSession().catch(e => {
+          console.error('Session refresh on visibility change failed:', e);
+        });
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, refreshSession]);
+
   // Error handler callback function
   const handleRequestError = async (error: Error) => {
     // Check if the error is an authentication error
@@ -468,10 +495,34 @@ function PageContent() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
+    // Debug log for authentication state
+    console.log('Auth state before submit:', { 
+      isAuthenticated, 
+      hasUser: !!user, 
+      hasSession: !!session,
+      userEmail: user?.email
+    });
+
     // If not authenticated, show auth dialog and keep the message in the input
     if (!isAuthenticated || !user) {
+      console.log('Not authenticated, showing auth dialog');
       openAuthDialog();
       return;
+    }
+
+    // Force session refresh before submitting to ensure we have fresh tokens
+    try {
+      const refreshSuccessful = await refreshSession();
+      console.log('Session refresh result:', refreshSuccessful);
+      
+      // If session refresh failed but we thought we were logged in, show auth dialog
+      if (!refreshSuccessful) {
+        console.log('Session refresh failed, showing auth dialog');
+        openAuthDialog();
+        return;
+      }
+    } catch (err) {
+      console.error('Error refreshing session:', err);
     }
 
     // Add the user message to the messages array
