@@ -48,6 +48,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [input]);
 
+  // Handle keyboard shortcuts
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && e.shiftKey && !isLoading && input.trim()) {
+      e.preventDefault();
+      handleSubmit(e as unknown as React.FormEvent);
+    }
+  };
+
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-[var(--secondary-faint)] border-t border-[var(--secondary-darkest)] z-40 w-screen overflow-x-hidden shadow-md">
       <div className="w-full max-w-full md:max-w-4xl mx-auto px-4 py-4 relative">
@@ -79,6 +87,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               ref={textareaRef}
               value={input}
               onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
               autoFocus
               placeholder={isExa ? "Search with Exa..." : "Ask a question..."}
               rows={1}
@@ -99,6 +108,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
             >
               <Send className="h-4 w-4" />
             </Button>
+          </div>
+          <div className="mt-1 text-[10px] text-[var(--text-light-muted)] text-center">
+            Press <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Shift</kbd> + <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Enter</kbd> to send
           </div>
         </form>
       </div>
