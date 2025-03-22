@@ -237,19 +237,19 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
           <h3 className="text-sm font-medium text-gray-500 mb-3">POPULAR SEARCHES</h3>
           <div className="space-y-2">
             <button 
-              onClick={() => setInput("a short article about the early days of Google")}
+              onClick={() => setInput("Can you explain how black holes work?")}
               className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm hover:border-gray-300 transition-colors text-left"
             >
              Can you explain how black holes work?
             </button>
             <button 
-              onClick={() => setInput("Start ups working on genetic sequencing")}
+              onClick={() => setInput("Can you tell me a fascinating story from history?")}
               className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm hover:border-gray-300 transition-colors text-left"
             >
               Can you tell me a fascinating story from history?
             </button>
             <button 
-              onClick={() => setInput("Similar to https://waitbutwhy.com")}
+              onClick={() => setInput("write a program to implement a binary search algorithm in C++?")}
               className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm hover:border-gray-300 transition-colors text-left"
             >
               write a program to implement a binary search algorithm in C++?
