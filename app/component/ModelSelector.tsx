@@ -28,6 +28,7 @@ interface ModelSelectorProps {
 
 // Model capabilities based on model IDs
 const modelCapabilities: Record<string, string[]> = {
+  'mistralai/mistral-small-3.1-24b-instruct': ['reasoning', 'docs'],
   'gemini-2.0-flash': ['vision', 'web', 'docs'],
   'gemini-1.5-pro': ['vision', 'docs'],
   'gemma3-27b': ['docs'],
