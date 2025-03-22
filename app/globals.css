@@ -58,8 +58,22 @@
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+  color: var(--foreground);
+  background: var(--background);
+
+  /* Use Instrument Sans for body text */
+  font-family: 'Instrument Sans', sans-serif;
+  font-weight: 400;
+}
+
+/* Use Space Grotesk for headings */
+h1, h2, h3, h4, h5, h6, .heading {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 500;
+}
+
+p, span, div, li, button, input, textarea {
+  font-family: 'Instrument Sans', sans-serif;
 }
 
 @layer utilities {
@@ -86,27 +100,6 @@ body {
   --text-light-subtle: #9ca3af;
   --text-light-faint: #e5e7eb;
   --text-light-link: #1f40ed;
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-
-  /* Apply ABCDiatype for body */
-  font-family: var(--font-family-sans), sans-serif;
-  font-weight: 500;
-}
-
-/* Apply Reckless for headings */
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-family-serif), sans-serif;
-}
-
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
 }
 
 /* Custom prose styling to reduce spacing */

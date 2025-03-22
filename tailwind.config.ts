@@ -8,6 +8,10 @@ const config: Config = {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
+    fontFamily: {
+      sans: ['Instrument Sans', 'system-ui', 'sans-serif'],
+      serif: ['Space Grotesk', 'Georgia', 'serif'],
+    },
   	extend: {
   		colors: {
   			foreground: 'hsl(var(--foreground))',
