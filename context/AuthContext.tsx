@@ -69,8 +69,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
+    // Set up periodic session health check
+    // This helps prevent auth errors by proactively refreshing the session
+    const healthCheckInterval = setInterval(async () => {
+      // Only run health check if we think we're logged in
+      if (user) {
+        const stillValid = await refreshSession();
+        
+        // If session refresh failed and we thought we were logged in, 
+        // update our state to reflect we're logged out
+        if (!stillValid) {
+          setUser(null);
+          setSession(null);
+        }
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
     return () => {
       subscription.unsubscribe();
+      clearInterval(healthCheckInterval);
     };
   }, []);
 
@@ -127,16 +144,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshSession = async (): Promise<boolean> => {
     try {
+      // First try normal refresh
       const { data, error } = await supabase.auth.refreshSession();
       
       if (error) {
         console.error('Error refreshing session:', error);
+        
+        // If refresh failed, try getting current session
+        const { data: currentSession } = await supabase.auth.getSession();
+        
+        if (currentSession.session) {
+          // If we have a session, update our state with it
+          setSession(currentSession.session);
+          setUser(currentSession.session.user);
+          console.log('Used existing session instead of refresh');
+          return true;
+        }
+        
         return false;
       }
       
       // Update the session and user state
       setSession(data.session);
       setUser(data.session?.user || null);
+      console.log('Session refreshed successfully');
       return true;
     } catch (error) {
       console.error('Unexpected error refreshing session:', error);

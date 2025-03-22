@@ -13,32 +13,13 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { ChatThread } from '@/lib/redis';
 import { toast } from 'sonner';
-import { usePathname } from 'next/navigation';
 
 export default function ChatThreadPage({ params }: { params: { threadId: string } }) {
-  const pathname = usePathname();
-  const [isLoading, setIsLoading] = useState(false);
-  const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const [thread, setThread] = useState<ChatThread | null>(null);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [isThreadLoading, setIsThreadLoading] = useState(true);
-  const [selectedModel, setSelectedModel] = useState<ModelType>('exa');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [refreshSidebar, setRefreshSidebar] = useState(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const { user, isLoading: authLoading, openAuthDialog, refreshSession } = useAuth();
-  const router = useRouter();
-  const { threadId } = params;
-  
-  // Auth state
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const isAuthenticated = !!user;
-  
-  // Thread saving state
-  const threadSaveQueue = useRef<Array<{messages: Message[], timestamp: number}>>([]);
-  const isSavingThread = useRef(false);
-  const threadSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
+  const [selectedModel, setSelectedModel] = useState<ModelType>('mistralai/mistral-small-3.1-24b-instruct:free');
   const [models, setModels] = useState<Model[]>([
     {
       id: 'exa',
@@ -50,6 +31,21 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
       searchMode: true
     }
   ]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [thread, setThread] = useState<ChatThread | null>(null);
+  const [refreshSidebar, setRefreshSidebar] = useState(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const { user, session } = useAuth();
+  const router = useRouter();
+  const { threadId } = params;
+
+  const isAuthenticated = !!user;
+
+  // Add thread saving state tracking
+  const threadSaveQueue = useRef<Array<{messages: Message[], timestamp: number}>>([]);
+  const isSavingThread = useRef(false);
+  const threadSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Add models from different providers
@@ -76,7 +72,10 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
 
   useEffect(() => {
     const fetchThread = async () => {
-      if (!threadId) return;
+      if (!isAuthenticated || !user) {
+        setIsThreadLoading(false);
+        return;
+      }
 
       try {
         setIsThreadLoading(true);
@@ -182,146 +181,22 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  // Update thread in database - now optimized for efficient storage
-  const updateThread = async (updatedMessages: Message[]) => {
-    if (!isAuthenticated || !user || !threadId) {
-      // Don't show auth dialog here - this is a background operation now
-      console.log('Cannot save thread - not authenticated or no thread ID');
-      return false;
-    }
-    
-    try {
-      // Add timestamp to prevent caching
-      const timestamp = Date.now();
-      console.time('threadSave'); // Start timing
-      
-      const response = await fetch(`/api/chat/threads/${threadId}?t=${timestamp}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          messages: updatedMessages,
-          model: selectedModel
-        })
-      });
-      
-      console.timeEnd('threadSave'); // Log how long it took
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Auth error - but don't show dialog for background operations
-          console.log('Authentication error saving thread - ignoring');
-          return false;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      if (result.success) {
-        // Update sidebar to reflect changes
-        setRefreshSidebar(prev => prev + 1);
-        
-        // Update the local cache with the current thread to ensure sidebar shows latest
-        if (user && thread) {
-          try {
-            // Try to get the current cache
-            const cachedData = localStorage.getItem(`sidebar_threads_${user.id}`);
-            if (cachedData) {
-              const cacheObj = JSON.parse(cachedData);
-              if (cacheObj && Array.isArray(cacheObj.threads)) {
-                // Update the thread in the cache or add it if not found
-                const updatedThread = {
-                  ...thread,
-                  messages: updatedMessages,
-                  model: selectedModel,
-                  updatedAt: new Date().toISOString()
-                };
-                
-                let found = false;
-                const updatedThreads = cacheObj.threads.map((t: any) => {
-                  if (t.id === threadId) {
-                    found = true;
-                    // Only update minimal thread data in the cached list
-                    return {
-                      ...t,
-                      title: updatedThread.title,
-                      updatedAt: updatedThread.updatedAt
-                    };
-                  }
-                  return t;
-                });
-                
-                // If thread wasn't in cache, add it
-                if (!found) {
-                  updatedThreads.unshift({
-                    id: threadId,
-                    title: updatedThread.title,
-                    updatedAt: updatedThread.updatedAt
-                  });
-                }
-                
-                // Update the cache with new thread list and timestamp
-                const updatedCache = {
-                  ...cacheObj,
-                  timestamp: Date.now(),
-                  threads: updatedThreads
-                };
-                
-                localStorage.setItem(`sidebar_threads_${user.id}`, JSON.stringify(updatedCache));
-              }
-            }
-          } catch (cacheError) {
-            console.error('Error updating thread cache:', cacheError);
-            // Non-critical error, we can continue
-          }
-        }
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Error updating thread:', error);
-      // Don't show auth dialog for background thread saves
-      return false;
-    }
-  };
-
-  // Process the thread save queue efficiently
+  // New efficient thread saving processor with debouncing
   const processSaveQueue = useCallback(async () => {
     if (isSavingThread.current || threadSaveQueue.current.length === 0) return;
     
     isSavingThread.current = true;
     
     try {
-      // Check authentication status first
-      if (!isAuthenticated || !user) {
-        // Don't show auth dialog here, just clear the queue and skip saving
-        threadSaveQueue.current = [];
-        console.log('Skipping thread save - user not authenticated');
-        return;
-      }
-      
-      // Try to refresh the session silently first
-      try {
-        // Call refreshSession but don't wait for it (fire and forget)
-        refreshSession().catch((e: Error) => console.log('Session refresh background error:', e));
-      } catch (e) {
-        // Ignore refresh errors - we'll still try to save
-      }
-      
       // Get latest save request
       const latestSave = threadSaveQueue.current[threadSaveQueue.current.length - 1];
       threadSaveQueue.current = []; // Clear the queue
       
       // Call the actual thread update
       await updateThread(latestSave.messages);
+      
     } catch (error) {
       console.error('Background thread save error:', error);
-      // Don't show auth dialog for background saves - just log the error
     } finally {
       isSavingThread.current = false;
       
@@ -330,7 +205,7 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
         processSaveQueue();
       }
     }
-  }, [isAuthenticated, user, updateThread, refreshSession]);
+  }, []);
 
   // Queue thread save with debouncing
   const queueThreadSave = useCallback((messages: Message[]) => {
@@ -482,6 +357,112 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
 
   // Get the provider name for the selected model
   const selectedModelObj = models.find(model => model.id === selectedModel);
+
+  // Update thread in database - now optimized for efficient storage
+  const updateThread = async (updatedMessages: Message[]) => {
+    if (!isAuthenticated || !user || !threadId) {
+      return false;
+    }
+    
+    try {
+      // Add timestamp to prevent caching
+      const timestamp = Date.now();
+      console.time('threadSave'); // Start timing
+      
+      const response = await fetch(`/api/chat/threads/${threadId}?t=${timestamp}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          messages: updatedMessages,
+          model: selectedModel
+        })
+      });
+      
+      console.timeEnd('threadSave'); // Log how long it took
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          // No need to refresh, just show auth dialog
+          setShowAuthDialog(true);
+          setIsThreadLoading(false);
+          return false;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      if (result.success) {
+        // Update sidebar to reflect changes
+        setRefreshSidebar(prev => prev + 1);
+        
+        // Update the local cache with the current thread to ensure sidebar shows latest
+        if (user && thread) {
+          try {
+            // Try to get the current cache
+            const cachedData = localStorage.getItem(`sidebar_threads_${user.id}`);
+            if (cachedData) {
+              const cacheObj = JSON.parse(cachedData);
+              if (cacheObj && Array.isArray(cacheObj.threads)) {
+                // Update the thread in the cache or add it if not found
+                const updatedThread = {
+                  ...thread,
+                  messages: updatedMessages,
+                  model: selectedModel,
+                  updatedAt: new Date().toISOString()
+                };
+                
+                let found = false;
+                const updatedThreads = cacheObj.threads.map((t: any) => {
+                  if (t.id === threadId) {
+                    found = true;
+                    // Only update minimal thread data in the cached list
+                    return {
+                      ...t,
+                      title: updatedThread.title,
+                      updatedAt: updatedThread.updatedAt
+                    };
+                  }
+                  return t;
+                });
+                
+                // If thread wasn't in cache, add it
+                if (!found) {
+                  updatedThreads.unshift({
+                    id: threadId,
+                    title: updatedThread.title,
+                    updatedAt: updatedThread.updatedAt
+                  });
+                }
+                
+                // Update the cache with new thread list and timestamp
+                const updatedCache = {
+                  ...cacheObj,
+                  timestamp: Date.now(),
+                  threads: updatedThreads
+                };
+                
+                localStorage.setItem(`sidebar_threads_${user.id}`, JSON.stringify(updatedCache));
+              }
+            }
+          } catch (cacheError) {
+            console.error('Error updating thread cache:', cacheError);
+            // Non-critical error, we can continue
+          }
+        }
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error updating thread:', error);
+      return false;
+    }
+  };
 
   if (isThreadLoading) {
     return (

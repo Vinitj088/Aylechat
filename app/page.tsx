@@ -266,22 +266,6 @@ function PageContent() {
     isSavingThread.current = true;
     
     try {
-      // Check authentication status first
-      if (!isAuthenticated || !user) {
-        // Don't show auth dialog here, just clear the queue and skip saving
-        threadSaveQueue.current = [];
-        console.log('Skipping thread save - user not authenticated');
-        return;
-      }
-      
-      // Try to refresh the session silently first
-      try {
-        // Call refreshSession but don't wait for it (fire and forget)
-        refreshSession().catch(e => console.log('Session refresh background error:', e));
-      } catch (e) {
-        // Ignore refresh errors - we'll still try to save
-      }
-      
       // Get latest save request
       const latestSave = threadSaveQueue.current[threadSaveQueue.current.length - 1];
       threadSaveQueue.current = []; // Clear the queue
@@ -294,7 +278,6 @@ function PageContent() {
       
     } catch (error) {
       console.error('Background thread save error:', error);
-      // Don't show auth dialog for background saves - just log the error
     } finally {
       isSavingThread.current = false;
       
@@ -303,7 +286,7 @@ function PageContent() {
         processSaveQueue();
       }
     }
-  }, [isAuthenticated, user]);
+  }, []);
 
   // Queue thread save with debouncing
   const queueThreadSave = useCallback((threadContent: { messages: Message[], title?: string }) => {
@@ -331,12 +314,18 @@ function PageContent() {
     console.time('threadSave'); // Start timing
     
     if (!isAuthenticated || !user) {
-      // Don't show auth dialog here - this is a background operation now
-      console.log('Cannot save thread - not authenticated');
+      // Show auth dialog instead of redirecting
+      openAuthDialog();
       return null;
     }
 
     try {
+      // Try to refresh the session before saving
+      await refreshSession().catch(e => {
+        console.log('Session refresh failed:', e);
+        // Continue anyway, as the current session might still be valid
+      });
+      
       const method = currentThreadId ? 'PUT' : 'POST';
       const endpoint = currentThreadId 
         ? `/api/chat/threads/${currentThreadId}` 
@@ -364,8 +353,8 @@ function PageContent() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          // Auth error - but don't show dialog (it's a background save)
-          console.log('Authentication error saving thread - ignoring');
+          // Auth error - show auth dialog
+          openAuthDialog();
           return null;
         }
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -460,12 +449,14 @@ function PageContent() {
     } catch (error: any) {
       console.error('Error saving thread:', error);
       
-      // Log errors but don't show auth dialog for background operations
+      // Check if it's an auth error
       if (
         (error.message && error.message.toLowerCase().includes('unauthorized')) ||
         (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
       ) {
-        console.log('Auth error during background save - ignoring', error.message);
+        await handleRequestError(error);
+      } else {
+        toast.error('Error saving conversation');
       }
       
       return null;
@@ -518,6 +509,14 @@ function PageContent() {
       // Add selected model as system message for context
       const systemMessage = models.find(model => model.id === selectedModel);
       let modelName = systemMessage ? systemMessage.name : selectedModel;
+
+      // Try to refresh the session before making API calls
+      // This helps ensure the authentication token is valid
+      if (user) {
+        await refreshSession().catch(err => {
+          console.log('Session refresh before API call failed:', err);
+        });
+      }
 
       // Fetch the response
       const { content, citations } = await fetchResponse(

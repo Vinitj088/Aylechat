@@ -105,6 +105,13 @@ async function authenticateUser(req: NextRequest) {
       }
     }
   }
+
+  // Log more details about auth process for debugging
+  console.log('Auth check details:', { 
+    hasUser: !!userId, 
+    authError: authError?.message || null,
+    cookiesPresent: !!req.cookies.get('sb-access-token') || !!req.cookies.get('supabase-auth-token')
+  });
   
   return { userId, authError };
 }
