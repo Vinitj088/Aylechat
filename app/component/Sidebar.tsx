@@ -55,27 +55,6 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
     }
   }, [isAuthenticated, user]);
 
-  // Helper function to update thread cache
-  const updateThreadCache = useCallback((updatedThreads: ChatThread[]) => {
-    if (!user) return;
-    
-    try {
-      const threadIds = updatedThreads.map(t => t.id).join(',');
-      const threadHash = btoa(threadIds);
-      
-      const cacheData = {
-        timestamp: Date.now(),
-        threadHash,
-        threads: updatedThreads
-      };
-      
-      cachedThreadsRef.current = cacheData;
-      localStorage.setItem(`sidebar_threads_${user.id}`, JSON.stringify(cacheData));
-    } catch (error) {
-      console.error('Error updating thread cache:', error);
-    }
-  }, [user]);
-
   // Improved function to fetch threads with better error handling and caching
   const fetchThreads = useCallback(async (forceRefresh = false) => {
     if (!isAuthenticated || !user) {
@@ -112,11 +91,22 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
         // Ensure threads is always an array
         if (data.success && Array.isArray(data.threads)) {
           // Update state with threads
-          const fetchedThreads = data.threads;
-          setThreads(fetchedThreads);
+          setThreads(data.threads);
           
-          // Update the cache using our helper
-          updateThreadCache(fetchedThreads);
+          // Generate hash of thread IDs for change detection
+          const threadIds = data.threads.map((t: ChatThread) => t.id).join(',');
+          const threadHash = btoa(threadIds);
+          
+          // Cache the threads
+          const cacheData = {
+            timestamp: now,
+            threadHash,
+            threads: data.threads
+          };
+          
+          // Save to ref and local storage
+          cachedThreadsRef.current = cacheData;
+          localStorage.setItem(`sidebar_threads_${user.id}`, JSON.stringify(cacheData));
         } else {
           console.error('Threads data is not in expected format:', data);
           setThreads([]);
@@ -151,8 +141,18 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                   const threads = retryData.threads;
                   setThreads(threads);
                   
-                  // Update the cache using our helper
-                  updateThreadCache(threads);
+                  // Generate hash and cache
+                  const threadIds = threads.map((t: ChatThread) => t.id).join(',');
+                  const threadHash = btoa(threadIds);
+                  
+                  const cacheData = {
+                    timestamp: Date.now(),
+                    threadHash,
+                    threads
+                  };
+                  
+                  cachedThreadsRef.current = cacheData;
+                  localStorage.setItem(`sidebar_threads_${user.id}`, JSON.stringify(cacheData));
                 } else {
                   console.error('Retry threads data is not in expected format:', retryData);
                   setThreads([]);
@@ -184,7 +184,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       setIsLoading(false);
       isFetchingRef.current = false;
     }
-  }, [isAuthenticated, refreshSession, user, updateThreadCache]);
+  }, [isAuthenticated, refreshSession, user]);
 
   // Fetch when refreshTrigger changes (when threads are updated)
   useEffect(() => {
@@ -245,33 +245,40 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
     e.stopPropagation(); // Prevent triggering the thread click
     
     try {
-      // Optimistically update the UI right away
-      const updatedThreads = threads.filter(thread => thread.id !== threadId);
-      setThreads(updatedThreads);
-      
-      // Update cache immediately for better UX
-      updateThreadCache(updatedThreads);
-      
-      // Now actually delete on the server
       const response = await fetch(`/api/chat/threads/${threadId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
       
-      if (!response.ok) {
-        // If deletion fails, revert the optimistic update
-        console.error('Failed to delete thread, reverting UI');
-        fetchThreads(true);
-      }
-      
-      // If we're on the deleted thread's page, go home
-      if (pathname === `/chat/${threadId}`) {
-        router.push('/');
+      if (response.ok) {
+        // Update local state instead of refetching
+        const updatedThreads = threads.filter(thread => thread.id !== threadId);
+        setThreads(updatedThreads);
+        
+        // Update cache with the new thread list
+        if (user && cachedThreadsRef.current) {
+          const threadIds = updatedThreads.map(t => t.id).join(',');
+          const threadHash = btoa(threadIds);
+          
+          const cacheData = {
+            timestamp: Date.now(),
+            threadHash,
+            threads: updatedThreads
+          };
+          
+          cachedThreadsRef.current = cacheData;
+          localStorage.setItem(`sidebar_threads_${user.id}`, JSON.stringify(cacheData));
+        }
+        
+        // If we're on the deleted thread's page, go home
+        if (pathname === `/chat/${threadId}`) {
+          router.push('/');
+        }
+      } else {
+        console.error('Failed to delete thread');
       }
     } catch (error) {
       console.error('Error deleting thread:', error);
-      // Revert on error
-      fetchThreads(true);
     }
   };
 
@@ -334,77 +341,74 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
             ) : fetchError ? (
               <div className="text-center py-4 px-3 bg-[var(--accent-red-faint)] border border-[var(--accent-red-muted)] rounded-md">
                 <p className="text-[var(--accent-red)] text-sm">{fetchError}</p>
+                <button
+                  onClick={() => fetchThreads(true)}
+                  className="mt-2 px-3 py-1.5 bg-[var(--secondary-darker)] text-[var(--text-light-default)] rounded-md text-sm hover:bg-[var(--secondary-darkest)] transition-colors"
+                >
+                  Try Again
+                </button>
               </div>
             ) : threads.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <p className="text-sm text-[var(--text-light-muted)] mb-2">No chat history yet</p>
-                <Link 
-                  href="/"
-                  className="text-sm text-[var(--brand-default)] hover:text-[var(--brand-darker)] hover:underline"
-                >
-                  Start a new chat
-                </Link>
+              <div className="text-center py-6 px-3 bg-[var(--secondary-fainter)] rounded-md border border-dashed border-[var(--secondary-darker)]">
+                <p className="text-[var(--text-light-muted)] text-sm">No chat history yet</p>
+                <p className="text-xs text-[var(--text-light-faint)] mt-1">Start a new chat to see your history here</p>
               </div>
             ) : (
-              // Thread list
-              <div className="space-y-1.5">
+              <ul className="space-y-2.5">
                 {threads.map((thread) => (
-                  <div
-                    key={thread.id}
-                    onClick={() => handleThreadClick(thread.id)}
-                    className={cn(
-                      "group p-2 rounded-md flex items-center justify-between cursor-pointer transition-colors",
-                      pathname === `/chat/${thread.id}` 
-                        ? "bg-[var(--brand-faint)] text-[var(--brand-default)]" 
-                        : "hover:bg-[var(--secondary-default)] text-[var(--text-light-default)]"
-                    )}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">{thread.title || "Untitled chat"}</div>
-                      {thread.updatedAt && (
-                        <div className="text-xs text-[var(--text-light-muted)]">
-                          {formatDistanceToNow(new Date(thread.updatedAt), { addSuffix: true })}
-                        </div>
-                      )}
-                    </div>
+                  <li key={thread.id}>
                     <button
-                      onClick={(e) => handleDeleteThread(thread.id, e)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 text-[var(--text-light-muted)] hover:text-[var(--accent-red)] rounded-full hover:bg-[var(--secondary-darker)] transition-colors"
-                      aria-label="Delete thread"
+                      onClick={() => handleThreadClick(thread.id)}
+                      className={cn(
+                        "w-full text-left p-3 rounded-md border transition-all duration-200",
+                        pathname === `/chat/${thread.id}` 
+                          ? "bg-[var(--brand-fainter)] border-[var(--brand-muted)] shadow-[0_0_0_1px_var(--brand-faint)]" 
+                          : "border-[var(--secondary-darkest)] hover:bg-[var(--secondary-darker)] hover:border-[var(--secondary-darkest)]"
+                      )}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <div className="flex justify-between items-start">
+                        <div className="font-medium truncate pr-2 text-sm text-[var(--text-light-default)]">
+                          {thread.title || "Untitled chat"}
+                        </div>
+                        <button
+                          onClick={(e) => handleDeleteThread(thread.id, e)}
+                          className="p-1 text-[var(--text-light-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red-fainter)] rounded-full transition-colors"
+                          title="Delete thread"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div className="text-xs text-[var(--text-light-muted)] mt-1.5 flex items-center">
+                        <Clock className="h-3 w-3 mr-1 inline-block text-[var(--brand-faint)]" />
+                        {formatDistanceToNow(new Date(thread.updatedAt), { addSuffix: true })}
+                      </div>
                     </button>
-                  </div>
+                  </li>
                 ))}
-              </div>
+                <li className="text-center mt-4 pt-3 border-t border-dashed border-[var(--secondary-darker)]">
+                  <span className="text-xs text-[var(--brand-darker)] italic">— End of history —</span>
+                </li>
+              </ul>
             )}
           </div>
           
-          {/* Footer with Sign Out button */}
+          {/* Footer with user info and sign out */}
           {isAuthenticated && (
-            <div className="p-4 border-t border-[var(--secondary-darkest)]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="w-6 h-6 rounded-full bg-[var(--brand-default)] flex items-center justify-center text-white">
+            <div className="p-3 border-t border-[var(--secondary-darkest)] bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-default)]">
+              <div className="flex justify-between items-center">
+                <div className="text-sm truncate flex items-center text-[var(--text-light-default)]">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-fainter)] text-[var(--brand-default)] mr-2">
                     <User className="h-3.5 w-3.5" />
                   </div>
-                  <div className="ml-2 overflow-hidden">
-                    <div className="text-xs font-medium truncate text-[var(--text-light-default)]">
-                      {user?.email ? user.email.split('@')[0] : 'User'}
-                    </div>
-                    {user?.email && (
-                      <div className="text-[10px] text-[var(--text-light-muted)] truncate">
-                        {user.email}
-                      </div>
-                    )}
-                  </div>
+                  <span className="font-medium">{user?.email ? user.email.split('@')[0] : 'User'}</span>
                 </div>
                 <button
                   onClick={handleSignOut}
-                  className="p-1.5 text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] rounded-full hover:bg-[var(--secondary-darker)] transition-colors"
-                  aria-label="Sign out"
+                  className="px-2 py-1.5 text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md flex items-center gap-1.5 text-xs transition-colors"
+                  title="Sign out"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Sign Out</span>
                 </button>
               </div>
             </div>
