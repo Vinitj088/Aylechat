@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Message } from "../types";
 import MessageContent from './MessageContent';
 import Citation from './Citation';
@@ -19,13 +19,28 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   isExa
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom when messages change or when loading
+  const [messageCount, setMessageCount] = useState(0);
+  
+  // Track message count to only scroll when new messages are added
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length !== messageCount) {
+      setMessageCount(messages.length);
+      
+      // Scroll to bottom only when a new message is added
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
     }
-  }, [messages, isLoading]);
+  }, [messages.length, messageCount]);
+  
+  // Scroll when loading state changes from false to true
+  useEffect(() => {
+    if (isLoading) {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [isLoading]);
 
   return (
     <div className="pt-16 pb-32 w-full overflow-x-hidden">

@@ -19,7 +19,7 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isThreadLoading, setIsThreadLoading] = useState(true);
-  const [selectedModel, setSelectedModel] = useState<ModelType>('exa');
+  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-1.5-pro');
   const [models, setModels] = useState<Model[]>([
     {
       id: 'exa',
@@ -43,9 +43,26 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
   const isAuthenticated = !!user;
 
   useEffect(() => {
-    // Add Exa as the first option and then add all Groq models
+    // Add models from different providers
     const groqModels = modelsData.models.filter(model => model.providerId === 'groq');
-    setModels(prevModels => [...prevModels, ...groqModels]);
+    const googleModels = modelsData.models.filter(model => model.providerId === 'google');
+    const openRouterModels = modelsData.models.filter(model => model.providerId === 'openrouter');
+    
+    // Replace the model list instead of appending
+    setModels([
+      {
+        id: 'exa',
+        name: 'Exa Search',
+        provider: 'Exa',
+        providerId: 'exa',
+        enabled: true,
+        toolCallType: 'native',
+        searchMode: true
+      },
+      ...googleModels,
+      ...openRouterModels,
+      ...groqModels
+    ]);
   }, []);
 
   useEffect(() => {
@@ -373,7 +390,14 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
           onSignInClick={() => setShowAuthDialog(true)}
         />
         <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+          <div className="flex flex-col items-center space-y-4">
+            <div className="flex space-x-2 mt-2">
+              <div className="w-3 h-3 bg-[var(--brand-darker)] animate-[bounce_0.6s_infinite_0.1s]"></div>
+              <div className="w-3 h-3 bg-[var(--brand-darker)] animate-[bounce_0.6s_infinite_0.2s]"></div>
+              <div className="w-3 h-3 bg-[var(--brand-darker)] animate-[bounce_0.6s_infinite_0.3s]"></div>
+            </div>
+            <div className="text-gray-600 font-medium">Loading conversation...</div>
+          </div>
         </div>
       </main>
     );

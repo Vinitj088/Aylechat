@@ -1,5 +1,6 @@
 import { Inter } from 'next/font/google';
 import './globals.css';
+import 'katex/dist/katex.min.css';
 import { Analytics } from '@vercel/analytics/next';
 import { Providers } from './providers';
 

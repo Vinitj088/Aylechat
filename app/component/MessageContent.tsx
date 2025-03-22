@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import 'katex/dist/katex.min.css';
 
 // Add the parseMessageContent helper function
 const parseMessageContent = (content: string) => {
@@ -33,18 +40,54 @@ const parseMessageContent = (content: string) => {
   };
 };
 
+// Helper function to normalize markdown content
+const normalizeMarkdown = (content: string): string => {
+  if (!content) return '';
+  
+  return content
+    // Fix code blocks with missing language or extra spaces
+    .replace(/```\s*([a-zA-Z0-9]*)\s*\n/g, '```$1\n')
+    // Fix lists with incorrect spacing
+    .replace(/^\s*[-*+]\s+/gm, '- ')
+    // Fix for inconsistent table formatting
+    .replace(/\|\s+/g, '| ')
+    .replace(/\s+\|/g, ' |')
+    // Fix for broken inline code
+    .replace(/`([^`]+)`/g, '`$1`')
+    // Remove unnecessary escaping of characters
+    .replace(/\\([#_*])/g, '$1');
+};
+
 interface MessageContentProps {
   content: string;
   role: string;
+}
+
+// Types for React-Markdown components
+interface CodeProps {
+  node?: any;
+  inline?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+  [key: string]: any;
+}
+
+interface TableProps {
+  node?: any;
+  children?: React.ReactNode;
+  [key: string]: any;
 }
 
 export default function MessageContent({ content, role }: MessageContentProps) {
   const { thinking, visible } = parseMessageContent(content || '');
   const [copied, setCopied] = useState(false);
   
+  // Normalize the markdown content
+  const normalizedContent = normalizeMarkdown(visible);
+  
   // Check if this is an AI response with actual content to copy
   const isAIResponse = role === 'assistant';
-  const hasContent = visible;
+  const hasContent = normalizedContent;
   const showCopyButton = isAIResponse && hasContent;
   
   // Check if this is an error message - with null check
@@ -81,9 +124,46 @@ export default function MessageContent({ content, role }: MessageContentProps) {
           </div>
         </div>
       )}
-      {visible && (
+      {normalizedContent && (
         <div className="prose prose-base max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{visible}</ReactMarkdown>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeRaw, rehypeSanitize, rehypeKatex]}
+            components={{
+              code({node, inline, className, children, ...props}: CodeProps) {
+                const match = /language-(\w+)/.exec(className || '');
+                return !inline && match ? (
+                  <SyntaxHighlighter
+                    style={atomDark}
+                    language={match[1]}
+                    PreTag="div"
+                    {...props}
+                  >
+                    {String(children).replace(/\n$/, '')}
+                  </SyntaxHighlighter>
+                ) : (
+                  <code className={className} {...props}>
+                    {children}
+                  </code>
+                );
+              },
+              table({node, ...props}: TableProps) {
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="border-collapse border border-gray-300" {...props} />
+                  </div>
+                );
+              },
+              th({node, ...props}: TableProps) {
+                return <th className="border border-gray-300 px-4 py-2 bg-gray-100" {...props} />;
+              },
+              td({node, ...props}: TableProps) {
+                return <td className="border border-gray-300 px-4 py-2" {...props} />;
+              }
+            }}
+          >
+            {normalizedContent}
+          </ReactMarkdown>
         </div>
       )}
       
@@ -91,7 +171,7 @@ export default function MessageContent({ content, role }: MessageContentProps) {
       {showCopyButton && !isErrorMessage && (
         <div className="flex justify-end mt-4">
           <button
-            onClick={() => copyToClipboard(visible)}
+            onClick={() => copyToClipboard(normalizedContent)}
             className="flex items-center gap-1 py-1 px-2 text-xs bg-[var(--secondary-darker)] border-2 border-black rounded hover:bg-[var(--secondary-darkest)] transition-colors"
             title="Copy to clipboard"
           >

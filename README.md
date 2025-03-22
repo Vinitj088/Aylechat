@@ -145,6 +145,74 @@ UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
 
 <br>
 
+## Features
+
+- Multi-model support (Gemini, Groq, OpenRouter, Exa)
+- Real-time streaming responses
+- Conversation history
+- Authentication with Supabase
+- Mobile-responsive design
+
+## Environment Variables
+
+The application requires these environment variables:
+
+```
+# Supabase Configuration (for authentication)
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# Redis Configuration (for conversation storage)
+UPSTASH_REDIS_REST_URL=your_upstash_redis_url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
+
+# AI Model API Keys
+EXA_API_KEY=your_exa_api_key
+GOOGLE_AI_API_KEY=your_google_ai_api_key
+GROQ_API_KEY=your_groq_api_key
+OPENROUTER_API_KEY=your_openrouter_api_key
+```
+
+## Getting Started
+
+1. Clone the repository
+2. Install dependencies with `npm install`
+3. Create a `.env.local` file with the environment variables
+4. Run the development server with `npm run dev`
+
+## API Integrations
+
+### Google Gemini API
+Provides access to Google's Gemini models. Get an API key from [Google AI Studio](https://makersuite.google.com/).
+
+### Groq API
+Fast inference for various open-source models. Get an API key from [Groq Cloud](https://console.groq.com/).
+
+### Exa Search API
+Provides search capabilities with AI-powered answers. Get an API key from [Exa](https://exa.ai/).
+
+### OpenRouter API
+Provides access to a variety of models including Gemma 3 27B. Get an API key from [OpenRouter](https://openrouter.ai/).
+
+## Available Models
+
+The application includes support for:
+
+- Google Gemini models (1.5 Pro, 1.5 Flash)
+- Groq-hosted models (LLaMA 3, Mistral, etc.)
+- OpenRouter models (including Gemma 3 27B)
+- Exa Search
+
+## Deployment
+
+This application can be deployed on Vercel:
+
+1. Push your code to GitHub
+2. Import the repository in Vercel
+3. Configure the environment variables
+4. Deploy!
+
 ---
 
 Built with ❤️ using [Exa](https://exa.ai)

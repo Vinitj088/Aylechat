@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 const MODEL_LIMITS = {
   exa: 8000,    // Based on Exa RAG best practices
   groq: 128000, // Groq models have a much larger limit
+  google: 64000, // Google Gemini models
   default: 8000 // Fallback limit
 };
 
@@ -23,11 +24,13 @@ const truncateConversationHistory = (messages: Message[], modelId: string): Mess
     return [];
   }
   
-  // For LLMs like Groq, retain conversation history
+  // For LLMs like Groq and Gemini, retain conversation history
   // Determine the character limit for the model
   let charLimit = MODEL_LIMITS.default;
   if (modelId.includes('groq') || modelId.startsWith('llama')) {
     charLimit = MODEL_LIMITS.groq;
+  } else if (modelId.includes('gemini') || modelId.includes('gemma')) {
+    charLimit = MODEL_LIMITS.google;
   }
   
   // If there are fewer than 2 messages or the history fits in the limit, return all messages
@@ -123,9 +126,18 @@ export const fetchResponse = async (
   let response;
   
   try {
-    const apiEndpoint = selectedModel === 'exa' 
-      ? getAssetPath('/api/exaanswer')
-      : getAssetPath('/api/groq');
+    // Determine which API endpoint to use based on the selected model
+    let apiEndpoint;
+    
+    if (selectedModel === 'exa') {
+      apiEndpoint = getAssetPath('/api/exaanswer');
+    } else if (selectedModel === 'gemma3-27b' || selectedModel.includes('openrouter')) {
+      apiEndpoint = getAssetPath('/api/openrouter');
+    } else if (selectedModel.includes('gemini')) {
+      apiEndpoint = getAssetPath('/api/gemini');
+    } else {
+      apiEndpoint = getAssetPath('/api/groq');
+    }
     
     console.log(`Sending request to ${apiEndpoint} with model ${selectedModel}`);
     
@@ -149,7 +161,7 @@ export const fetchResponse = async (
           messages: []
         } 
       : { 
-          // For Groq and other LLMs, include the full conversation history
+          // For Groq, Gemini, and other LLMs, include the full conversation history
           query: fullQuery,
           model: selectedModel, 
           messages: relevantHistory

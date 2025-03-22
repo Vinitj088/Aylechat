@@ -30,7 +30,7 @@ function PageContent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<ModelType>('exa');
+  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-1.5-pro');
   const [models, setModels] = useState<Model[]>([
     {
       id: 'exa',
@@ -131,10 +131,36 @@ function PageContent() {
     }
   }, [searchParams, openAuthDialog]);
 
+  // Load models and set initially selected model
   useEffect(() => {
-    // Add Exa as the first option and then add all Groq models
+    // Load models from models.json and set initial model
     const groqModels = modelsData.models.filter(model => model.providerId === 'groq');
-    setModels(prevModels => [...prevModels, ...groqModels]);
+    const googleModels = modelsData.models.filter(model => model.providerId === 'google');
+    const openRouterModels = modelsData.models.filter(model => model.providerId === 'openrouter');
+    
+    // Start with just the Exa model and then add the others
+    setModels([
+      {
+        id: 'exa',
+        name: 'Exa Search',
+        provider: 'Exa',
+        providerId: 'exa',
+        enabled: true,
+        toolCallType: 'native',
+        searchMode: true
+      },
+      ...googleModels,
+      ...openRouterModels,
+      ...groqModels
+    ]);
+    
+    // Get search params
+    const searchParams = new URLSearchParams(window.location.search);
+    const modelParam = searchParams.get('model');
+    
+    if (modelParam) {
+      setSelectedModel(modelParam);
+    }
   }, []);
 
   // Handle showing the auth dialog if opened via URL param

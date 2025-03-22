@@ -7,6 +7,7 @@ const nextConfig = {
         allowedForwardedHosts: ["demo.exa.ai"],
       },
     },
+    transpilePackages: ['@lobehub/icons'],
   };
   
 export default nextConfig;
