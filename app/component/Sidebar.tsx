@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ChatThread } from '@/lib/redis';
 import { useAuth } from '@/context/AuthContext';
+import { useThreadCache } from '@/context/ThreadCacheContext';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
@@ -19,173 +20,89 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger = 0 }: SidebarProps) {
-  const [threads, setThreads] = useState<ChatThread[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
   const [lastRefreshTrigger, setLastRefreshTrigger] = useState(0);
-  const [lastFetchTime, setLastFetchTime] = useState(0);
-  const isFetchingRef = useRef(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   
   const router = useRouter();
   const pathname = usePathname();
   const { user, signOut, refreshSession, openAuthDialog } = useAuth();
-  
+  // Use the thread cache context for thread data and operations
+  const { threads, isLoading, fetchThreads, removeThread, lastUpdated } = useThreadCache();
+
   const isAuthenticated = !!user;
 
-  // Improved function to fetch threads with better error handling
-  const fetchThreads = useCallback(async () => {
-    if (!isAuthenticated) {
-      setThreads([]);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(getAssetPath('/api/chat/threads'), {
-        credentials: 'include',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        // Ensure threads is always an array
-        if (data.success && Array.isArray(data.threads)) {
-          setThreads(data.threads);
-        } else {
-          console.error('Threads data is not in expected format:', data);
-          setThreads([]);
-        }
-      } else if (response.status === 401) {
-        console.error('Authentication failed when fetching threads');
-        toast.error('Authentication issue detected', {
-          description: 'Attempting to fix session...',
-          duration: 3000,
-        });
-        
-        // Try to fix the session
-        try {
-          await refreshSession();
-          toast.success('Session fixed, retrying...');
-          
-          // Try fetching threads again after a short delay
-          setTimeout(async () => {
-            try {
-              const retryResponse = await fetch(getAssetPath('/api/chat/threads'), {
-                credentials: 'include',
-                headers: {
-                  'Cache-Control': 'no-cache, no-store, must-revalidate',
-                  'Pragma': 'no-cache',
-                }
-              });
-              
-              if (retryResponse.ok) {
-                const retryData = await retryResponse.json();
-                // Ensure threads is always an array
-                if (retryData.success && Array.isArray(retryData.threads)) {
-                  setThreads(retryData.threads);
-                } else {
-                  console.error('Retry threads data is not in expected format:', retryData);
-                  setThreads([]);
-                }
-              } else {
-                setThreads([]);
-              }
-            } catch (retryError) {
-              console.error('Error retrying thread fetch:', retryError);
-              setThreads([]);
-            } finally {
-              setIsLoading(false);
-            }
-          }, 1000);
-          return;
-        } catch (refreshError) {
-          console.error('Failed to refresh session:', refreshError);
-          setThreads([]);
-        }
-      } else {
-        console.error('Failed to fetch threads');
-        setThreads([]);
-      }
-    } catch (error) {
-      console.error('Error fetching threads:', error);
-      setThreads([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isAuthenticated, refreshSession]);
-
-  // Fetch when refreshTrigger changes
+  // Fetch when refreshTrigger changes, this indicates thread operations (create/update/delete)
   useEffect(() => {
     if (isAuthenticated && user && isOpen) {
       if (lastRefreshTrigger !== refreshTrigger) {
         setLastRefreshTrigger(refreshTrigger);
-        fetchThreads();
+        // Force refresh on trigger change as it means data has changed
+        fetchThreads(true);
       }
     }
   }, [refreshTrigger, isAuthenticated, user, isOpen, lastRefreshTrigger, fetchThreads]);
 
-  // Also fetch when sidebar opens
+  // When sidebar opens, check if we should refresh based on the last update time
   useEffect(() => {
     if (isOpen && isAuthenticated && user) {
-      fetchThreads();
+      // Try to fetch threads when sidebar opens, the context will handle caching
+      fetchThreads(false);
     }
   }, [isOpen, isAuthenticated, user, fetchThreads]);
-
-  // Fetch when authentication state changes
-  useEffect(() => {
-    if (isOpen && isAuthenticated && user) {
-      fetchThreads();
-    }
-  }, [isAuthenticated, user, isOpen, fetchThreads]);
 
   const handleThreadClick = (threadId: string) => {
     router.push(`/chat/${threadId}`);
     onClose();
   };
 
-  const handleSignOut = async () => {
-    try {
-      // Clear threads for immediate UI feedback
-      setThreads([]);
-      
-      // Use Supabase signOut function
-      await signOut();
-      
-      // Navigate to home
-      router.push('/');
-    } catch (error) {
-      console.error("Error during sign out:", error);
-      // If something goes wrong, still try to get to homepage with auth dialog
-      window.location.href = `/?error=signout&t=${Date.now()}`;
+  const handleDeleteThread = async (threadId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    
+    if (!confirm('Are you sure you want to delete this chat thread?')) {
+      return;
     }
-  };
-
-  const handleDeleteThread = async (threadId: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent triggering the thread click
     
     try {
-      const response = await fetch(`/api/chat/threads/${threadId}`, {
+      const response = await fetch(getAssetPath(`/api/chat/threads/${threadId}`), {
         method: 'DELETE',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        }
       });
       
       if (response.ok) {
-        // Update local state instead of refetching
-        setThreads(prev => prev.filter(thread => thread.id !== threadId));
+        // Use the context's removeThread function to update cache
+        removeThread(threadId);
         
-        // If we're on the deleted thread's page, go home
+        // If we're currently viewing this thread, redirect to home
         if (pathname === `/chat/${threadId}`) {
           router.push('/');
         }
+        
+        toast.success('Thread deleted successfully');
       } else {
-        console.error('Failed to delete thread');
+        const errorData = await response.json();
+        toast.error('Failed to delete thread', {
+          description: errorData.message || 'Please try again later',
+        });
       }
     } catch (error) {
       console.error('Error deleting thread:', error);
+      toast.error('Failed to delete thread', {
+        description: 'Please check your connection and try again',
+      });
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.push('/');
+      onClose();
+    } catch (error) {
+      console.error('Error signing out:', error);
     }
   };
 
@@ -223,7 +140,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
               <X className="h-4 w-4" />
             </button>
           </div>
-          
+
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {!isAuthenticated ? (
