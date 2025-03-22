@@ -11,6 +11,7 @@ export interface Model {
   name: string;
   provider: string;
   providerId: string;
+  avatarType?: string;
   enabled: boolean;
   toolCallType: string;
   searchMode?: boolean;

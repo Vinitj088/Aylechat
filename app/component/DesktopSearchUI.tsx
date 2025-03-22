@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { ChevronDown } from 'lucide-react';
+import ModelSelector from './ModelSelector';
 
 // Add the parseMessageContent helper function
 const parseMessageContent = (content: string) => {
@@ -94,9 +95,6 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
     }
   }, [input]);
 
-  // Get the current model name for display
-  const currentModelName = models.find(model => model.id === selectedModel)?.name || 'Select Model';
-
   return (
     <div className="hidden md:flex min-h-screen flex-col items-center justify-center px-4 py-8 bg-[#fffdf5] w-screen overflow-x-hidden">
       {/* Messages section */}
@@ -174,30 +172,13 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                 <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               
-              {/* Replace select with DropdownMenu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-1 text-sm border border-gray-200 rounded-md px-3 py-1.5 focus:outline-none bg-white text-gray-800 font-medium">
-                  <span className="max-w-[120px] truncate">{currentModelName}</span>
-                  <ChevronDown className="h-4 w-4 text-gray-500" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  align="start" 
-                  className="w-56 max-h-[150px] overflow-y-auto bg-[#fffdf5] border border-gray-200"
-                  sideOffset={5}
-                >
-                  <DropdownMenuLabel className="text-xs">Select Model</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {models.map((model) => (
-                    <DropdownMenuItem 
-                      key={model.id}
-                      onClick={() => handleModelChange(model.id)}
-                      className={`text-sm py-1 ${selectedModel === model.id ? "bg-blue-50 text-blue-600" : ""}`}
-                    >
-                      {model.name}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="w-full max-w-[180px]">
+                <ModelSelector
+                  selectedModel={selectedModel}
+                  handleModelChange={handleModelChange}
+                  models={models}
+                />
+              </div>
             </div>
             
             <textarea
