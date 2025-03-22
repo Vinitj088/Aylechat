@@ -240,19 +240,19 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
               onClick={() => setInput("a short article about the early days of Google")}
               className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm hover:border-gray-300 transition-colors text-left"
             >
-              a short article about the early days of Google
+             Can you explain how black holes work?
             </button>
             <button 
               onClick={() => setInput("Start ups working on genetic sequencing")}
               className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm hover:border-gray-300 transition-colors text-left"
             >
-              Start ups working on genetic sequencing
+              Can you tell me a fascinating story from history?
             </button>
             <button 
               onClick={() => setInput("Similar to https://waitbutwhy.com")}
               className="w-full px-3 py-2 bg-white border border-gray-200 rounded-md text-sm hover:border-gray-300 transition-colors text-left"
             >
-              Similar to https://waitbutwhy.com
+              write a program to implement a binary search algorithm in C++?
             </button>
           </div>
         </div>
