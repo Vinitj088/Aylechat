@@ -19,7 +19,7 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isThreadLoading, setIsThreadLoading] = useState(true);
-  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-1.5-pro');
+  const [selectedModel, setSelectedModel] = useState<ModelType>('mistralai/mistral-small-3.1-24b-instruct:free');
   const [models, setModels] = useState<Model[]>([
     {
       id: 'exa',

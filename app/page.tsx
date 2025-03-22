@@ -30,7 +30,7 @@ function PageContent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-1.5-pro');
+  const [selectedModel, setSelectedModel] = useState<ModelType>('mistralai/mistral-small-3.1-24b-instruct:free');
   const [models, setModels] = useState<Model[]>([
     {
       id: 'exa',
