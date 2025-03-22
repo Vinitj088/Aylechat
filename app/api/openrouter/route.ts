@@ -1,10 +1,21 @@
 import { NextRequest } from 'next/server';
+import { Message } from '@/app/types';
 
-export const dynamic = 'force-dynamic';
+// Change dynamic to auto to enable edge runtime optimizations
+export const dynamic = 'auto';
 export const maxDuration = 60; // Maximum allowed for Vercel Hobby plan
 
-// OpenRouter endpoint
+// Pre-define constants and encoder outside the handler for better performance
 const API_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+const encoder = new TextEncoder();
+
+// Handle warmup requests specially
+const handleWarmup = () => {
+  return new Response(
+    JSON.stringify({ status: 'warmed_up' }),
+    { status: 200 }
+  );
+};
 
 /**
  * IMPORTANT: You need to add OPENROUTER_API_KEY to your environment variables
@@ -21,80 +32,57 @@ const MODEL_MAPPING: Record<string, string> = {
   'deepseek/deepseek-r1:free': 'deepseek/deepseek-r1:free',
 };
 
-// Function to handle streaming responses from OpenRouter
-async function processStream(
-  response: Response,
-  controller: ReadableStreamDefaultController
-) {
-  const reader = response.body?.getReader();
-  const encoder = new TextEncoder();
-  
-  if (!reader) {
-    throw new Error('Failed to get response reader');
-  }
-  
-  const decoder = new TextDecoder();
+// Create a stream transformer to process the chunks efficiently
+const createStreamTransformer = () => {
   let buffer = '';
   
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
+  return new TransformStream({
+    transform(chunk, controller) {
+      // Add chunk to buffer
+      buffer += new TextDecoder().decode(chunk, { stream: true });
       
-      if (done) {
-        break;
-      }
+      // Split by newlines
+      const lines = buffer.split('\n');
       
-      // Decode the chunk and add it to our buffer
-      buffer += decoder.decode(value, { stream: true });
+      // Keep the last potentially incomplete line in the buffer
+      buffer = lines.pop() || '';
       
-      // Process each line
-      let lineEnd = buffer.indexOf('\n');
-      while (lineEnd !== -1) {
-        const line = buffer.substring(0, lineEnd).trim();
-        buffer = buffer.substring(lineEnd + 1);
+      // Process each complete line
+      for (const line of lines) {
+        if (!line.trim()) continue;
         
-        if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-          try {
-            // Remove 'data: ' prefix and parse JSON
-            const data = JSON.parse(line.substring(6));
-            
-            // Format in a way compatible with client-side parsing
-            if (data.choices?.[0]?.delta?.content) {
-              const message = {
-                choices: [
-                  {
-                    delta: {
-                      content: data.choices[0].delta.content
-                    }
-                  }
-                ]
-              };
-              
-              controller.enqueue(encoder.encode(JSON.stringify(message) + '\n'));
-            }
-          } catch (e) {
-            console.error('Error parsing line:', e);
-          }
+        try {
+          processLineToController(line, controller);
+        } catch (e) {
+          // Silently continue on errors
         }
-        
-        lineEnd = buffer.indexOf('\n');
+      }
+    },
+    
+    flush(controller) {
+      // Process any remaining buffer content
+      if (buffer.trim()) {
+        try {
+          processLineToController(buffer, controller);
+        } catch (e) {
+          // Silently ignore parsing errors at the end
+        }
       }
     }
-    
-    controller.close();
-  } catch (error) {
-    controller.error(error);
-  }
-}
+  });
+};
 
 export async function POST(req: NextRequest) {
-  let model: string = '';
-  
   try {
-    // Parse request body
+    // Parse request body first
     const body = await req.json();
-    const { query, messages } = body;
-    model = body.model || '';
+    
+    // Handle warmup requests quickly
+    if (body.warmup === true) {
+      return handleWarmup();
+    }
+    
+    const { query, model, messages } = body;
     
     if (!query) {
       return new Response(JSON.stringify({ error: 'query is required' }), { status: 400 });
@@ -103,43 +91,27 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'model is required' }), { status: 400 });
     }
 
-    // Log some information about the request
-    console.log(`Processing OpenRouter request with model: ${model}`);
-    console.log(`Message count: ${messages?.length || 0}`);
+    // Skip authentication checks - allow all requests
+    console.log(`OpenRouter request: ${model} [${messages?.length || 0} msgs]`);
     
-    // Get API key from environment variable
     const API_KEY = process.env.OPENROUTER_API_KEY;
+    const REFERRER = 'https://exachat.vercel.app/';
     
     if (!API_KEY) {
       throw new Error('OPENROUTER_API_KEY environment variable not set');
     }
     
-    // Map the model name to OpenRouter's model name
-    const actualModelName = MODEL_MAPPING[model] || model;
+    // Add role to messages 
+    const formattedMessages = [{ role: 'user', content: query }];
     
-    // Format messages for OpenAI-compatible format
-    const formattedMessages = messages.map((msg: any) => ({
-      role: msg.role,
-      content: msg.content
-    }));
-    
-    // Add the current query if not already included
-    if (formattedMessages.length === 0 || 
-        formattedMessages[formattedMessages.length - 1].role !== 'user') {
-      formattedMessages.push({
-        role: 'user',
-        content: query
-      });
-    }
-    
-    // Parameters for OpenRouter API (OpenAI-compatible)
+    // Parameters for OpenRouter API
     const params = {
       messages: formattedMessages,
-      model: actualModelName,
-      temperature: 0.7,
+      model: model,
+      temperature: 0.5,
+      max_tokens: 2500,
       stream: true,
-      top_p: 0.95,
-      max_tokens: 4000
+      top_p: 1,
     };
     
     // Call the OpenRouter API for streaming
@@ -148,8 +120,9 @@ export async function POST(req: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${API_KEY}`,
-        'HTTP-Referer': 'https://exachat-app.vercel.app', // Replace with your actual domain
-        'X-Title': 'ExaChat App' // Your app name
+        'HTTP-Referer': REFERRER,
+        'X-Title': 'ExaChat',
+        'Accept': 'text/event-stream'
       },
       body: JSON.stringify(params)
     });
@@ -159,49 +132,79 @@ export async function POST(req: NextRequest) {
       throw new Error(`OpenRouter API error: ${error.error?.message || response.statusText}`);
     }
     
-    // Create a streaming response
-    return new Response(
-      new ReadableStream({
-        async start(controller) {
-          try {
-            await processStream(response, controller);
-          } catch (error: any) {
-            console.error('Error in OpenRouter stream processing:', error);
-            
-            // Send an error message to the client
-            const errorResponse = {
-              choices: [
-                {
-                  delta: {
-                    content: `Error: ${error.message || 'Failed to process stream'}`
-                  }
-                }
-              ]
-            };
-            controller.enqueue(new TextEncoder().encode(JSON.stringify(errorResponse) + '\n'));
-            controller.close();
-          }
-        }
-      }),
-      {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-        }
+    // Create the transform stream
+    const transformer = createStreamTransformer();
+    
+    // Pipe the response through our transformer
+    return new Response(response.body?.pipeThrough(transformer), {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no' // Disable buffering in Nginx
       }
-    );
+    });
   } catch (error: any) {
-    console.error('OpenRouter API error:', error);
-    
-    const errorResponse = {
-      error: `Failed to perform OpenRouter request | ${error.message}`,
-      message: "I apologize, but I couldn't complete your request. Please try again."
-    };
-    
+    console.error('OpenRouter error:', error.message);
     return new Response(
-      JSON.stringify(errorResponse), 
+      JSON.stringify({ 
+        error: `Failed to process request: ${error.message}`,
+        message: "I apologize, but I couldn't complete your request. Please try again."
+      }), 
       { status: 500 }
     );
+  }
+}
+
+// Process a line and send it to the transform controller
+function processLineToController(line: string, controller: TransformStreamDefaultController) {
+  if (!line.startsWith('data: ')) return;
+  
+  const data = line.slice(6);
+  
+  // The "data: [DONE]" line indicates the end of the stream
+  if (data === '[DONE]') return;
+  
+  try {
+    // Handle potential JSON parsing errors with more specific error recovery
+    let json;
+    try {
+      json = JSON.parse(data);
+    } catch (parseError) {
+      // If JSON parsing fails, this might be an incomplete chunk
+      // Try to fix common JSON parsing issues
+      if (data.endsWith('"}')) {
+        // Sometimes the closing brace for the object is missing
+        try {
+          json = JSON.parse(data + '}');
+        } catch {
+          // If still failing, ignore this chunk
+          return;
+        }
+      } else {
+        // For other parsing errors, just skip this chunk
+        return;
+      }
+    }
+    
+    const delta = json.choices?.[0]?.delta;
+    
+    if (delta && delta.content) {
+      const message = {
+        choices: [
+          {
+            delta: {
+              content: delta.content
+            }
+          }
+        ]
+      };
+      
+      const encodedMessage = encoder.encode(JSON.stringify(message) + '\n');
+      controller.enqueue(encodedMessage);
+    }
+  } catch (error) {
+    // Last resort error handler - silently continue
+    return;
   }
 } 

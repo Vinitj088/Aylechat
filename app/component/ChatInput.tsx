@@ -1,10 +1,47 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { Model } from '../types';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Send, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ModelSelector from './ModelSelector';
+
+// Function to prefetch API endpoints
+const prefetchAPI = async (modelId: string) => {
+  // Determine which API endpoint to prefetch based on the model
+  let apiEndpoint = '/api/groq'; // Default
+
+  try {
+    // Use a dynamic import to load the models.json file
+    const modelsConfig = await import('../../models.json');
+    // Find the model configuration
+    const modelConfig = modelsConfig.models.find((m: any) => m.id === modelId);
+    
+    if (modelId === 'exa') {
+      apiEndpoint = '/api/exaanswer';
+    } else if (modelConfig?.toolCallType === 'openrouter') {
+      apiEndpoint = '/api/openrouter';
+    } else if (modelId.includes('gemini')) {
+      apiEndpoint = '/api/gemini';
+    }
+    
+    // Send a prefetch (warmup) request to the API
+    fetch(apiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        warmup: true,
+        model: modelId
+      }),
+      // Use no-store to ensure this goes through and isn't cached
+      cache: 'no-store'
+    }).catch(() => {
+      // Silently ignore errors in prefetch
+    });
+  } catch (e) {
+    // Silently ignore any errors during prefetching
+  }
+};
 
 interface ChatInputProps {
   input: string;
@@ -30,6 +67,19 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onNewChat
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lastModelRef = useRef<string>(selectedModel);
+
+  // Cache the model change handler with useCallback to prevent unnecessary recreations
+  const handleModelChangeWithPrefetch = useCallback((modelId: string) => {
+    // Call original handler
+    handleModelChange(modelId);
+    
+    // Trigger API prefetch for the newly selected model
+    prefetchAPI(modelId);
+    
+    // Update the last model reference
+    lastModelRef.current = modelId;
+  }, [handleModelChange]);
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -47,6 +97,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
       }
     }
   }, [input]);
+
+  // Prefetch API when component mounts or when model changes
+  useEffect(() => {
+    // Only prefetch if the model has changed
+    if (selectedModel !== lastModelRef.current) {
+      prefetchAPI(selectedModel);
+      lastModelRef.current = selectedModel;
+    }
+  }, [selectedModel]);
 
   // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -67,7 +126,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               <div className="max-w-[160px] sm:max-w-[200px] md:max-w-none">
                 <ModelSelector
                   selectedModel={selectedModel}
-                  handleModelChange={handleModelChange}
+                  handleModelChange={handleModelChangeWithPrefetch}
                   models={models}
                 />
               </div>

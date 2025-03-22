@@ -1,8 +1,20 @@
 import { NextRequest } from 'next/server';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
-export const dynamic = 'force-dynamic';
+// Change to auto for optimization
+export const dynamic = 'auto';
 export const maxDuration = 60; // Maximum allowed for Vercel Hobby plan
+
+// Pre-define encoder outside the handler for better performance
+const encoder = new TextEncoder();
+
+// Handle warmup requests specially
+const handleWarmup = () => {
+  return new Response(
+    JSON.stringify({ status: 'warmed_up' }),
+    { status: 200 }
+  );
+};
 
 /**
  * Map model IDs to Google API model names
@@ -66,8 +78,14 @@ export async function POST(req: NextRequest) {
   let model: string = '';  // Declare at the top level of the function
   
   try {
-    // Parse request body
+    // Parse request body first
     const body = await req.json();
+    
+    // Handle warmup requests quickly
+    if (body.warmup === true) {
+      return handleWarmup();
+    }
+    
     const { query, messages } = body;
     model = body.model || '';  // Assign the value
     
@@ -78,9 +96,8 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'model is required' }), { status: 400 });
     }
 
-    // Log some information about the request
-    console.log(`Processing Gemini request with model: ${model}`);
-    console.log(`Message count: ${messages?.length || 0}`);
+    // Log minimal information
+    console.log(`Gemini request: ${model} [${messages?.length || 0} msgs]`);
     
     // Get Google API key from environment variable
     const API_KEY = process.env.GOOGLE_AI_API_KEY;
@@ -135,8 +152,6 @@ export async function POST(req: NextRequest) {
     const lastUserMessage = formattedMessages[formattedMessages.length - 1].parts[0].text;
     
     // Create a streaming response
-    const encoder = new TextEncoder();
-    
     return new Response(
       new ReadableStream({
         async start(controller) {

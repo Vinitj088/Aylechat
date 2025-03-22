@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { prefetchAll } from './api/prefetch';
 
 // Create a new component that uses useSearchParams
 function PageContent() {
@@ -52,6 +53,14 @@ function PageContent() {
   const searchParams = useSearchParams();
 
   const isAuthenticated = !!user;
+
+  // Prefetch API modules and data when the app loads
+  useEffect(() => {
+    // Prefetch all API modules and data for faster initial response times
+    prefetchAll().catch(() => {
+      // Silently ignore prefetch errors as this is just an optimization
+    });
+  }, []);
 
   // Check URL parameters for auth dialog control
   useEffect(() => {
@@ -497,6 +506,51 @@ function PageContent() {
       toast.error('Failed to create new thread');
     }
   };
+
+  // Add this near the top of your component
+  useEffect(() => {
+    // Function to warm up API routes
+    const warmupApiRoutes = async () => {
+      console.log('Warming up API routes...');
+      
+      // Preload API client modules first to reduce cold start
+      prefetchAll();
+      
+      // Define the API routes to warm up
+      const apiRoutes = [
+        '/api/groq',
+        '/api/openrouter',
+        '/api/gemini',
+        '/api/exaanswer'
+      ];
+      
+      // Create minimal requests for each endpoint with proper structure
+      const warmupRequests = apiRoutes.map(route => {
+        return fetch(route, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Warmup': 'true'
+          },
+          body: JSON.stringify({ 
+            warmup: true,
+            model: 'mistralai/mistral-small-3.1-24b-instruct:free' // Provide a valid model ID
+          }),
+          // Use a short timeout and don't wait for the response
+          signal: AbortSignal.timeout(500)
+        }).catch(() => {
+          // Intentionally ignoring errors - we just want to trigger compilation
+        });
+      });
+      
+      // Execute all warmup requests in parallel but don't wait for them to complete
+      // This prevents blocking the UI if any request is slow
+      Promise.allSettled(warmupRequests);
+    };
+    
+    // Execute the warmup immediately after initial render
+    warmupApiRoutes();
+  }, []);  // Empty dependency array ensures this runs once after initial render
 
   return (
     <main className="flex min-h-screen flex-col">
