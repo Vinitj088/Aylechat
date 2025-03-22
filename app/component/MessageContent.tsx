@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -78,12 +78,49 @@ interface TableProps {
   [key: string]: any;
 }
 
+// Memoized code component to prevent re-renders
+const CodeBlock = React.memo(({inline, className, children, ...props}: CodeProps) => {
+  const match = /language-(\w+)/.exec(className || '');
+  return !inline && match ? (
+    <SyntaxHighlighter
+      style={atomDark}
+      language={match[1]}
+      PreTag="div"
+      {...props}
+    >
+      {String(children).replace(/\n$/, '')}
+    </SyntaxHighlighter>
+  ) : (
+    <code className={className} {...props}>
+      {children}
+    </code>
+  );
+});
+
 export default function MessageContent({ content, role }: MessageContentProps) {
   const { thinking, visible } = parseMessageContent(content || '');
   const [copied, setCopied] = useState(false);
   
-  // Normalize the markdown content
-  const normalizedContent = normalizeMarkdown(visible);
+  // Use useMemo to only recompute when content changes
+  const normalizedContent = useMemo(() => normalizeMarkdown(visible), [visible]);
+  
+  // Memoize the markdown components
+  const markdownComponents = useMemo(() => ({
+    code: CodeBlock,
+    table({node, ...props}: TableProps) {
+      return (
+        <div className="overflow-x-auto">
+          <table className="border-collapse border border-gray-300" {...props} />
+        </div>
+      );
+    },
+    th({node, ...props}: TableProps) {
+      return <th className="border border-gray-300 px-4 py-2 bg-gray-100" {...props} />;
+    },
+    td({node, ...props}: TableProps) {
+      return <td className="border border-gray-300 px-4 py-2" {...props} />;
+    }
+  }), []);
   
   // Check if this is an AI response with actual content to copy
   const isAIResponse = role === 'assistant';
@@ -129,38 +166,7 @@ export default function MessageContent({ content, role }: MessageContentProps) {
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeRaw, rehypeSanitize, rehypeKatex]}
-            components={{
-              code({node, inline, className, children, ...props}: CodeProps) {
-                const match = /language-(\w+)/.exec(className || '');
-                return !inline && match ? (
-                  <SyntaxHighlighter
-                    style={atomDark}
-                    language={match[1]}
-                    PreTag="div"
-                    {...props}
-                  >
-                    {String(children).replace(/\n$/, '')}
-                  </SyntaxHighlighter>
-                ) : (
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                );
-              },
-              table({node, ...props}: TableProps) {
-                return (
-                  <div className="overflow-x-auto">
-                    <table className="border-collapse border border-gray-300" {...props} />
-                  </div>
-                );
-              },
-              th({node, ...props}: TableProps) {
-                return <th className="border border-gray-300 px-4 py-2 bg-gray-100" {...props} />;
-              },
-              td({node, ...props}: TableProps) {
-                return <td className="border border-gray-300 px-4 py-2" {...props} />;
-              }
-            }}
+            components={markdownComponents}
           >
             {normalizedContent}
           </ReactMarkdown>

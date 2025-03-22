@@ -37,7 +37,7 @@ const modelCapabilities: Record<string, string[]> = {
   'deepseek-r1-distill-qwen-32b': ['reasoning', 'docs'],
   'qwen-qwq-32b': ['reasoning'],
   'deepseek/deepseek-r1:free': ['reasoning', 'code', 'docs'],
-  'qwen-2.5-coder-32b': ['reasoning', 'code', 'docs'],
+  'qwen-2.5-coder-32b': ['code', 'docs'],
 };
 
 // Function to get capability icon

@@ -269,6 +269,7 @@ export const fetchResponse = async (
       for (const line of lines) {
         try {
           const data = JSON.parse(line);
+          // Process immediately without collecting in content variable
           if (data.citations) {
             citations = data.citations;
             // Update message with new citations immediately
@@ -288,7 +289,7 @@ export const fetchResponse = async (
               line.includes('"done":true') ||
               data.choices[0]?.finish_reason;
             
-            // Update message with new content
+            // Update message immediately with each token
             updateMessages(setMessages, (prev: Message[]) => 
               prev.map((msg: Message) => 
                 msg.id === assistantMessage.id 
@@ -303,7 +304,9 @@ export const fetchResponse = async (
             );
           }
         } catch (e) {
-          console.error('Error parsing chunk:', e);
+          // Silently ignore parsing errors and continue
+          // This can happen with incomplete JSON chunks
+          continue;
         }
       }
     }
