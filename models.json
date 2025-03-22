@@ -25,7 +25,7 @@
       "providerId": "openrouter",
       "avatarType": "gemma",
       "enabled": true,
-      "toolCallType": "native"
+      "toolCallType": "openrouter"
     },
     {
       "id": "gemini-2.0-flash",

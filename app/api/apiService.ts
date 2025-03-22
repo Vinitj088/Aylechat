@@ -129,9 +129,14 @@ export const fetchResponse = async (
     // Determine which API endpoint to use based on the selected model
     let apiEndpoint;
     
+    // Import models list to check toolCallType
+    const modelsConfig = require('../../models.json');
+    // Find the model configuration
+    const modelConfig = modelsConfig.models.find((m: any) => m.id === selectedModel);
+    
     if (selectedModel === 'exa') {
       apiEndpoint = getAssetPath('/api/exaanswer');
-    } else if (selectedModel === 'gemma3-27b' || selectedModel.includes('openrouter')) {
+    } else if (modelConfig?.toolCallType === 'openrouter' || selectedModel === 'gemma3-27b') {
       apiEndpoint = getAssetPath('/api/openrouter');
     } else if (selectedModel.includes('gemini')) {
       apiEndpoint = getAssetPath('/api/gemini');
