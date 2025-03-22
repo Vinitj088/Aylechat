@@ -48,7 +48,7 @@ function PageContent() {
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { user, session, isLoading: authLoading, openAuthDialog } = useAuth();
+  const { user, session, isLoading: authLoading, openAuthDialog, refreshSession } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -266,6 +266,22 @@ function PageContent() {
     isSavingThread.current = true;
     
     try {
+      // Check authentication status first
+      if (!isAuthenticated || !user) {
+        // Don't show auth dialog here, just clear the queue and skip saving
+        threadSaveQueue.current = [];
+        console.log('Skipping thread save - user not authenticated');
+        return;
+      }
+      
+      // Try to refresh the session silently first
+      try {
+        // Call refreshSession but don't wait for it (fire and forget)
+        refreshSession().catch(e => console.log('Session refresh background error:', e));
+      } catch (e) {
+        // Ignore refresh errors - we'll still try to save
+      }
+      
       // Get latest save request
       const latestSave = threadSaveQueue.current[threadSaveQueue.current.length - 1];
       threadSaveQueue.current = []; // Clear the queue
@@ -278,6 +294,7 @@ function PageContent() {
       
     } catch (error) {
       console.error('Background thread save error:', error);
+      // Don't show auth dialog for background saves - just log the error
     } finally {
       isSavingThread.current = false;
       
@@ -286,7 +303,7 @@ function PageContent() {
         processSaveQueue();
       }
     }
-  }, []);
+  }, [isAuthenticated, user]);
 
   // Queue thread save with debouncing
   const queueThreadSave = useCallback((threadContent: { messages: Message[], title?: string }) => {
@@ -314,8 +331,8 @@ function PageContent() {
     console.time('threadSave'); // Start timing
     
     if (!isAuthenticated || !user) {
-      // Show auth dialog instead of redirecting
-      openAuthDialog();
+      // Don't show auth dialog here - this is a background operation now
+      console.log('Cannot save thread - not authenticated');
       return null;
     }
 
@@ -347,8 +364,8 @@ function PageContent() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          // Auth error - show auth dialog
-          openAuthDialog();
+          // Auth error - but don't show dialog (it's a background save)
+          console.log('Authentication error saving thread - ignoring');
           return null;
         }
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -443,14 +460,12 @@ function PageContent() {
     } catch (error: any) {
       console.error('Error saving thread:', error);
       
-      // Check if it's an auth error
+      // Log errors but don't show auth dialog for background operations
       if (
         (error.message && error.message.toLowerCase().includes('unauthorized')) ||
         (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
       ) {
-        await handleRequestError(error);
-      } else {
-        toast.error('Error saving conversation');
+        console.log('Auth error during background save - ignoring', error.message);
       }
       
       return null;
