@@ -48,7 +48,7 @@ function PageContent() {
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { user, session, isLoading: authLoading, openAuthDialog, refreshSession } = useAuth();
+  const { user, session, isLoading: authLoading, openAuthDialog } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -222,33 +222,6 @@ function PageContent() {
     }
   }, [isAuthenticated]);
 
-  // Add a check for session validity on initial load and tab visibility changes
-  useEffect(() => {
-    // Validate session on initial page load
-    if (user) {
-      console.log('Validating session on initial load');
-      refreshSession().catch(e => {
-        console.error('Session refresh on load failed:', e);
-      });
-    }
-    
-    // Also revalidate on visibility change (tab focus)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && user) {
-        console.log('Tab became visible, validating session');
-        refreshSession().catch(e => {
-          console.error('Session refresh on visibility change failed:', e);
-        });
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [user, refreshSession]);
-
   // Error handler callback function
   const handleRequestError = async (error: Error) => {
     // Check if the error is an authentication error
@@ -281,65 +254,7 @@ function PageContent() {
     }
   };
 
-  // Thread saving state management
-  const threadSaveQueue = useRef<Array<{messages: Message[], title?: string, timestamp: number}>>([]);
-  const isSavingThread = useRef(false);
-  const threadSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Process the thread save queue efficiently
-  const processSaveQueue = useCallback(async () => {
-    if (isSavingThread.current || threadSaveQueue.current.length === 0) return;
-    
-    isSavingThread.current = true;
-    
-    try {
-      // Get latest save request
-      const latestSave = threadSaveQueue.current[threadSaveQueue.current.length - 1];
-      threadSaveQueue.current = []; // Clear the queue
-      
-      // Call the actual thread update
-      await createOrUpdateThread({
-        messages: latestSave.messages,
-        title: latestSave.title
-      });
-      
-    } catch (error) {
-      console.error('Background thread save error:', error);
-    } finally {
-      isSavingThread.current = false;
-      
-      // Process any new requests that came in while saving
-      if (threadSaveQueue.current.length > 0) {
-        processSaveQueue();
-      }
-    }
-  }, []);
-
-  // Queue thread save with debouncing
-  const queueThreadSave = useCallback((threadContent: { messages: Message[], title?: string }) => {
-    // Add to queue
-    threadSaveQueue.current.push({
-      ...threadContent,
-      timestamp: Date.now()
-    });
-    
-    // Clear any existing timeout
-    if (threadSaveTimeoutRef.current) {
-      clearTimeout(threadSaveTimeoutRef.current);
-    }
-    
-    // Set a new timeout to process queue after short delay (debouncing)
-    threadSaveTimeoutRef.current = setTimeout(() => {
-      if (!isSavingThread.current) {
-        processSaveQueue();
-      }
-    }, 1000); // 1 second debounce
-  }, [processSaveQueue]);
-
-  // Thread creation/update function
   const createOrUpdateThread = async (threadContent: { messages: Message[], title?: string }) => {
-    console.time('threadSave'); // Start timing
-    
     if (!isAuthenticated || !user) {
       // Show auth dialog instead of redirecting
       openAuthDialog();
@@ -347,12 +262,6 @@ function PageContent() {
     }
 
     try {
-      // Try to refresh the session before saving
-      await refreshSession().catch(e => {
-        console.log('Session refresh failed:', e);
-        // Continue anyway, as the current session might still be valid
-      });
-      
       const method = currentThreadId ? 'PUT' : 'POST';
       const endpoint = currentThreadId 
         ? `/api/chat/threads/${currentThreadId}` 
@@ -375,8 +284,6 @@ function PageContent() {
           model: selectedModel
         })
       });
-      
-      console.timeEnd('threadSave'); // End timing
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -396,74 +303,6 @@ function PageContent() {
           
           // Update the URL to the new thread without forcing a reload
           window.history.pushState({}, '', `/chat/${result.thread.id}`);
-        }
-        
-        // Update the local cache with the current thread to ensure sidebar shows latest
-        if (user) {
-          try {
-            // Get thread info to update in cache
-            const threadId = result.thread.id;
-            const threadTitle = threadContent.title || result.thread.title || "Untitled chat";
-            const now = new Date().toISOString();
-            
-            // Try to get the current cache
-            const cachedData = localStorage.getItem(`sidebar_threads_${user.id}`);
-            
-            if (cachedData) {
-              // Update existing cache
-              const cacheObj = JSON.parse(cachedData);
-              if (cacheObj && Array.isArray(cacheObj.threads)) {
-                // Check if thread exists in cache
-                let found = false;
-                const updatedThreads = cacheObj.threads.map((t: any) => {
-                  if (t.id === threadId) {
-                    found = true;
-                    // Only update minimal thread data in the cached list
-                    return {
-                      ...t,
-                      title: threadTitle,
-                      updatedAt: now
-                    };
-                  }
-                  return t;
-                });
-                
-                // If thread wasn't in cache, add it to the beginning
-                if (!found) {
-                  updatedThreads.unshift({
-                    id: threadId,
-                    title: threadTitle,
-                    updatedAt: now
-                  });
-                }
-                
-                // Update the cache with new thread list and timestamp
-                const updatedCache = {
-                  ...cacheObj,
-                  timestamp: Date.now(),
-                  threads: updatedThreads
-                };
-                
-                localStorage.setItem(`sidebar_threads_${user.id}`, JSON.stringify(updatedCache));
-              }
-            } else {
-              // Create new cache with just this thread
-              const newCache = {
-                timestamp: Date.now(),
-                threadHash: btoa(threadId),
-                threads: [{
-                  id: threadId,
-                  title: threadTitle,
-                  updatedAt: now
-                }]
-              };
-              
-              localStorage.setItem(`sidebar_threads_${user.id}`, JSON.stringify(newCache));
-            }
-          } catch (cacheError) {
-            console.error('Error updating thread cache:', cacheError);
-            // Non-critical error, we can continue
-          }
         }
         
         // Refresh the sidebar to show the new/updated thread
@@ -490,39 +329,14 @@ function PageContent() {
     }
   };
 
-  // Modify handleSubmit to use the queue
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    // Debug log for authentication state
-    console.log('Auth state before submit:', { 
-      isAuthenticated, 
-      hasUser: !!user, 
-      hasSession: !!session,
-      userEmail: user?.email
-    });
-
     // If not authenticated, show auth dialog and keep the message in the input
     if (!isAuthenticated || !user) {
-      console.log('Not authenticated, showing auth dialog');
       openAuthDialog();
       return;
-    }
-
-    // Force session refresh before submitting to ensure we have fresh tokens
-    try {
-      const refreshSuccessful = await refreshSession();
-      console.log('Session refresh result:', refreshSuccessful);
-      
-      // If session refresh failed but we thought we were logged in, show auth dialog
-      if (!refreshSuccessful) {
-        console.log('Session refresh failed, showing auth dialog');
-        openAuthDialog();
-        return;
-      }
-    } catch (err) {
-      console.error('Error refreshing session:', err);
     }
 
     // Add the user message to the messages array
@@ -561,14 +375,6 @@ function PageContent() {
       const systemMessage = models.find(model => model.id === selectedModel);
       let modelName = systemMessage ? systemMessage.name : selectedModel;
 
-      // Try to refresh the session before making API calls
-      // This helps ensure the authentication token is valid
-      if (user) {
-        await refreshSession().catch(err => {
-          console.log('Session refresh before API call failed:', err);
-        });
-      }
-
       // Fetch the response
       const { content, citations } = await fetchResponse(
         input,
@@ -594,29 +400,34 @@ function PageContent() {
 
       // Create or update the thread only after we have the complete response
       if (isFirstMessage) {
-        // For first message, queue a new thread creation (non-blocking)
-        queueThreadSave({
+        // For first message, create a new thread
+        const threadId = await createOrUpdateThread({
           messages: finalMessages,
           title: threadTitle
         });
         
-        // Still need to handle thread ID right away - can be estimated
-        const tempThreadId = crypto.randomUUID();
-        setCurrentThreadId(tempThreadId);
-        
-        // Update URL without forcing reload, we'll replace with real ID when save completes
-        window.history.pushState({}, '', `/chat/${tempThreadId}`);
+        if (threadId) {
+          setCurrentThreadId(threadId);
+          // Update the URL to the new thread without forcing a reload
+          window.history.pushState({}, '', `/chat/${threadId}`);
+        }
       } else if (currentThreadId) {
-        // For subsequent messages, queue update of existing thread (non-blocking)
-        queueThreadSave({
+        // For subsequent messages, update the existing thread
+        await createOrUpdateThread({
           messages: finalMessages
         });
       } else {
-        // Fallback case - queue a new thread creation
-        queueThreadSave({
+        // If we somehow don't have a thread ID, create a new thread
+        const threadId = await createOrUpdateThread({
           messages: finalMessages,
           title: threadTitle
         });
+        
+        if (threadId) {
+          setCurrentThreadId(threadId);
+          // Update the URL to the new thread without forcing a reload
+          window.history.pushState({}, '', `/chat/${threadId}`);
+        }
       }
       
       // Reset loading state after successful response

@@ -114,41 +114,19 @@ export class RedisService {
   static async updateChatThread(userId: string, threadId: string, updates: Partial<ChatThread>): Promise<ChatThread | null> {
     try {
       const threadKey = `thread:${userId}:${threadId}`;
+      const exists = await redis.exists(threadKey);
+      if (!exists) return null;
+      
+      // Get current thread data
+      const threadData = await redis.get(threadKey);
+      if (!threadData) return null;
+      
+      // Ensure threadData is a string before parsing
+      const stringData = typeof threadData === 'string' ? threadData : JSON.stringify(threadData);
+      const thread = JSON.parse(stringData) as ChatThread;
       const now = new Date().toISOString();
       
-      // Check thread existence with EXISTS (faster than GET)
-      const exists = await redis.exists(threadKey);
-      if (!exists) {
-        console.error('Thread not found for update', { userId, threadId });
-        return null;
-      }
-      
-      // Optimize: Only fetch the thread data if essential fields are missing
-      let thread: ChatThread | null = null;
-      
-      // If updates are missing crucial fields, we need to fetch current state
-      const needsCurrentState = !updates.title || !updates.model;
-      
-      if (needsCurrentState) {
-        // Get current thread data
-        const threadData = await redis.get(threadKey);
-        if (!threadData) return null;
-        
-        // Ensure threadData is a string before parsing
-        const stringData = typeof threadData === 'string' ? threadData : JSON.stringify(threadData);
-        thread = JSON.parse(stringData) as ChatThread;
-      } else {
-        // Create minimal thread object based on the ID
-        thread = {
-          id: threadId,
-          title: '',  // Will be overwritten by updates
-          messages: [], // Will be overwritten by updates
-          createdAt: now, // We don't know when it was created, but it's not important
-          updatedAt: now
-        };
-      }
-      
-      // Update thread - only use properties from current thread when needed
+      // Update thread
       const updatedThread = {
         ...thread,
         ...updates,
@@ -158,38 +136,19 @@ export class RedisService {
       // Ensure proper serialization before saving
       await redis.set(threadKey, JSON.stringify(updatedThread));
       
-      // Only update the thread list if title changed (it's expensive)
-      if (updates.title) {
-        try {
-          // Use a faster approach - find the thread index
-          const threadsKey = `user:${userId}:threads`;
-          const threads = await redis.lrange(threadsKey, 0, -1);
-          let threadIndex = -1;
-          
-          // Find thread in list using ID
-          for (let i = 0; i < threads.length; i++) {
-            const thread = JSON.parse(threads[i] as string);
-            if (thread.id === threadId) {
-              threadIndex = i;
-              break;
-            }
-          }
-          
-          if (threadIndex !== -1) {
-            // Only update title and timestamp in the summary
-            const threadSummary = {
-              id: threadId,
-              title: updatedThread.title,
-              updatedAt: now
-            };
-            
-            // Use lset to update the thread at its index
-            await redis.lset(threadsKey, threadIndex, JSON.stringify(threadSummary));
-          }
-        } catch (listError) {
-          // If list update fails, log but don't fail the whole operation
-          console.error('Error updating thread in list:', listError);
-        }
+      // Update thread in user's thread list
+      const threads = await this.getUserChatThreads(userId);
+      const threadIndex = threads.findIndex(t => t.id === threadId);
+      
+      if (threadIndex !== -1) {
+        const threadSummary = {
+          id: threadId,
+          title: updatedThread.title || thread.title,
+          updatedAt: now
+        };
+        
+        // Use lset to update the thread at its index
+        await redis.lset(`user:${userId}:threads`, threadIndex, JSON.stringify(threadSummary));
       }
       
       return updatedThread;

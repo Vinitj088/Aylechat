@@ -60,22 +60,33 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user }, error } = await supabase.auth.getUser();
 
-  // Check for auth issues
+  // Check for auth issues, but be more selective about clearing cookies
   if (error) {
-    // If there's an auth error but we have auth cookies, clear them to force re-auth
-    const authCookies = request.cookies.getAll().filter(c => 
-      c.name.includes('supabase') || c.name.includes('sb-') || c.name.includes('auth')
-    );
+    // Only log the error instead of clearing cookies automatically
+    console.log('Auth error in middleware:', error.message);
     
-    if (authCookies.length > 0) {
-      console.log('Auth error with cookies present, clearing cookies for clean state');
-      for (const cookie of authCookies) {
-        response.cookies.set({
-          name: cookie.name,
-          value: '',
-          expires: new Date(0),
-          path: '/',
-        });
+    // Only clear cookies if it's a specific error that indicates corrupt cookies
+    // This prevents clearing valid session cookies that just happen to time out
+    if (error.message && (
+        error.message.includes('invalid format') || 
+        error.message.includes('parse error') ||
+        error.message.includes('JWT') ||
+        error.message.includes('malformed')
+      )) {
+      const authCookies = request.cookies.getAll().filter(c => 
+        c.name.includes('supabase') || c.name.includes('sb-') || c.name.includes('auth')
+      );
+      
+      if (authCookies.length > 0) {
+        console.log('Detected corrupt auth cookies, clearing for clean state');
+        for (const cookie of authCookies) {
+          response.cookies.set({
+            name: cookie.name,
+            value: '',
+            expires: new Date(0),
+            path: '/',
+          });
+        }
       }
     }
   }

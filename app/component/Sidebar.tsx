@@ -25,11 +25,6 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   const [lastRefreshTrigger, setLastRefreshTrigger] = useState(0);
   const [lastFetchTime, setLastFetchTime] = useState(0);
   const isFetchingRef = useRef(false);
-  const cachedThreadsRef = useRef<{
-    timestamp: number;
-    threadHash: string;
-    threads: ChatThread[];
-  } | null>(null);
   
   const router = useRouter();
   const pathname = usePathname();
@@ -37,45 +32,14 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   
   const isAuthenticated = !!user;
 
-  // Load cached threads on mount
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      try {
-        const cachedData = localStorage.getItem(`sidebar_threads_${user.id}`);
-        if (cachedData) {
-          const parsed = JSON.parse(cachedData);
-          if (parsed && parsed.threads && Array.isArray(parsed.threads)) {
-            cachedThreadsRef.current = parsed;
-            setThreads(parsed.threads);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading cached threads:', error);
-      }
-    }
-  }, [isAuthenticated, user]);
-
-  // Improved function to fetch threads with better error handling and caching
-  const fetchThreads = useCallback(async (forceRefresh = false) => {
-    if (!isAuthenticated || !user) {
+  // Improved function to fetch threads with better error handling
+  const fetchThreads = useCallback(async () => {
+    if (!isAuthenticated) {
       setThreads([]);
       setIsLoading(false);
       return;
     }
 
-    // Skip fetch if we have recent cache (unless force refresh)
-    const now = Date.now();
-    if (!forceRefresh && 
-        cachedThreadsRef.current && 
-        now - cachedThreadsRef.current.timestamp < 60000) { // 1 minute cache
-      setThreads(cachedThreadsRef.current.threads);
-      return;
-    }
-
-    // Prevent concurrent fetches
-    if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
-    
     setIsLoading(true);
     try {
       const response = await fetch(getAssetPath('/api/chat/threads'), {
@@ -90,23 +54,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
         const data = await response.json();
         // Ensure threads is always an array
         if (data.success && Array.isArray(data.threads)) {
-          // Update state with threads
           setThreads(data.threads);
-          
-          // Generate hash of thread IDs for change detection
-          const threadIds = data.threads.map((t: ChatThread) => t.id).join(',');
-          const threadHash = btoa(threadIds);
-          
-          // Cache the threads
-          const cacheData = {
-            timestamp: now,
-            threadHash,
-            threads: data.threads
-          };
-          
-          // Save to ref and local storage
-          cachedThreadsRef.current = cacheData;
-          localStorage.setItem(`sidebar_threads_${user.id}`, JSON.stringify(cacheData));
         } else {
           console.error('Threads data is not in expected format:', data);
           setThreads([]);
@@ -138,21 +86,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                 const retryData = await retryResponse.json();
                 // Ensure threads is always an array
                 if (retryData.success && Array.isArray(retryData.threads)) {
-                  const threads = retryData.threads;
-                  setThreads(threads);
-                  
-                  // Generate hash and cache
-                  const threadIds = threads.map((t: ChatThread) => t.id).join(',');
-                  const threadHash = btoa(threadIds);
-                  
-                  const cacheData = {
-                    timestamp: Date.now(),
-                    threadHash,
-                    threads
-                  };
-                  
-                  cachedThreadsRef.current = cacheData;
-                  localStorage.setItem(`sidebar_threads_${user.id}`, JSON.stringify(cacheData));
+                  setThreads(retryData.threads);
                 } else {
                   console.error('Retry threads data is not in expected format:', retryData);
                   setThreads([]);
@@ -165,7 +99,6 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
               setThreads([]);
             } finally {
               setIsLoading(false);
-              isFetchingRef.current = false;
             }
           }, 1000);
           return;
@@ -182,36 +115,32 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       setThreads([]);
     } finally {
       setIsLoading(false);
-      isFetchingRef.current = false;
     }
-  }, [isAuthenticated, refreshSession, user]);
+  }, [isAuthenticated, refreshSession]);
 
-  // Fetch when refreshTrigger changes (when threads are updated)
+  // Fetch when refreshTrigger changes
   useEffect(() => {
-    if (isAuthenticated && user && refreshTrigger > 0 && lastRefreshTrigger !== refreshTrigger) {
-      setLastRefreshTrigger(refreshTrigger);
-      fetchThreads(true); // Force refresh on trigger change
-    }
-  }, [refreshTrigger, isAuthenticated, user, lastRefreshTrigger, fetchThreads]);
-
-  // Load cache when sidebar opens, but only fetch if cache is old or missing
-  useEffect(() => {
-    if (isOpen && isAuthenticated && user) {
-      // Use cached data if available
-      if (cachedThreadsRef.current) {
-        setThreads(cachedThreadsRef.current.threads);
-        
-        // Check if cache is old (older than 5 minutes)
-        const now = Date.now();
-        if (now - cachedThreadsRef.current.timestamp > 5 * 60 * 1000) {
-          fetchThreads(false); // Refresh in background if cache is old
-        }
-      } else {
-        // No cache, we must fetch
-        fetchThreads(true);
+    if (isAuthenticated && user && isOpen) {
+      if (lastRefreshTrigger !== refreshTrigger) {
+        setLastRefreshTrigger(refreshTrigger);
+        fetchThreads();
       }
     }
+  }, [refreshTrigger, isAuthenticated, user, isOpen, lastRefreshTrigger, fetchThreads]);
+
+  // Also fetch when sidebar opens
+  useEffect(() => {
+    if (isOpen && isAuthenticated && user) {
+      fetchThreads();
+    }
   }, [isOpen, isAuthenticated, user, fetchThreads]);
+
+  // Fetch when authentication state changes
+  useEffect(() => {
+    if (isOpen && isAuthenticated && user) {
+      fetchThreads();
+    }
+  }, [isAuthenticated, user, isOpen, fetchThreads]);
 
   const handleThreadClick = (threadId: string) => {
     router.push(`/chat/${threadId}`);
@@ -220,14 +149,8 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
 
   const handleSignOut = async () => {
     try {
-      // Clear threads and cache on sign out
+      // Clear threads for immediate UI feedback
       setThreads([]);
-      cachedThreadsRef.current = null;
-      
-      // Clear all thread cache for this user
-      if (user) {
-        localStorage.removeItem(`sidebar_threads_${user.id}`);
-      }
       
       // Use Supabase signOut function
       await signOut();
@@ -252,23 +175,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       
       if (response.ok) {
         // Update local state instead of refetching
-        const updatedThreads = threads.filter(thread => thread.id !== threadId);
-        setThreads(updatedThreads);
-        
-        // Update cache with the new thread list
-        if (user && cachedThreadsRef.current) {
-          const threadIds = updatedThreads.map(t => t.id).join(',');
-          const threadHash = btoa(threadIds);
-          
-          const cacheData = {
-            timestamp: Date.now(),
-            threadHash,
-            threads: updatedThreads
-          };
-          
-          cachedThreadsRef.current = cacheData;
-          localStorage.setItem(`sidebar_threads_${user.id}`, JSON.stringify(cacheData));
-        }
+        setThreads(prev => prev.filter(thread => thread.id !== threadId));
         
         // If we're on the deleted thread's page, go home
         if (pathname === `/chat/${threadId}`) {
@@ -329,7 +236,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                   Sign In
                 </button>
               </div>
-            ) : isLoading && threads.length === 0 ? (
+            ) : isLoading ? (
               <div className="flex justify-center items-center h-24">
                 {/* Pulsing dots loading indicator */}
                 <div className="flex items-center gap-1.5">
@@ -342,7 +249,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
               <div className="text-center py-4 px-3 bg-[var(--accent-red-faint)] border border-[var(--accent-red-muted)] rounded-md">
                 <p className="text-[var(--accent-red)] text-sm">{fetchError}</p>
                 <button
-                  onClick={() => fetchThreads(true)}
+                  onClick={() => fetchThreads()}
                   className="mt-2 px-3 py-1.5 bg-[var(--secondary-darker)] text-[var(--text-light-default)] rounded-md text-sm hover:bg-[var(--secondary-darkest)] transition-colors"
                 >
                   Try Again
@@ -368,7 +275,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                     >
                       <div className="flex justify-between items-start">
                         <div className="font-medium truncate pr-2 text-sm text-[var(--text-light-default)]">
-                          {thread.title || "Untitled chat"}
+                          {thread.title}
                         </div>
                         <button
                           onClick={(e) => handleDeleteThread(thread.id, e)}
@@ -393,14 +300,14 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
           </div>
           
           {/* Footer with user info and sign out */}
-          {isAuthenticated && (
+          {isAuthenticated && user && (
             <div className="p-3 border-t border-[var(--secondary-darkest)] bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-default)]">
               <div className="flex justify-between items-center">
                 <div className="text-sm truncate flex items-center text-[var(--text-light-default)]">
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-fainter)] text-[var(--brand-default)] mr-2">
                     <User className="h-3.5 w-3.5" />
                   </div>
-                  <span className="font-medium">{user?.email ? user.email.split('@')[0] : 'User'}</span>
+                  <span className="font-medium">{user.user_metadata?.name || user.email}</span>
                 </div>
                 <button
                   onClick={handleSignOut}

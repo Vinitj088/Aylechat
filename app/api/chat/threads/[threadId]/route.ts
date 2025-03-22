@@ -5,29 +5,7 @@ import { RedisService } from '@/lib/redis';
 import { createServerClient } from '@supabase/ssr';
 import { AuthError } from '@supabase/supabase-js';
 
-// Change to auto for better performance
-export const dynamic = 'auto';
-
-// Cache these constants outside the handler for performance
-const WARMUP_RESPONSE = NextResponse.json({ 
-  success: true, 
-  status: 'warmed_up',
-  thread: { id: 'warmup-thread-id' }
-}, { status: 200 });
-
-const UNAUTHORIZED_RESPONSE = NextResponse.json(
-  { 
-    error: 'Unauthorized', 
-    message: 'Authentication required',
-    authRequired: true 
-  },
-  { status: 401 }
-);
-
-// Handle warmup requests specially
-const handleWarmup = () => {
-  return WARMUP_RESPONSE;
-};
+export const dynamic = 'force-dynamic';
 
 // Function to get user from auth token - same as in threads/route.ts
 async function getUserFromToken(authToken: string | null) {
@@ -105,13 +83,6 @@ async function authenticateUser(req: NextRequest) {
       }
     }
   }
-
-  // Log more details about auth process for debugging
-  console.log('Auth check details:', { 
-    hasUser: !!userId, 
-    authError: authError?.message || null,
-    cookiesPresent: !!req.cookies.get('sb-access-token') || !!req.cookies.get('supabase-auth-token')
-  });
   
   return { userId, authError };
 }
@@ -193,12 +164,6 @@ export async function PUT(
     
     // Parse request body
     const body = await req.json();
-    
-    // Handle warmup requests quickly
-    if (body.warmup === true) {
-      return handleWarmup();
-    }
-    
     const { messages, title, model } = body;
     
     if (!messages || !Array.isArray(messages)) {
@@ -211,22 +176,42 @@ export async function PUT(
     // Authenticate user
     const { userId, authError } = await authenticateUser(req);
     
-    // Log minimal debug info
-    console.log(`PUT /thread/${threadId.substring(0, 8)}...`);
+    console.log(`PUT /api/chat/threads/${threadId} auth check:`, { 
+      hasUser: !!userId, 
+      userId: userId,
+      error: authError?.message 
+    });
     
     if (!userId) {
-      return UNAUTHORIZED_RESPONSE;
+      console.error('Auth error:', authError?.message || 'No user found');
+      return NextResponse.json(
+        { 
+          error: 'Unauthorized', 
+          message: authError?.message || 'Authentication required',
+          authRequired: true 
+        },
+        { status: 401 }
+      );
     }
     
-    // Skip fetching the existing thread first - just update directly
-    // This is more efficient and faster
+    // Get the existing thread first
+    const existingThread = await RedisService.getChatThread(userId, threadId);
+    
+    if (!existingThread) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Thread not found' 
+      }, { status: 404 });
+    }
+    
+    // Update the thread
     const updatedThread = await RedisService.updateChatThread(
       userId,
       threadId,
       {
         messages,
-        title,
-        model
+        title: title || existingThread.title,
+        model: model || existingThread.model
       }
     );
     
@@ -237,13 +222,9 @@ export async function PUT(
       }, { status: 500 });
     }
     
-    // Return a smaller response for better performance
     return NextResponse.json({
       success: true,
-      thread: {
-        id: updatedThread.id,
-        title: updatedThread.title
-      }
+      thread: updatedThread
     });
     
   } catch (error: any) {
