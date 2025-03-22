@@ -152,7 +152,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
       <div className="w-full max-w-full md:max-w-3xl mx-auto mb-8 text-center">
         <div className="mb-8 text-center">
           <h1 className="text-5xl font-bold mb-2">
-            The web, <span className="text-blue-600">organized</span>
+            The web, <span className="text-blue-600"style={{ fontFamily: 'Space Grotesk' }}>organized</span>
           </h1>
           <p className="text-base text-gray-700 mb-2">
             {isExa ? 'Exa search uses embeddings to understand meaning.' : `${providerName} provides fast AI inference.`}
