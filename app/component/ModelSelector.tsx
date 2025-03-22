@@ -37,6 +37,7 @@ const modelCapabilities: Record<string, string[]> = {
   'deepseek-r1-distill-qwen-32b': ['reasoning', 'docs'],
   'qwen-qwq-32b': ['reasoning'],
   'deepseek/deepseek-r1:free': ['reasoning', 'code', 'docs'],
+  'qwen-2.5-coder-32b': ['reasoning', 'code', 'docs'],
 };
 
 // Function to get capability icon
@@ -50,6 +51,8 @@ const getCapabilityIcon = (capability: string) => {
       return <span title="Document analysis capability" className="text-green-600"><FileText size={16} /></span>;
     case 'reasoning':
       return <span title="Advanced reasoning capability" className="text-amber-600"><Brain size={16} /></span>;
+    case 'code':
+      return <span title="Code generation capability" className="text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></span>;
     default:
       return null;
   }
@@ -212,6 +215,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                                     {capabilities.includes('web') && <li>Web access</li>}
                                     {capabilities.includes('docs') && <li>Document analysis</li>}
                                     {capabilities.includes('reasoning') && <li>Advanced reasoning</li>}
+                                    {capabilities.includes('code') && <li>Code generation</li>}
                                   </ul>
                                 </div>
                               )}
