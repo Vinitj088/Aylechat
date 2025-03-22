@@ -32,11 +32,10 @@ const modelCapabilities: Record<string, string[]> = {
   'gemini-2.0-flash': ['vision', 'web', 'docs'],
   'gemini-1.5-pro': ['vision', 'docs'],
   'gemma3-27b': ['docs'],
-  'llama-3.1-8b-instant': ['vision'],
-  'llama-3.2-3b-preview': ['vision'],
   'llama-3.3-70b-versatile': ['reasoning', 'docs'],
   'deepseek-r1-distill-llama-70b': ['reasoning'],
   'deepseek-r1-distill-qwen-32b': ['reasoning', 'docs'],
+  'qwen-qwq-32b': ['reasoning']
 };
 
 // Function to get capability icon
