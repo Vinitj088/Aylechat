@@ -10,6 +10,15 @@
       "toolCallType": "openrouter"
     },
     {
+      "id": "deepseek/deepseek-r1:free",
+      "name": "DeepSeek R1",
+      "provider": "OpenRouter",
+      "providerId": "openrouter",
+      "avatarType": "deepseek",
+      "enabled": true,
+      "toolCallType": "openrouter"
+    },
+    {
       "id": "gemma3-27b",
       "name": "Gemma 3 27B (Openrouter)",
       "provider": "OpenRouter",

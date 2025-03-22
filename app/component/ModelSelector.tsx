@@ -35,7 +35,8 @@ const modelCapabilities: Record<string, string[]> = {
   'llama-3.3-70b-versatile': ['reasoning', 'docs'],
   'deepseek-r1-distill-llama-70b': ['reasoning'],
   'deepseek-r1-distill-qwen-32b': ['reasoning', 'docs'],
-  'qwen-qwq-32b': ['reasoning']
+  'qwen-qwq-32b': ['reasoning'],
+  'deepseek/deepseek-r1:free': ['reasoning', 'code', 'docs'],
 };
 
 // Function to get capability icon

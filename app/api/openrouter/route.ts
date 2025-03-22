@@ -18,6 +18,7 @@ const API_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL_MAPPING: Record<string, string> = {
   'gemma3-27b': 'google/gemma-3-27b-it:free', // Gemma 3 27B model ID on OpenRouter with free variant
   'mistralai/mistral-small-3.1-24b-instruct:free': 'mistralai/mistral-small-3.1-24b-instruct:free',
+  'deepseek/deepseek-r1:free': 'deepseek/deepseek-r1:free',
 };
 
 // Function to handle streaming responses from OpenRouter
