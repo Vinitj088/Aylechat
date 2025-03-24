@@ -7,9 +7,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronDown, Info, Globe, FileText, Brain } from 'lucide-react';
+import { Check, ChevronDown, Info, Globe, FileText, Brain, Code, Eye, Clock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { 
+import {
   Google,
   Groq,
   OpenRouter,
@@ -28,11 +28,10 @@ interface ModelSelectorProps {
 
 // Model capabilities based on model IDs
 const modelCapabilities: Record<string, string[]> = {
-  'mistralai/mistral-small-3.1-24b-instruct:free': ['reasoning', 'docs'],
+  'mistralai/mistral-small-3.1-24b-instruct:free': ['docs'],
   'gemini-2.0-flash': ['vision', 'web', 'docs'],
-  'gemini-1.5-pro': ['vision', 'docs'],
   'gemma3-27b': ['docs'],
-  'llama-3.3-70b-versatile': ['reasoning', 'docs'],
+  'llama-3.3-70b-versatile': ['docs'],
   'deepseek-r1-distill-llama-70b': ['reasoning'],
   'deepseek-r1-distill-qwen-32b': ['reasoning', 'docs'],
   'qwen-qwq-32b': ['reasoning'],
@@ -44,7 +43,7 @@ const modelCapabilities: Record<string, string[]> = {
 const getCapabilityIcon = (capability: string) => {
   switch (capability) {
     case 'vision':
-      return <span title="Vision capability" className="text-blue-600"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>;
+      return <span title="Vision capability" className="text-blue-600"><Eye size={16} /></span>;
     case 'web':
       return <span title="Web search capability" className="text-purple-600"><Globe size={16} /></span>;
     case 'docs':
@@ -52,7 +51,9 @@ const getCapabilityIcon = (capability: string) => {
     case 'reasoning':
       return <span title="Advanced reasoning capability" className="text-amber-600"><Brain size={16} /></span>;
     case 'code':
-      return <span title="Code generation capability" className="text-cyan-600"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></span>;
+      return <span title="Code generation capability" className="text-cyan-600"><Code size={16} /></span>;
+    case 'quick responses':
+      return <span title="Quick Response times" className="text-amber-600"><Clock size={16} /></span>;
     default:
       return null;
   }
@@ -100,33 +101,33 @@ const getProviderIconByAvatarType = (avatarType: string) => {
 // For grouping models by provider name
 const groupByProvider = (models: Model[]): Record<string, Model[]> => {
   const grouped: Record<string, Model[]> = {};
-  
+
   models.forEach(model => {
     if (!grouped[model.provider]) {
       grouped[model.provider] = [];
     }
     grouped[model.provider].push(model);
   });
-  
+
   return grouped;
 };
 
 const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleModelChange, models }) => {
   const [open, setOpen] = useState(false);
-  
+
   // Get the selected model object
   const selectedModelObj = models.find(model => model.id === selectedModel);
-  
+
   // Group models by provider
   const groupedModels = groupByProvider(models);
-  
+
   return (
     <div className="relative">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button 
-            variant="outline" 
-            role="combobox" 
+          <Button
+            variant="outline"
+            role="combobox"
             aria-expanded={open}
             className="w-full sm:w-[200px] md:w-[240px] justify-between bg-white border border-gray-300 hover:border-gray-400 active:scale-[0.98] text-gray-900"
           >
@@ -145,8 +146,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50 flex-shrink-0" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent 
-          className="w-[85vw] sm:w-[200px] md:w-[240px] p-0 bg-white border border-gray-300 shadow-lg z-50" 
+        <PopoverContent
+          className="w-[85vw] sm:w-[200px] md:w-[240px] p-0 bg-white border border-gray-300 shadow-lg z-50"
           sideOffset={5}
           align="start"
         >
@@ -157,9 +158,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                 {providerModels.map(model => {
                   const isActive = selectedModel === model.id;
                   const capabilities = modelCapabilities[model.id] || [];
-                  
+
                   return (
-                    <div 
+                    <div
                       key={model.id}
                       className={`flex items-center gap-2 py-2 px-2 hover:bg-blue-50 focus:bg-blue-50 cursor-pointer rounded-sm ${isActive ? 'bg-blue-100' : ''}`}
                       onClick={() => {
@@ -185,21 +186,21 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                           {model.name}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {capabilities.map(capability => (
                           <span key={capability}>{getCapabilityIcon(capability)}</span>
                         ))}
-                        
+
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div 
+                              <div
                                 className="ml-1 h-5 w-5 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-gray-100"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   e.preventDefault();
-                                }} 
+                                }}
                               >
                                 <Info size={14} />
                               </div>
@@ -222,7 +223,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        
+
                         {isActive && <Check className="h-4 w-4 text-blue-600" />}
                       </div>
                     </div>
