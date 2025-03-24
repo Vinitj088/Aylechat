@@ -9,8 +9,13 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import 'katex/dist/katex.min.css';
 
+type ParsedContent = {
+  thinking: string;
+  visible: string;
+};
+
 // Add the parseMessageContent helper function
-const parseMessageContent = (content: string) => {
+const parseMessageContent = (content: string): ParsedContent => {
   // Check if content is undefined or null
   if (!content) {
     return { thinking: '', visible: '' };
@@ -65,21 +70,19 @@ interface MessageContentProps {
 
 // Types for React-Markdown components
 interface CodeProps {
-  node?: any;
   inline?: boolean;
   className?: string;
   children?: React.ReactNode;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface TableProps {
-  node?: any;
   children?: React.ReactNode;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Memoized code component to prevent re-renders
-const CodeBlock = React.memo(({inline, className, children, ...props}: CodeProps) => {
+const CodeBlock = React.memo(({ inline, className, children, ...props }: CodeProps) => {
   const match = /language-(\w+)/.exec(className || '');
   return !inline && match ? (
     <SyntaxHighlighter
@@ -97,6 +100,9 @@ const CodeBlock = React.memo(({inline, className, children, ...props}: CodeProps
   );
 });
 
+// Add display name
+CodeBlock.displayName = 'CodeBlock';
+
 export default function MessageContent({ content, role }: MessageContentProps) {
   const { thinking, visible } = parseMessageContent(content || '');
   const [copied, setCopied] = useState(false);
@@ -106,18 +112,18 @@ export default function MessageContent({ content, role }: MessageContentProps) {
   
   // Memoize the markdown components
   const markdownComponents = useMemo(() => ({
-    code: CodeBlock,
-    table({node, ...props}: TableProps) {
+    code: CodeBlock as any,
+    table({ ...props }: TableProps) {
       return (
         <div className="overflow-x-auto">
           <table className="border-collapse border border-[var(--secondary-darkest)]" {...props} />
         </div>
       );
     },
-    th({node, ...props}: TableProps) {
+    th({ ...props }: TableProps) {
       return <th className="border border-[var(--secondary-darkest)] px-4 py-2 bg-[var(--secondary-darker)] text-[var(--text-light-default)]" {...props} />;
     },
-    td({node, ...props}: TableProps) {
+    td({ ...props }: TableProps) {
       return <td className="border border-[var(--secondary-darkest)] px-4 py-2 text-[var(--text-light-default)]" {...props} />;
     }
   }), []);
@@ -166,6 +172,7 @@ export default function MessageContent({ content, role }: MessageContentProps) {
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeRaw, rehypeSanitize, rehypeKatex]}
+            // @ts-expect-error - The typing for markdown components is complex
             components={markdownComponents}
           >
             {normalizedContent}

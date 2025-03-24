@@ -1,7 +1,14 @@
-import { useState } from 'react';
+import React from 'react';
+
+interface Citation {
+  id?: string;
+  url: string;
+  title?: string;
+  favicon?: string;
+}
 
 interface CitationProps {
-  citations: any[];
+  citations: Citation[];
 }
 
 export default function Citation({ citations }: CitationProps) {

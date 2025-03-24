@@ -2,6 +2,8 @@ import React from 'react';
 import { getAssetPath } from '../utils';
 import { Message } from '../types';
 import { toast } from 'sonner';
+// Import models instead of using require()
+import modelsConfig from '../../models.json';
 
 // Character limits for context windows
 const MODEL_LIMITS = {
@@ -96,8 +98,9 @@ const updateMessages = (
     try {
       // First try it as a React setState function
       (setMessages as React.Dispatch<React.SetStateAction<Message[]>>)(updater);
-    } catch (error) {
+    } catch (_error) {
       // If that fails, try it as a custom callback function
+      // _error is intentionally ignored as we're falling back to another method
       try {
         // For custom callback, we need to create a dummy array and apply the updater
         const dummyArray: Message[] = [];
@@ -138,9 +141,6 @@ export const fetchResponse = async (
     // Determine which API endpoint to use based on the selected model
     let apiEndpoint;
     
-    // Import models list to check toolCallType - use import type instead of require
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const modelsConfig = require('../../models.json');
     // Find the model configuration
     const modelConfig = modelsConfig.models.find((m: Record<string, unknown>) => m.id === selectedModel);
     
@@ -247,10 +247,8 @@ export const fetchResponse = async (
           // Create a custom error with rate limit info
           const rateLimitError = new Error('Rate limit reached');
           rateLimitError.name = 'RateLimitError';
-          // Replace @ts-ignore with @ts-expect-error
           // @ts-expect-error - adding custom properties
           rateLimitError.waitTime = waitTime;
-          // Replace @ts-ignore with @ts-expect-error
           // @ts-expect-error - adding custom properties
           rateLimitError.details = message;
           
@@ -332,16 +330,16 @@ export const fetchResponse = async (
     );
 
     return { content, citations };
-  } catch (error) {
-    console.error('Error in fetchResponse:', error);
+  } catch (err) {
+    console.error('Error in fetchResponse:', err);
     
-    if (error instanceof Error && error.message.includes('Authentication')) {
+    if (err instanceof Error && err.message.includes('Authentication')) {
       // This is an authentication error, show appropriate message
-      throw error;
+      throw err;
     }
     
     // Make sure to show the toast one more time here in case it failed earlier
-    if (error instanceof Error && error.message.includes('Rate limit')) {
+    if (err instanceof Error && err.message.includes('Rate limit')) {
       toast.error('RATE LIMIT REACHED', {
         description: 'Please wait before trying again.',
         duration: 5000,
@@ -353,11 +351,11 @@ export const fetchResponse = async (
     } else {
       // Generic error toast
       toast.error('Error processing request', {
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        description: err instanceof Error ? err.message : 'Unknown error occurred',
         duration: 5000
       });
     }
     
-    throw error;
+    throw err;
   }
 }; 

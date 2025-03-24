@@ -2,15 +2,6 @@ import React, { useRef, useEffect } from 'react';
 import { Model } from '../types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import { ChevronDown } from 'lucide-react';
 import ModelSelector from './ModelSelector';
 
 // Add the parseMessageContent helper function

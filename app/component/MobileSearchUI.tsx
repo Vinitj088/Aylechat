@@ -2,15 +2,6 @@ import React, { useRef, useEffect } from 'react';
 import { Model } from '../types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import { ChevronDown } from 'lucide-react';
 import ModelSelector from './ModelSelector';
 
 // Add the parseMessageContent helper function
@@ -152,10 +143,10 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
       <div className="w-full max-w-full mx-auto p-4">
         <div className="mb-6 text-center">
           <h1 className="text-3xl font-bold mb-2 text-[var(--text-light-default)]">
-            <span className="text-[var(--brand-default)]" style={{ fontFamily: 'Space Grotesk' }}>Exa</span> Search
+            <span className="text-[var(--brand-default)]" style={{ fontFamily: 'Space Grotesk' }}>The Web, </span> Organised
           </h1>
           <p className="text-sm text-[var(--text-light-muted)] mb-2">
-            {isExa ? 'Semantic search powered by AI' : `${providerName} chat assistant`}
+            {isExa ? 'Exa search uses embeddings to understand meaning.' : `${providerName} provides fast AI inference.`}
           </p>
         </div>
         

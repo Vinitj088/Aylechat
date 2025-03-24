@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, memo } from 'react';
-import { Message } from "../types";
+import { Message, Model } from "../types";
 import MessageContent from './MessageContent';
 import Citation from './Citation';
 
@@ -7,7 +7,7 @@ interface ChatMessagesProps {
   messages: Message[];
   isLoading: boolean;
   selectedModel: string;
-  selectedModelObj?: any;
+  selectedModelObj?: Model;
   isExa: boolean;
 }
 
@@ -37,6 +37,9 @@ const ChatMessage = memo(({ message, isUser }: { message: Message, isUser: boole
   </div>
 ));
 
+// Add display name to the component
+ChatMessage.displayName = 'ChatMessage';
+
 // Loading indicator component
 const LoadingIndicator = memo(({ isExa, modelName }: { isExa: boolean, modelName: string }) => (
   <div className="flex items-center gap-2 text-[var(--text-light-muted)] animate-pulse">
@@ -49,10 +52,12 @@ const LoadingIndicator = memo(({ isExa, modelName }: { isExa: boolean, modelName
   </div>
 ));
 
+// Add display name to the component
+LoadingIndicator.displayName = 'LoadingIndicator';
+
 const ChatMessages: React.FC<ChatMessagesProps> = ({ 
   messages,
   isLoading,
-  selectedModel,
   selectedModelObj,
   isExa
 }) => {
@@ -81,7 +86,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   }, [isLoading]);
 
   // Get the model name for display
-  const modelName = selectedModelObj?.name || '';
+  const modelName = selectedModelObj?.name as string || '';
 
   return (
     <div className="pt-16 pb-32 w-full overflow-x-hidden">
@@ -104,5 +109,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
     </div>
   );
 };
+
+// Add display name to the main component
+ChatMessages.displayName = 'ChatMessages';
 
 export default React.memo(ChatMessages); 
