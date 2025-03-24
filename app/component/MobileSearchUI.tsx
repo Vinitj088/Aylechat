@@ -177,7 +177,7 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
               className="w-full p-4 bg-white dark:bg-[var(--secondary-darker)] border-0 
               focus:outline-none focus:ring-0 text-base text-[var(--text-light-default)]
               placeholder:text-[var(--text-light-subtle)] resize-none min-h-[46px] max-h-[120px]
-              scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+              scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent dark:focus:outline-none dark:focus:ring-0"
               style={{ lineHeight: '1.5' }}
             />
             
