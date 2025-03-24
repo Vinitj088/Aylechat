@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 
 // Character limits for context windows
 const MODEL_LIMITS = {
-  exa: 8000,    // Based on Exa RAG best practices
+  exa: 4000,    // Reduced limit for Exa to prevent timeouts
   groq: 128000, // Groq models have a much larger limit
   google: 64000, // Google Gemini models
   default: 8000 // Fallback limit
@@ -13,15 +13,23 @@ const MODEL_LIMITS = {
 
 // Function to truncate conversation history to fit within context window
 const truncateConversationHistory = (messages: Message[], modelId: string): Message[] => {
-  // For Exa, just return most recent query - simpler approach to prevent timeouts
+  // For Exa, include limited context (last few messages) to support follow-up questions
   if (modelId === 'exa') {
-    // For Exa, we only need the very last user query without additional context
-    const userMessages = messages.filter(msg => msg.role === 'user');
-    if (userMessages.length > 0) {
-      // Return only the most recent user message for search
-      return [userMessages[userMessages.length - 1]];
+    // Get the last 3 messages (or fewer if there aren't that many)
+    // This provides enough context for follow-ups without being too much
+    const recentMessages = [...messages].slice(-3);
+    
+    // Make sure the last message is always included (should be a user message)
+    if (recentMessages.length > 0 && recentMessages[recentMessages.length - 1].role !== 'user') {
+      // If the last message isn't from the user, find the last user message
+      const userMessages = messages.filter(msg => msg.role === 'user');
+      if (userMessages.length > 0) {
+        // Replace the last message with the most recent user message
+        recentMessages[recentMessages.length - 1] = userMessages[userMessages.length - 1];
+      }
     }
-    return [];
+    
+    return recentMessages;
   }
   
   // For LLMs like Groq and Gemini, retain conversation history
@@ -88,7 +96,7 @@ const updateMessages = (
     try {
       // First try it as a React setState function
       (setMessages as React.Dispatch<React.SetStateAction<Message[]>>)(updater);
-    } catch (e) {
+    } catch (error) {
       // If that fails, try it as a custom callback function
       try {
         // For custom callback, we need to create a dummy array and apply the updater
@@ -102,6 +110,7 @@ const updateMessages = (
   }
 };
 
+// Format previous messages to pass to API
 export const fetchResponse = async (
   input: string,
   messages: Message[],
@@ -111,13 +120,13 @@ export const fetchResponse = async (
   assistantMessage: Message
 ) => {
   // Prepare messages for conversation history, ensuring we respect context limits
-  const relevantHistory = truncateConversationHistory(messages, selectedModel);
+  const truncatedMessages = truncateConversationHistory(messages, selectedModel);
   
   // Format previous messages into conversation history
-  const conversationHistory = relevantHistory.map(msg => 
+  const conversationHistory = truncatedMessages.map(msg => 
     `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
   ).join('\n');
-
+  
   // Combine history with new query
   const fullQuery = conversationHistory 
     ? `${conversationHistory}\nUser: ${input}`
@@ -129,10 +138,11 @@ export const fetchResponse = async (
     // Determine which API endpoint to use based on the selected model
     let apiEndpoint;
     
-    // Import models list to check toolCallType
+    // Import models list to check toolCallType - use import type instead of require
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const modelsConfig = require('../../models.json');
     // Find the model configuration
-    const modelConfig = modelsConfig.models.find((m: any) => m.id === selectedModel);
+    const modelConfig = modelsConfig.models.find((m: Record<string, unknown>) => m.id === selectedModel);
     
     if (selectedModel === 'exa') {
       apiEndpoint = getAssetPath('/api/exaanswer');
@@ -143,13 +153,13 @@ export const fetchResponse = async (
     } else {
       apiEndpoint = getAssetPath('/api/groq');
     }
-    
+
     console.log(`Sending request to ${apiEndpoint} with model ${selectedModel}`);
     
     // Common request options
     const requestOptions = {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache, no-store, must-revalidate'
       },
@@ -157,20 +167,19 @@ export const fetchResponse = async (
       credentials: 'include' as RequestCredentials, // Add credentials to include cookies
     };
     
-    // Prepare request body based on the API
+    // Prepare request body based on the API - for Exa, include limited context for follow-up questions
     const requestBody = selectedModel === 'exa' 
       ? { 
-          // For Exa, just use the direct query without additional context
-          query: input,
-          // Don't include previous messages to avoid timeouts
-          messages: []
-        } 
-      : { 
-          // For Groq, Gemini, and other LLMs, include the full conversation history
-          query: fullQuery,
-          model: selectedModel, 
-          messages: relevantHistory
-        };
+        // For Exa, include the query and limited context for follow-up questions
+        query: input,
+        messages: truncatedMessages
+      } 
+      : {
+        // For Groq, Gemini, and other LLMs, include the full conversation history
+        query: fullQuery,
+        model: selectedModel,
+        messages: truncatedMessages
+      };
     
     // Make the fetch request
     response = await fetch(
@@ -238,9 +247,11 @@ export const fetchResponse = async (
           // Create a custom error with rate limit info
           const rateLimitError = new Error('Rate limit reached');
           rateLimitError.name = 'RateLimitError';
-          // @ts-ignore - adding custom properties
+          // Replace @ts-ignore with @ts-expect-error
+          // @ts-expect-error - adding custom properties
           rateLimitError.waitTime = waitTime;
-          // @ts-ignore - adding custom properties
+          // Replace @ts-ignore with @ts-expect-error
+          // @ts-expect-error - adding custom properties
           rateLimitError.details = message;
           
           throw rateLimitError;
@@ -256,7 +267,7 @@ export const fetchResponse = async (
     if (!reader) throw new Error('No reader available');
 
     let content = '';
-    let citations: any[] = [];
+    let citations: Array<Record<string, unknown>> = [];
 
     while (true) {
       const { done, value } = await reader.read();
@@ -303,7 +314,7 @@ export const fetchResponse = async (
               )
             );
           }
-        } catch (e) {
+        } catch {
           // Silently ignore parsing errors and continue
           // This can happen with incomplete JSON chunks
           continue;
@@ -321,16 +332,16 @@ export const fetchResponse = async (
     );
 
     return { content, citations };
-  } catch (e) {
-    console.error('Error in fetchResponse:', e);
+  } catch (error) {
+    console.error('Error in fetchResponse:', error);
     
-    if (e instanceof Error && e.message.includes('Authentication')) {
+    if (error instanceof Error && error.message.includes('Authentication')) {
       // This is an authentication error, show appropriate message
-      throw e;
+      throw error;
     }
     
     // Make sure to show the toast one more time here in case it failed earlier
-    if (e instanceof Error && e.message.includes('Rate limit')) {
+    if (error instanceof Error && error.message.includes('Rate limit')) {
       toast.error('RATE LIMIT REACHED', {
         description: 'Please wait before trying again.',
         duration: 5000,
@@ -342,11 +353,11 @@ export const fetchResponse = async (
     } else {
       // Generic error toast
       toast.error('Error processing request', {
-        description: e instanceof Error ? e.message : 'Unknown error occurred',
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
         duration: 5000
       });
     }
     
-    throw e;
+    throw error;
   }
 }; 
