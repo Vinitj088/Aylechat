@@ -110,15 +110,15 @@ export default function MessageContent({ content, role }: MessageContentProps) {
     table({node, ...props}: TableProps) {
       return (
         <div className="overflow-x-auto">
-          <table className="border-collapse border border-gray-300" {...props} />
+          <table className="border-collapse border border-[var(--secondary-darkest)]" {...props} />
         </div>
       );
     },
     th({node, ...props}: TableProps) {
-      return <th className="border border-gray-300 px-4 py-2 bg-gray-100" {...props} />;
+      return <th className="border border-[var(--secondary-darkest)] px-4 py-2 bg-[var(--secondary-darker)] text-[var(--text-light-default)]" {...props} />;
     },
     td({node, ...props}: TableProps) {
-      return <td className="border border-gray-300 px-4 py-2" {...props} />;
+      return <td className="border border-[var(--secondary-darkest)] px-4 py-2 text-[var(--text-light-default)]" {...props} />;
     }
   }), []);
   
@@ -149,20 +149,20 @@ export default function MessageContent({ content, role }: MessageContentProps) {
     <div className="relative">
       {thinking && (
         <div className="my-6 space-y-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-[var(--text-light-default)]">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
             <h3 className="text-sm font-medium">Thinking</h3>
           </div>
           <div className="pl-4 relative">
-            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-            <div className="text-sm text-gray-600 whitespace-pre-wrap">{thinking}</div>
+            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--secondary-darkest)]"></div>
+            <div className="text-sm text-[var(--text-light-muted)] whitespace-pre-wrap">{thinking}</div>
           </div>
         </div>
       )}
       {normalizedContent && (
-        <div className="prose prose-base max-w-none">
+        <div className="prose prose-base max-w-none dark:prose-invert">
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeRaw, rehypeSanitize, rehypeKatex]}
@@ -178,7 +178,7 @@ export default function MessageContent({ content, role }: MessageContentProps) {
         <div className="flex justify-end mt-4">
           <button
             onClick={() => copyToClipboard(normalizedContent)}
-            className="flex items-center gap-1 py-1 px-2 text-xs bg-[var(--secondary-darker)] border-2 border-black rounded hover:bg-[var(--secondary-darkest)] transition-colors"
+            className="flex items-center gap-1 py-1 px-2 text-xs bg-[var(--secondary-darker)] text-[var(--text-light-default)] border border-[var(--secondary-darkest)] rounded hover:bg-[var(--secondary-dark)] transition-colors"
             title="Copy to clipboard"
           >
             {copied ? (

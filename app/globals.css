@@ -55,10 +55,75 @@
   --accent-pink-light: #fce7f3;
   --accent-maroon-dark: #991b1b;
   --accent-maroon-light: #fee2e2;
+
+  /* Light Mode Text */
+  --text-light-default: #111827;
+  --text-light-muted: #6b7280;
+  --text-light-subtle: #9ca3af;
+  --text-light-faint: #e5e7eb;
+  --text-light-link: #1f40ed;
+
+  /* Background and accent defaults */
+  --background: var(--secondary-default);
+  --accent: var(--brand-default);
+  --accent-background: var(--brand-default);
+  --border-default: var(--gray-300);
+  --border-radius-default: 2px;
+}
+
+/* Dark Mode Variables */
+.dark {
+  /* Invert and adjust brand colors - improved for better readability */
+  --brand-default: #6d8fff; /* Adjusted to be lighter and more vivid */
+  --brand-fainter: #111936;
+  --brand-faint: #1a2445;
+  --brand-subtle: #3a4d93; /* Made slightly lighter */
+  --brand-muted: #5a85ff; /* More vibrant for better contrast */
+  --brand-dark: #a7c0ff; /* Lighter for better contrast */
+  --brand-darker: #c9d4ff;
+
+  /* Dark mode secondary colors */
+  --secondary-accent: #c9bb92;
+  --secondary-accent2x: #d8cba3;
+  --secondary-dark: #202020;
+  --secondary-darker: #272727;
+  --secondary-darkest: #2e2e2e;
+  --secondary-default: #121212;
+  --secondary-faint: #1a1a1a;
+  --secondary-fainter: #1e1e1e;
+
+  /* Text colors for dark mode */
+  --text-light-default: #e7e7e7;
+  --text-light-muted: #a0a0a0;
+  --text-light-subtle: #707070;
+  --text-light-faint: #404040;
+  --text-light-link: #8ca3ff; /* Adjusted to be more visible in dark mode */
+
+  /* Background and accent for dark mode */
+  --background: var(--secondary-default);
+  --accent: var(--brand-default);
+  --accent-background: var(--brand-default);
+  --border-default: var(--gray-700);
+  
+  /* Dark mode variants of accent colors for better contrast */
+  --accent-yellow-light: #45371b;
+  --accent-yellow-dark: #fcd34d;
+  --accent-skyblue-light: #1e3a8a;
+  --accent-skyblue-dark: #93c5fd;
+  --accent-green: #84cc16;
+  --accent-red: #ef4444;
+  --accent-darkgreen-light: #10403b;
+  --accent-darkgreen-dark: #6ee7b7;
+  --accent-purple-light: #2e1065;
+  --accent-purple-dark: #c4b5fd;
+  --accent-pink-light: #500724;
+  --accent-pink-dark: #fbcfe8;
+  --accent-maroon-light: #450a0a;
+  --accent-maroon-dark: #fca5a5;
 }
 
 body {
-  color: var(--foreground);
+  color: var(--text-light-default);
   background: var(--background);
 
   /* Use Instrument Sans for body text */
@@ -95,11 +160,6 @@ p, span, div, li, button, input, textarea {
   /* Typography */
   --font-family-sans: 'Instrument Sans', sans-serif;
   --font-family-serif: 'Space Grotesk', sans-serif;
-  --text-light-default: #111827;
-  --text-light-muted: #6b7280;
-  --text-light-subtle: #9ca3af;
-  --text-light-faint: #e5e7eb;
-  --text-light-link: #1f40ed;
 }
 
 /* Custom prose styling to reduce spacing */
@@ -169,7 +229,7 @@ p, span, div, li, button, input, textarea {
 }
 
 .prose code {
-  background-color: var(--gray-100);
+  background-color: var(--secondary-darker);
   padding: 0.2em 0.4em;
   border-radius: 0.25em;
   font-size: 0.875em;
@@ -178,4 +238,82 @@ p, span, div, li, button, input, textarea {
 .prose pre code {
   background-color: transparent;
   padding: 0;
+}
+
+/* Dark mode styles for code blocks */
+.dark .prose code {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-light-default);
+}
+
+.dark .prose pre {
+  background-color: var(--secondary-dark) !important;
+}
+
+/* Message styling for dark mode */
+.dark .message-human {
+  background-color: var(--secondary-darker);
+  border-color: var(--secondary-darkest);
+}
+
+.dark .message-ai {
+  background-color: var(--secondary-faint);
+  border-color: var(--secondary-darkest);
+}
+
+/* Make svgs and icons respect the text color in dark mode */
+.dark svg {
+  color: currentColor;
+}
+
+/* Ensure links are readable in dark mode */
+.dark a {
+  color: var(--text-light-link);
+}
+
+/* Fix dropdown menus in dark mode */
+.dark [role="listbox"],
+.dark [role="menu"] {
+  background-color: var(--secondary-dark);
+  border-color: var(--secondary-darkest);
+}
+
+.dark [role="option"],
+.dark [role="menuitem"] {
+  color: var(--text-light-default);
+}
+
+.dark [role="option"]:hover,
+.dark [role="menuitem"]:hover {
+  background-color: var(--secondary-darker);
+}
+
+/* Ensure form elements are styled properly in dark mode */
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--text-light-subtle);
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  color: var(--text-light-default);
+  background-color: var(--secondary-darker);
+  border-color: var(--secondary-darkest);
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: var(--brand-default);
+  outline-color: var(--brand-default);
+}
+
+/* Fix button styling in dark mode */
+.dark button {
+  color: var(--text-light-default);
+}
+
+.dark button[disabled] {
+  opacity: 0.5;
 }

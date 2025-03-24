@@ -151,9 +151,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
               placeholder={isExa ? "Search with Exa..." : "Ask a question..."}
               rows={1}
               className="w-full p-3 pr-[70px] resize-none min-h-[50px] max-h-[120px] 
-              bg-white border-2 border-[var(--secondary-darkest)] rounded-md
+              bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] rounded-md
               focus:outline-none focus:ring-1 focus:ring-[var(--brand-default)] focus:border-[var(--brand-default)]
-              placeholder:text-[var(--text-light-subtle)] font-medium shadow-sm"
+              placeholder:text-[var(--text-light-subtle)] text-[var(--text-light-default)] font-medium shadow-sm dark:focus:ring-0 dark:focus:outline-none"
               disabled={isLoading}
             />
             <Button

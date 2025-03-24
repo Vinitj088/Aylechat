@@ -43,17 +43,17 @@ const modelCapabilities: Record<string, string[]> = {
 const getCapabilityIcon = (capability: string) => {
   switch (capability) {
     case 'vision':
-      return <span title="Vision capability" className="text-blue-600"><Eye size={16} /></span>;
+      return <span title="Vision capability" className="text-blue-600 dark:text-blue-400"><Eye size={16} /></span>;
     case 'web':
-      return <span title="Web search capability" className="text-purple-600"><Globe size={16} /></span>;
+      return <span title="Web search capability" className="text-purple-600 dark:text-purple-400"><Globe size={16} /></span>;
     case 'docs':
-      return <span title="Document analysis capability" className="text-green-600"><FileText size={16} /></span>;
+      return <span title="Document analysis capability" className="text-green-600 dark:text-green-400"><FileText size={16} /></span>;
     case 'reasoning':
-      return <span title="Advanced reasoning capability" className="text-amber-600"><Brain size={16} /></span>;
+      return <span title="Advanced reasoning capability" className="text-amber-600 dark:text-amber-400"><Brain size={16} /></span>;
     case 'code':
-      return <span title="Code generation capability" className="text-cyan-600"><Code size={16} /></span>;
+      return <span title="Code generation capability" className="text-cyan-600 dark:text-cyan-400"><Code size={16} /></span>;
     case 'quick responses':
-      return <span title="Quick Response times" className="text-amber-600"><Clock size={16} /></span>;
+      return <span title="Quick Response times" className="text-amber-600 dark:text-amber-400"><Clock size={16} /></span>;
     default:
       return null;
   }
@@ -91,8 +91,8 @@ const getProviderIconByAvatarType = (avatarType: string) => {
       );
     default:
       return (
-        <div className="h-5 w-5 flex items-center justify-center rounded-full bg-gray-100">
-          <span className="text-xs">{avatarType.charAt(0).toUpperCase()}</span>
+        <div className="h-5 w-5 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700">
+          <span className="text-xs text-gray-800 dark:text-gray-200">{avatarType.charAt(0).toUpperCase()}</span>
         </div>
       );
   }
@@ -129,32 +129,32 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full sm:w-[200px] md:w-[240px] justify-between bg-white border border-gray-300 hover:border-gray-400 active:scale-[0.98] text-gray-900"
+            className="w-full sm:w-[200px] md:w-[240px] justify-between bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] hover:border-[var(--brand-default)] active:scale-[0.98] text-[var(--text-light-default)]"
           >
             <div className="flex items-center gap-2 w-full min-w-0">
               <div className="flex-shrink-0">
                 {selectedModelObj ? (
                   getProviderIconByAvatarType(selectedModelObj.avatarType || selectedModelObj.providerId)
                 ) : (
-                  <div className="h-5 w-5 flex items-center justify-center rounded-full bg-gray-100">
-                    <span className="text-xs">?</span>
+                  <div className="h-5 w-5 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700">
+                    <span className="text-xs text-gray-800 dark:text-gray-200">?</span>
                   </div>
                 )}
               </div>
-              <span className="truncate text-gray-900 text-sm">{selectedModelObj?.name || "Select model..."}</span>
+              <span className="truncate text-[var(--text-light-default)] text-sm">{selectedModelObj?.name || "Select model..."}</span>
             </div>
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50 flex-shrink-0" />
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-[85vw] sm:w-[200px] md:w-[240px] p-0 bg-white border border-gray-300 shadow-lg z-50"
+          className="w-[85vw] sm:w-[200px] md:w-[240px] p-0 bg-white dark:bg-[var(--secondary-dark)] border border-[var(--secondary-darkest)] shadow-lg z-50"
           sideOffset={5}
           align="start"
         >
           <div className="max-h-[300px] overflow-y-auto">
             {Object.entries(groupedModels).map(([provider, providerModels]) => (
               <div key={provider} className="px-2 pt-2 pb-1">
-                <div className="text-xs font-medium text-gray-500 px-1 mb-1">{provider}</div>
+                <div className="text-xs font-medium text-[var(--text-light-muted)] px-1 mb-1">{provider}</div>
                 {providerModels.map(model => {
                   const isActive = selectedModel === model.id;
                   const capabilities = modelCapabilities[model.id] || [];
@@ -162,7 +162,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                   return (
                     <div
                       key={model.id}
-                      className={`flex items-center gap-2 py-2 px-2 hover:bg-blue-50 focus:bg-blue-50 cursor-pointer rounded-sm ${isActive ? 'bg-blue-100' : ''}`}
+                      className={`flex items-center gap-2 py-2 px-2 hover:bg-[var(--secondary-darker)] focus:bg-[var(--secondary-darker)] cursor-pointer rounded-sm ${isActive ? 'bg-[var(--brand-fainter)] dark:bg-[var(--brand-faint)]' : ''}`}
                       onClick={() => {
                         handleModelChange(model.id);
                         setOpen(false);
@@ -182,7 +182,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                         <div className="flex-shrink-0">
                           {getProviderIconByAvatarType(model.avatarType || model.providerId)}
                         </div>
-                        <span className={`truncate text-gray-900 text-sm ${isActive ? 'font-medium' : 'font-normal'}`}>
+                        <span className={`truncate text-[var(--text-light-default)] text-sm ${isActive ? 'font-medium' : 'font-normal'}`}>
                           {model.name}
                         </span>
                       </div>
@@ -196,7 +196,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <div
-                                className="ml-1 h-5 w-5 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-700 bg-gray-100"
+                                className="ml-1 h-5 w-5 rounded-full flex items-center justify-center text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] bg-[var(--secondary-darker)] dark:bg-[var(--secondary-darkest)]"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   e.preventDefault();
@@ -205,9 +205,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                                 <Info size={14} />
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent side="right" className="bg-white border shadow-md z-[60] text-gray-900">
+                            <TooltipContent side="right" className="bg-white dark:bg-[var(--secondary-dark)] border shadow-md z-[60] text-[var(--text-light-default)]">
                               <p className="font-medium">{model.name}</p>
-                              <p className="text-xs text-gray-500">{model.provider}</p>
+                              <p className="text-xs text-[var(--text-light-muted)]">{model.provider}</p>
                               {capabilities.length > 0 && (
                                 <div className="mt-1">
                                   <p className="text-xs font-medium">Capabilities:</p>
@@ -224,7 +224,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                           </Tooltip>
                         </TooltipProvider>
 
-                        {isActive && <Check className="h-4 w-4 text-blue-600" />}
+                        {isActive && <Check className="h-4 w-4 text-[var(--brand-default)]" />}
                       </div>
                     </div>
                   );

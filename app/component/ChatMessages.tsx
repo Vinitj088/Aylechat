@@ -22,8 +22,8 @@ const ChatMessage = memo(({ message, isUser }: { message: Message, isUser: boole
       <div
         className={`rounded-lg py-3 px-4 max-w-[85%] ${
           isUser
-            ? 'bg-[var(--secondary-darker)] rounded text-black text-base'
-            : 'bg-white border border-[var(--secondary-darkest)] rounded-lg text-gray-900 text-base'
+            ? 'bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] text-base message-human'
+            : 'bg-white dark:bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] rounded-lg text-[var(--text-light-default)] text-base message-ai'
         }`}
       >
         <div className="whitespace-pre-wrap text-[15px]">
@@ -39,7 +39,7 @@ const ChatMessage = memo(({ message, isUser }: { message: Message, isUser: boole
 
 // Loading indicator component
 const LoadingIndicator = memo(({ isExa, modelName }: { isExa: boolean, modelName: string }) => (
-  <div className="flex items-center gap-2 text-gray-500 animate-pulse">
+  <div className="flex items-center gap-2 text-[var(--text-light-muted)] animate-pulse">
     <div className="w-2 h-2 rounded-full bg-[var(--brand-default)] animate-[bounce_1s_infinite]"></div>
     <div className="w-2 h-2 rounded-full bg-[var(--brand-default)] animate-[bounce_1s_infinite_200ms]"></div>
     <div className="w-2 h-2 rounded-full bg-[var(--brand-default)] animate-[bounce_1s_infinite_400ms]"></div>

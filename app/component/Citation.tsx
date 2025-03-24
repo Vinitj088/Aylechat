@@ -17,7 +17,7 @@ export default function Citation({ citations }: CitationProps) {
     <div className="mt-4 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <h3 className="text-md font-medium">Exa Search Results</h3>
+        <h3 className="text-md font-medium text-[var(--text-light-default)]">Exa Search Results</h3>
       </div>
 
       {/* Results */}
@@ -28,7 +28,7 @@ export default function Citation({ citations }: CitationProps) {
               <a href={citation.url} 
                  target="_blank" 
                  rel="noopener noreferrer"
-                 className="text-gray-600 hover:text-[var(--brand-default)] flex items-center gap-2">
+                 className="text-[var(--text-light-muted)] hover:text-[var(--brand-default)] flex items-center gap-2">
                 [{idx + 1}] {citation.title || citation.url}
                 {citation.favicon && (
                   <img 
@@ -39,7 +39,7 @@ export default function Citation({ citations }: CitationProps) {
                 )}
               </a>
               {/* URL tooltip */}
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-0 -bottom-6 bg-gray-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap z-10 pointer-events-none">
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-0 -bottom-6 bg-gray-800 dark:bg-gray-900 text-white text-xs py-1 px-2 rounded whitespace-nowrap z-10 pointer-events-none">
                 {citation.url}
               </div>
             </div>

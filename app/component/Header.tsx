@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { AuthDialog } from '@/components/AuthDialog';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { toast } from 'sonner';
 
 interface HeaderProps {
@@ -54,7 +55,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 bg-[#fffdf5] border-b z-50 w-screen overflow-x-hidden">
+    <div className="fixed top-0 left-0 right-0 bg-[var(--secondary-faint)] border-b border-[var(--secondary-darkest)] z-50 w-screen overflow-x-hidden">
       <div className="w-full max-w-full md:max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
         {/* Logo */}
         <Link 
@@ -64,7 +65,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
           <svg className="w-6 h-6 text-blue-600 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M4 4L12 12M12 12L20 4M12 12L4 20M12 12L20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
-          <span className="font-bold text-lg">EXA</span>
+          <span className="font-bold text-lg text-[var(--text-light-default)]">EXA</span>
         </Link>
 
         {/* Right side controls */}
@@ -106,6 +107,9 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
             </div>
           )} */}
           
+          {/* Theme Toggle */}
+          <ThemeToggle />
+          
           {/* Source Code Link */}
           <a 
             href="https://github.com/Vinitj088/ExaChat" 
@@ -116,7 +120,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 px-2 text-xs bg-transparent hover:bg-[var(--brand-fainter)] text-gray-600 hover:text-[var(--brand-dark)] border-none flex items-center gap-1 font-medium"
+              className="h-8 px-2 text-xs bg-transparent hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--brand-dark)] border-none flex items-center gap-1 font-medium"
             >
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
@@ -138,7 +142,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
 
           {/* Sidebar Toggle Button */}
           <button 
-            className="p-1.5 text-gray-500 hover:bg-[var(--secondary-darker)] rounded-md transition-colors"
+            className="p-1.5 text-[var(--text-light-muted)] hover:bg-[var(--secondary-darker)] rounded-md transition-colors"
             onClick={toggleSidebar}
             aria-label="Toggle sidebar"
           >

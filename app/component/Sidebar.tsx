@@ -111,7 +111,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       {/* Overlay - only visible when sidebar is open */}
       <div 
         className={cn(
-          "fixed inset-0 bg-black/40 z-40 transition-opacity",
+          "fixed inset-0 bg-black/40 dark:bg-black/60 z-40 transition-opacity",
           isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
         onClick={onClose}
@@ -148,7 +148,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                 <p className="text-sm text-[var(--text-light-muted)]">Sign in to view your chat history</p>
                 <button
                   onClick={onSignInClick || openAuthDialog}
-                  className="px-4 py-2 text-sm font-medium bg-[var(--brand-default)] text-white rounded-md hover:bg-[var(--brand-darker)] shadow-sm transition-all hover:shadow"
+                  className="px-4 py-2 text-sm font-medium bg-[var(--brand-default)] text-white rounded-md hover:bg-[var(--brand-muted)] shadow-sm transition-all hover:shadow"
                 >
                   Sign In
                 </button>
@@ -157,13 +157,13 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
               <div className="flex justify-center items-center h-24">
                 {/* Pulsing dots loading indicator */}
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 bg-[var(--brand-darker)] animate-[bounce_1s_infinite]"></div>
-                  <div className="w-2 h-2 bg-[var(--brand-darker)] animate-[bounce_1s_infinite_200ms]"></div>
-                  <div className="w-2 h-2 bg-[var(--brand-darker)] animate-[bounce_1s_infinite_400ms]"></div>
+                  <div className="w-2 h-2 bg-[var(--brand-default)] animate-[bounce_1s_infinite]"></div>
+                  <div className="w-2 h-2 bg-[var(--brand-default)] animate-[bounce_1s_infinite_200ms]"></div>
+                  <div className="w-2 h-2 bg-[var(--brand-default)] animate-[bounce_1s_infinite_400ms]"></div>
                 </div>
               </div>
             ) : fetchError ? (
-              <div className="text-center py-4 px-3 bg-[var(--accent-red-faint)] border border-[var(--accent-red-muted)] rounded-md">
+              <div className="text-center py-4 px-3 bg-[var(--accent-maroon-light)] border border-[var(--accent-maroon-dark)] rounded-md">
                 <p className="text-[var(--accent-red)] text-sm">{fetchError}</p>
                 <button
                   onClick={() => fetchThreads()}
@@ -196,7 +196,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                         </div>
                         <button
                           onClick={(e) => handleDeleteThread(thread.id, e)}
-                          className="p-1 text-[var(--text-light-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-red-fainter)] rounded-full transition-colors"
+                          className="p-1 text-[var(--text-light-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-maroon-light)] rounded-full transition-colors"
                           title="Delete thread"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -210,7 +210,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                   </li>
                 ))}
                 <li className="text-center mt-4 pt-3 border-t border-dashed border-[var(--secondary-darker)]">
-                  <span className="text-xs text-[var(--brand-darker)] italic">— End of history —</span>
+                  <span className="text-xs text-[var(--text-light-muted)] italic">— End of history —</span>
                 </li>
               </ul>
             )}
