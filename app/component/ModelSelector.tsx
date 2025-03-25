@@ -162,7 +162,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                   return (
                     <div
                       key={model.id}
-                      className={`flex items-center gap-2 py-2 px-2 hover:bg-[var(--secondary-darker)] focus:bg-[var(--secondary-darker)] cursor-pointer rounded-sm ${isActive ? 'bg-[var(--brand-fainter)] dark:bg-[var(--brand-faint)]' : ''}`}
+                      className={`flex items-center gap-2 py-2 px-2 hover:bg-[var(--secondary-darker)] focus:bg-[var(--secondary-darker)] cursor-pointer rounded-sm ${isActive ? 'bg-[var(--brand-fainter)] dark:bg-[var(--brand-dark)]' : ''}`}
                       onClick={() => {
                         handleModelChange(model.id);
                         setOpen(false);

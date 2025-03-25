@@ -199,7 +199,7 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
                 type="submit"
                 disabled={!input.trim() || isLoading}
                 className="bg-[var(--brand-default)] text-white px-4 py-2 rounded-md text-sm font-medium
-                disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 dark:bg-[var(--brand-dark)] dark:hover:bg-[var(--brand-muted)]"
               >
                 <div className="flex items-center justify-center gap-1">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

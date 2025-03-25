@@ -9,13 +9,13 @@
   --background-end-rgb: 255, 255, 255;
 
   /* COLORS */
-  --brand-default: #254bf1;
-  --brand-fainter: #e7ebfd;
-  --brand-faint: #c6cfff;
-  --brand-subtle: #a1aff7;
-  --brand-muted: #4d87e7;
-  --brand-dark: #0d2189;
-  --brand-darker: #000a40;
+  --brand-default: #1679CB;
+  --brand-fainter: #D4F1F4;
+  --brand-faint: #D4F1F4;
+  --brand-subtle: #C1DDF0;
+  --brand-muted: #1679CB;
+  --brand-dark: #0C2D48;
+  --brand-darker: #0C2D48;
 
   --secondary-accent: #9f9672;
   --secondary-accent2x: #89805d;
@@ -61,7 +61,7 @@
   --text-light-muted: #6b7280;
   --text-light-subtle: #9ca3af;
   --text-light-faint: #e5e7eb;
-  --text-light-link: #1f40ed;
+  --text-light-link: #B1D4E0;
 
   /* Background and accent defaults */
   --background: var(--secondary-default);
@@ -74,13 +74,13 @@
 /* Dark Mode Variables */
 .dark {
   /* Invert and adjust brand colors - improved for better readability */
-  --brand-default: #6d8fff; /* Adjusted to be lighter and more vivid */
-  --brand-fainter: #111936;
-  --brand-faint: #1a2445;
-  --brand-subtle: #3a4d93; /* Made slightly lighter */
-  --brand-muted: #5a85ff; /* More vibrant for better contrast */
-  --brand-dark: #a7c0ff; /* Lighter for better contrast */
-  --brand-darker: #c9d4ff;
+  --brand-default: #B1D4E0; /* Adjusted to be lighter and more vivid */
+  --brand-fainter: #385E72;
+  --brand-faint: #A1DBF1;
+  --brand-subtle: #B1D4E0; /* Made slightly lighter */
+  --brand-muted: #B1D4E0; /* More vibrant for better contrast */
+  --brand-dark: #385E72; /* Lighter for better contrast */
+  --brand-darker: #0C4160;
 
   /* Dark mode secondary colors */
   --secondary-accent: #c9bb92;
@@ -97,7 +97,7 @@
   --text-light-muted: #a0a0a0;
   --text-light-subtle: #707070;
   --text-light-faint: #404040;
-  --text-light-link: #8ca3ff; /* Adjusted to be more visible in dark mode */
+  --text-light-link: #B1D4E0; /* Adjusted to be more visible in dark mode */
 
   /* Background and accent for dark mode */
   --background: var(--secondary-default);

@@ -210,7 +210,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                 type="submit"
                 disabled={!input.trim() || isLoading}
                 className="bg-[var(--brand-default)] text-white px-6 py-2 rounded-md font-medium
-                disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 dark:bg-[var(--brand-dark)] dark:hover:bg-[var(--brand-muted)]"
               >
                 <div className="flex items-center justify-center gap-2">
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

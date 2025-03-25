@@ -161,7 +161,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               size="icon"
               disabled={!input.trim() || isLoading}
               className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 
-              bg-[var(--brand-default)] hover:bg-[var(--brand-muted)] text-white
+              bg-[var(--brand-dark)] hover:bg-[var(--brand-muted)] text-white
               disabled:opacity-50 disabled:cursor-not-allowed font-medium
               rounded-md transition-all duration-200"
             >

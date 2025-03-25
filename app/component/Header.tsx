@@ -62,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
           href="/"
           className="flex items-center hover:opacity-80 transition-opacity"
         >
-          <svg className="w-6 h-6 text-blue-600 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg className="w-6 h-6 text-[var(--brand-default)] mr-2 dark:text-[var(--brand-default)]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M4 4L12 12M12 12L20 4M12 12L4 20M12 12L20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
           <span className="font-bold text-lg text-[var(--text-light-default)]">EXA</span>
