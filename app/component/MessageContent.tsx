@@ -7,6 +7,8 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { oneLight } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { useTheme } from 'next-themes';
 import 'katex/dist/katex.min.css';
 
 type ParsedContent = {
@@ -84,17 +86,95 @@ interface TableProps {
 // Memoized code component to prevent re-renders
 const CodeBlock = React.memo(({ inline, className, children, ...props }: CodeProps) => {
   const match = /language-(\w+)/.exec(className || '');
+  const [copied, setCopied] = useState(false);
+  const code = String(children).replace(/\n$/, '');
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(code).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      },
+      (err) => {
+        console.error('Could not copy text: ', err);
+      }
+    );
+  };
+  
+  const language = match ? match[1] : '';
+  const title = language ? language.charAt(0).toUpperCase() + language.slice(1) : 'Code';
+
   return !inline && match ? (
-    <SyntaxHighlighter
-      style={atomDark}
-      language={match[1]}
-      PreTag="div"
-      {...props}
-    >
-      {String(children).replace(/\n$/, '')}
-    </SyntaxHighlighter>
+    <div className="overflow-hidden border border-gray-300 dark:border-[#333] mb-4 bg-gray-100 dark:bg-[#1E1E1E]">
+      <div className="flex items-center justify-between px-4 py-2 bg-gray-200 dark:bg-[#2D2D2D] border-b border-gray-300 dark:border-[#333]">
+        <div className="flex items-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-600 dark:text-[#AAAAAA]">
+            <path d="M8 3H7C5.89543 3 5 3.89543 5 5V7M8 3H16M8 3V2M16 3H17C18.1046 3 19 3.89543 19 5V7M16 3V2M19 7V15M19 7H20M5 7V15M5 7H4M19 15V17C19 18.1046 18.1046 19 17 19H16M19 15H20M5 15V17C5 18.1046 5.89543 19 7 19H8M5 15H4M8 19H16M8 19V20M16 19V20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+          <span className="text-sm font-medium text-gray-700 dark:text-[#AAAAAA]">{title} Implementation</span>
+        </div>
+        <div className="flex items-center">
+          <button
+            onClick={copyToClipboard}
+            className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 dark:text-[#AAAAAA] dark:hover:text-white transition-colors"
+            title="Copy code"
+          >
+            {copied ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>Done</span>
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span>Copy</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+      <div className="flex text-sm">
+        <div className="py-4 pl-4 pr-2 text-right select-none bg-gray-200 dark:bg-[#252525] text-gray-500 dark:text-[#666] border-r border-gray-300 dark:border-[#333] min-w-[48px]">
+          {code.split('\n').map((_, i) => (
+            <div key={i} className="leading-relaxed">
+              {i + 1}
+            </div>
+          ))}
+        </div>
+        <div className="p-4 overflow-auto w-full bg-gray-100 dark:bg-[#131313]">
+          <SyntaxHighlighter
+            style={isDark ? atomDark : oneLight}
+            language={match[1]}
+            PreTag="div"
+            showLineNumbers={false}
+            customStyle={{
+              margin: 0,
+              padding: 0,
+              background: 'transparent',
+              fontSize: '14px',
+              lineHeight: '1.5',
+            }}
+            codeTagProps={{
+              style: {
+                fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
+              }
+            }}
+            {...props}
+          >
+            {code}
+          </SyntaxHighlighter>
+        </div>
+      </div>
+    </div>
   ) : (
-    <code className={className} {...props}>
+    <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 text-gray-800 dark:text-gray-200 text-sm font-mono" {...props}>
       {children}
     </code>
   );
@@ -168,7 +248,7 @@ export default function MessageContent({ content, role }: MessageContentProps) {
         </div>
       )}
       {normalizedContent && (
-        <div className="prose prose-base max-w-none dark:prose-invert">
+        <div className="prose prose-base max-w-none dark:prose-invert [&_.markdown-body]:!bg-transparent [&_pre]:!bg-transparent [&_pre]:!p-0 [&_pre]:!m-0 [&_pre]:!border-0">
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeRaw, rehypeSanitize, rehypeKatex]}

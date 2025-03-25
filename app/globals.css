@@ -242,12 +242,12 @@ p, span, div, li, button, input, textarea {
 
 /* Dark mode styles for code blocks */
 .dark .prose code {
-  background-color: rgba(255, 255, 255, 0.1);
+  /* background-color: rgba(255, 255, 255, 0.1); */
   color: var(--text-light-default);
 }
 
 .dark .prose pre {
-  background-color: var(--secondary-dark) !important;
+  /* background-color: var(--secondary-dark) !important; */
 }
 
 /* Message styling for dark mode */

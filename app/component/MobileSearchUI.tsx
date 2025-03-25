@@ -229,10 +229,10 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
               Can you tell me a fascinating story from history?
             </button>
             <button 
-              onClick={() => setInput("How can you plan a sustainable vacation?")}
+              onClick={() => setInput("Write a program to implement a binary search in c++?")}
               className="px-3 py-3 bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] rounded-md text-sm hover:border-[var(--brand-default)] transition-colors text-left text-[var(--text-light-default)]"
             >
-              How can you plan a sustainable vacation?
+              Write a program to implement a binary search in c++?
             </button>
           </div>
         </div>
