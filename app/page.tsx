@@ -190,7 +190,7 @@ function PageContent() {
       let searchQuery = urlParams.get('q');
       
       // Handle placeholder formats: ?q=$1 or ?q=%s
-      if (searchQuery && (searchQuery === '$[1]' || searchQuery === '%s')) {
+      if (searchQuery && (searchQuery === '$1' || searchQuery === '%s')) {
         searchQuery = '';
       }
       
@@ -236,9 +236,6 @@ function PageContent() {
                 assistantMessage
               );
 
-              // Create thread title from the query
-              const threadTitle = decodedQuery.substring(0, 50) + (decodedQuery.length > 50 ? '...' : '');
-              
               // Update messages with final response
               const finalMessages = [userMessage, {
                 ...assistantMessage,
@@ -249,18 +246,8 @@ function PageContent() {
               
               setMessages(finalMessages);
               
-              // Create a new thread for this search
-              if (isAuthenticated && user) {
-                const threadId = await createOrUpdateThread({
-                  messages: finalMessages,
-                  title: threadTitle
-                });
-                
-                if (threadId) {
-                  setCurrentThreadId(threadId);
-                  window.history.pushState({}, '', `/chat/${threadId}`);
-                }
-              }
+              // Don't create a thread for URL search queries
+              // This keeps browser search queries from being saved
               
               setIsLoading(false);
               abortControllerRef.current = null;
