@@ -180,6 +180,113 @@ function PageContent() {
     }
   }, [openAuthDialog]);
   
+  // Handle initial URL search parameters for search engine functionality
+  useEffect(() => {
+    // Only run this once when the component mounts and there are no messages yet
+    if (messages.length === 0 && !isLoading) {
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // Check for different query parameter formats (q, q=$1, q=%s)
+      let searchQuery = urlParams.get('q');
+      
+      // Handle placeholder formats: ?q=$1 or ?q=%s
+      if (searchQuery && (searchQuery === '$1' || searchQuery === '%s')) {
+        searchQuery = '';
+      }
+      
+      if (searchQuery !== null) {
+        // Set the input field with the search query
+        const decodedQuery = decodeURIComponent(searchQuery);
+        setInput(decodedQuery);
+        
+        // Auto-select Exa Search model for search queries
+        setSelectedModel('exa');
+        
+        // Submit the query automatically after a short delay to ensure everything is loaded
+        const timer = setTimeout(async () => {
+          if (decodedQuery.trim()) {
+            // Instead of calling handleSubmit, replicate its logic here to avoid closure issues
+            const userMessage: Message = {
+              id: crypto.randomUUID(),
+              role: 'user',
+              content: decodedQuery
+            };
+
+            const assistantMessage: Message = {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: ''
+            };
+
+            setIsLoading(true);
+            setMessages([userMessage, assistantMessage]);
+
+            try {
+              const controller = new AbortController();
+              abortControllerRef.current = controller;
+              
+              const { content, citations } = await fetchResponse(
+                decodedQuery,
+                [],
+                'exa', // Always use Exa for search queries
+                controller,
+                (updatedMessages: Message[]) => {
+                  setMessages(updatedMessages);
+                },
+                assistantMessage
+              );
+
+              // Create thread title from the query
+              const threadTitle = decodedQuery.substring(0, 50) + (decodedQuery.length > 50 ? '...' : '');
+              
+              // Update messages with final response
+              const finalMessages = [userMessage, {
+                ...assistantMessage,
+                content,
+                citations,
+                completed: true
+              }];
+              
+              setMessages(finalMessages);
+              
+              // Create a new thread for this search
+              if (isAuthenticated && user) {
+                const threadId = await createOrUpdateThread({
+                  messages: finalMessages,
+                  title: threadTitle
+                });
+                
+                if (threadId) {
+                  setCurrentThreadId(threadId);
+                  window.history.pushState({}, '', `/chat/${threadId}`);
+                }
+              }
+              
+              setIsLoading(false);
+              abortControllerRef.current = null;
+            } catch (error: any) {
+              console.error('Error performing search:', error);
+              setIsLoading(false);
+              
+              // Handle error display
+              const updatedMessages = [userMessage, {
+                ...assistantMessage,
+                content: `Error: ${error.message || 'Failed to perform search. Please try again.'}`,
+                completed: true
+              }];
+              
+              setMessages(updatedMessages);
+              abortControllerRef.current = null;
+            }
+          }
+        }, 800); // Increased delay for better reliability
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
+
   // The form submit handler 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -319,33 +426,6 @@ function PageContent() {
     }
   };
   
-  // Handle initial URL search parameters for search engine functionality
-  useEffect(() => {
-    // Only run this once when the component mounts and there are no messages yet
-    if (messages.length === 0 && !isLoading) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const searchQuery = urlParams.get('q');
-      
-      if (searchQuery) {
-        // Set the input field with the search query
-        const decodedQuery = decodeURIComponent(searchQuery);
-        setInput(decodedQuery);
-        
-        // Auto-select Exa Search model for search queries
-        setSelectedModel('exa');
-        
-        // Submit the query automatically after a short delay to ensure everything is loaded
-        const timer = setTimeout(() => {
-          const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-          handleSubmit(fakeEvent);
-        }, 500);
-        
-        return () => clearTimeout(timer);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, isLoading]);
-
   // Function to handle login button click
   const handleLoginClick = useCallback(() => {
     openAuthDialog();
