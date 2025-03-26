@@ -179,6 +179,172 @@ function PageContent() {
       openAuthDialog();
     }
   }, [openAuthDialog]);
+  
+  // The form submit handler 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!input.trim() || isLoading) return;
+
+    // If not authenticated, show auth dialog and keep the message in the input
+    if (!isAuthenticated || !user) {
+      openAuthDialog();
+      return;
+    }
+
+    // Add the user message to the messages array
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: input
+    };
+
+    // Create placeholder for assistant response
+    const assistantMessage: Message = {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: ''
+    };
+
+    // Clear the input field and update the messages state
+    setInput('');
+    setIsLoading(true);
+    setMessages(prev => [...prev, userMessage, assistantMessage]);
+
+    try {
+      // Use abort controller to cancel the request if needed
+      abortControllerRef.current = new AbortController();
+      
+      // Generate automatic chat thread title 
+      const isFirstMessage = messages.length === 0;
+      let threadTitle: string | undefined = undefined;
+      
+      if (isFirstMessage) {
+        // Use the first 50 chars of the message as the title
+        threadTitle = input.substring(0, 50) + (input.length > 50 ? '...' : '');
+      }
+
+      // Fetch the response
+      const { content, citations } = await fetchResponse(
+        input,
+        messages,
+        selectedModel,
+        abortControllerRef.current,
+        (updatedMessages: Message[]) => {
+          // This callback updates messages as they stream in
+          setMessages(updatedMessages);
+        },
+        assistantMessage
+      );
+
+      // Update message with final response
+      const finalMessages = [...messages, userMessage, {
+        ...assistantMessage,
+        content,
+        citations,
+        completed: true
+      }];
+      
+      setMessages(finalMessages);
+
+      // Create or update the thread only after we have the complete response
+      if (isFirstMessage) {
+        // For first message, create a new thread
+        const threadId = await createOrUpdateThread({
+          messages: finalMessages,
+          title: threadTitle
+        });
+        
+        if (threadId) {
+          setCurrentThreadId(threadId);
+          // Update the URL to the new thread without forcing a reload
+          window.history.pushState({}, '', `/chat/${threadId}`);
+        }
+      } else if (currentThreadId) {
+        // For subsequent messages, update the existing thread
+        await createOrUpdateThread({
+          messages: finalMessages
+        });
+      } else {
+        // If we somehow don't have a thread ID, create a new thread
+        const threadId = await createOrUpdateThread({
+          messages: finalMessages,
+          title: threadTitle
+        });
+        
+        if (threadId) {
+          setCurrentThreadId(threadId);
+          // Update the URL to the new thread without forcing a reload
+          window.history.pushState({}, '', `/chat/${threadId}`);
+        }
+      }
+      
+      // Reset loading state after successful response
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    } catch (error: any) {
+      console.error('Error fetching response:', error);
+      
+      // Add the error message to the assistant's message
+      const updatedMessages = [...messages];
+      const assistantMessageIndex = updatedMessages.length - 1;
+      
+      // Check if it's an auth error
+      if (
+        (error.message && error.message.toLowerCase().includes('unauthorized')) ||
+        (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
+      ) {
+        await handleRequestError(error);
+        
+        // Update the message with auth error info
+        updatedMessages[assistantMessageIndex] = {
+          ...updatedMessages[assistantMessageIndex],
+          content: 'I encountered an authentication error. Please try again after fixing your session.',
+          completed: true
+        };
+      } else {
+        // For other errors
+        updatedMessages[assistantMessageIndex] = {
+          ...updatedMessages[assistantMessageIndex],
+          content: `Error: ${error.message || 'Something went wrong. Please try again.'}`,
+          completed: true
+        };
+        
+        toast.error('Error generating response');
+      }
+      
+      setMessages(updatedMessages);
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+  
+  // Handle initial URL search parameters for search engine functionality
+  useEffect(() => {
+    // Only run this once when the component mounts and there are no messages yet
+    if (messages.length === 0 && !isLoading) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const searchQuery = urlParams.get('q');
+      
+      if (searchQuery) {
+        // Set the input field with the search query
+        const decodedQuery = decodeURIComponent(searchQuery);
+        setInput(decodedQuery);
+        
+        // Auto-select Exa Search model for search queries
+        setSelectedModel('exa');
+        
+        // Submit the query automatically after a short delay to ensure everything is loaded
+        const timer = setTimeout(() => {
+          const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+          handleSubmit(fakeEvent);
+        }, 500);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, isLoading]);
 
   // Function to handle login button click
   const handleLoginClick = useCallback(() => {
@@ -209,7 +375,8 @@ function PageContent() {
     // Process pending input if any
     if (input.trim()) {
       setTimeout(() => {
-        handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+        const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+        handleSubmit(fakeEvent);
       }, 300);
     }
   };
@@ -326,147 +493,6 @@ function PageContent() {
       }
       
       return null;
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    // If not authenticated, show auth dialog and keep the message in the input
-    if (!isAuthenticated || !user) {
-      openAuthDialog();
-      return;
-    }
-
-    // Add the user message to the messages array
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: input
-    };
-
-    // Create placeholder for assistant response
-    const assistantMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: ''
-    };
-
-    // Clear the input field and update the messages state
-    setInput('');
-    setIsLoading(true);
-    setMessages(prev => [...prev, userMessage, assistantMessage]);
-
-    try {
-      // Use abort controller to cancel the request if needed
-      abortControllerRef.current = new AbortController();
-      
-      // Generate automatic chat thread title 
-      const isFirstMessage = messages.length === 0;
-      let threadTitle: string | undefined = undefined;
-      
-      if (isFirstMessage) {
-        // Use the first 50 chars of the message as the title
-        threadTitle = input.substring(0, 50) + (input.length > 50 ? '...' : '');
-      }
-
-      // Add selected model as system message for context
-      const systemMessage = models.find(model => model.id === selectedModel);
-      let modelName = systemMessage ? systemMessage.name : selectedModel;
-
-      // Fetch the response
-      const { content, citations } = await fetchResponse(
-        input,
-        messages,
-        selectedModel,
-        abortControllerRef.current,
-        (updatedMessages: Message[]) => {
-          // This callback updates messages as they stream in
-          setMessages(updatedMessages);
-        },
-        assistantMessage
-      );
-
-      // Update message with final response
-      const finalMessages = [...messages, userMessage, {
-        ...assistantMessage,
-        content,
-        citations,
-        completed: true
-      }];
-      
-      setMessages(finalMessages);
-
-      // Create or update the thread only after we have the complete response
-      if (isFirstMessage) {
-        // For first message, create a new thread
-        const threadId = await createOrUpdateThread({
-          messages: finalMessages,
-          title: threadTitle
-        });
-        
-        if (threadId) {
-          setCurrentThreadId(threadId);
-          // Update the URL to the new thread without forcing a reload
-          window.history.pushState({}, '', `/chat/${threadId}`);
-        }
-      } else if (currentThreadId) {
-        // For subsequent messages, update the existing thread
-        await createOrUpdateThread({
-          messages: finalMessages
-        });
-      } else {
-        // If we somehow don't have a thread ID, create a new thread
-        const threadId = await createOrUpdateThread({
-          messages: finalMessages,
-          title: threadTitle
-        });
-        
-        if (threadId) {
-          setCurrentThreadId(threadId);
-          // Update the URL to the new thread without forcing a reload
-          window.history.pushState({}, '', `/chat/${threadId}`);
-        }
-      }
-      
-      // Reset loading state after successful response
-      setIsLoading(false);
-      abortControllerRef.current = null;
-    } catch (error: any) {
-      console.error('Error fetching response:', error);
-      
-      // Add the error message to the assistant's message
-      const updatedMessages = [...messages];
-      const assistantMessageIndex = updatedMessages.length - 1;
-      
-      // Check if it's an auth error
-      if (
-        (error.message && error.message.toLowerCase().includes('unauthorized')) ||
-        (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
-      ) {
-        await handleRequestError(error);
-        
-        // Update the message with auth error info
-        updatedMessages[assistantMessageIndex] = {
-          ...updatedMessages[assistantMessageIndex],
-          content: 'I encountered an authentication error. Please try again after fixing your session.',
-          completed: true
-        };
-      } else {
-        // For other errors
-        updatedMessages[assistantMessageIndex] = {
-          ...updatedMessages[assistantMessageIndex],
-          content: `Error: ${error.message || 'Something went wrong. Please try again.'}`,
-          completed: true
-        };
-        
-        toast.error('Error generating response');
-      }
-      
-      setMessages(updatedMessages);
-      setIsLoading(false);
-      abortControllerRef.current = null;
     }
   };
 

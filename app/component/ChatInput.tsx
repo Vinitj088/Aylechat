@@ -109,7 +109,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && e.shiftKey && !isLoading && input.trim()) {
+    if (e.key === 'Enter' && !e.shiftKey && !isLoading && input.trim()) {
       e.preventDefault();
       handleSubmit(e as unknown as React.FormEvent);
     }
@@ -169,7 +169,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </Button>
           </div>
           <div className="mt-1 text-[10px] text-[var(--text-light-muted)] text-center">
-            Press <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Shift</kbd> + <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Enter</kbd> to send
+            Press <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Shift</kbd> + <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Enter</kbd> for new line
           </div>
         </form>
       </div>
