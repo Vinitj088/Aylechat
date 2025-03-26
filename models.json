@@ -172,6 +172,26 @@
       "avatarType": "qwen",
       "enabled": true,
       "toolCallType": "manual"
+    },
+    {
+      "id": "gemini-2.5-pro-exp-03-25",
+      "name": "Gemini 2.5 Pro",
+      "provider": "Google Generative AI",
+      "providerId": "google",
+      "avatarType": "google",
+      "enabled": true,
+      "toolCallType": "native",
+      "searchMode": true
+    },
+    {
+      "id": "gemini-2.0-pro-exp-02-05",
+      "name": "Gemini 2.0 Pro",
+      "provider": "Google Generative AI",
+      "providerId": "google",
+      "avatarType": "google",
+      "enabled": true,
+      "toolCallType": "native",
+      "searchMode": true
     }
   ]
 }

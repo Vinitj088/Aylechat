@@ -34,7 +34,10 @@ const handleWarmup = () => {
  * Check https://ai.google.dev/gemini-api/docs/models/gemini for the latest models.
  */
 const MODEL_MAPPING: Record<string, string> = {
-  'gemini-2.0-pro-exp-02-05': 'gemini-1.5-pro-exp-0827', // Updated to latest experimental model
+  'gemini-2.5-pro-exp-03-25': 'gemini-2.5-pro-exp-03-25', // Direct mapping to call the 2.5 model
+  'gemini-2.0-pro-exp-02-05': 'gemini-2.0-pro-exp-02-05', // Direct mapping to call the 2.0 model
+  'gemini-2.0-flash': 'gemini-2.0-flash', // Direct mapping for 2.0 flash model
+  'gemini-2.0-flash-thinking-exp-01-21': 'gemini-2.0-flash-thinking-exp-01-21', // Direct mapping for flash thinking model
   'gemini-1.5-pro': 'gemini-1.5-pro', // Direct mapping for stable model
   'gemini-1.5-flash': 'gemini-1.5-flash' // Direct mapping for stable model
 };
