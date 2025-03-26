@@ -190,7 +190,7 @@ function PageContent() {
       let searchQuery = urlParams.get('q');
       
       // Handle placeholder formats: ?q=$1 or ?q=%s
-      if (searchQuery && (searchQuery === '$1' || searchQuery === '%s')) {
+      if (searchQuery && (searchQuery === '$[1]' || searchQuery === '%s')) {
         searchQuery = '';
       }
       
