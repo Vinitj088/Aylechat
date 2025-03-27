@@ -3,10 +3,9 @@
 
 An open-source chat app showcasing the power of Exa's Answer endpoint.
 
-![Screenshot](https://demo.exa.ai/answer/opengraph-image.jpg)
+![Screenshot](https://imgur.com/RfS8wxi.jpg)
 
 ### ✨ Try it yourself:
-- [Try the Answer Endpoint](https://dashboard.exa.ai/playground/answer?q=What%20makes%20some%20LLMs%20so%20much%20better%20than%20others%3F&filters=%7B%22model%22%3A%22exa-pro%22%7D) - Experience the Answer endpoint directly on Exa dashboard
 
 - [Live Demo](https://exa-chat.vercel.app/) - See the chat app in action
 
@@ -14,16 +13,18 @@ An open-source chat app showcasing the power of Exa's Answer endpoint.
 
 ## 🎯 What is Exa Answer Chat App?
 
-Exa Answer Chat App is a free and open-source application that shows how to use Exa's Answer endpoint. It provides a modern chat interface with real-time streaming responses and citation support.
+Exa Chat is a open-source custom-built AI chat application leveraging the power of Groq and Exa Search for unparalleled speed and providing immediate access to cutting-edge Large Language Models (LLMs).
+
+
 
 <br>
 
 ## 💻 Tech Stack
 - **Backend**: [Exa API](https://exa.ai) - Answer endpoint
 - **Frontend**: [Next.js](https://nextjs.org/docs) with App Router
-- **Authentication**: [NextAuth.js](https://next-auth.js.org/) with custom database integration
-- **Database**: PostgreSQL for user data, [Upstash Redis](https://upstash.com/) for chat threads
-- **Styling**: [TailwindCSS](https://tailwindcss.com)
+- **Authentication**: [Supabase Auth](https://supabase.com/auth) for user management
+- **Database**: Supabase PostgreSQL for user data, [Upstash Redis](https://upstash.com/) for chat threads
+- **Styling**: [TailwindCSS](https://tailwindcss.com) with [shadcn/ui](https://ui.shadcn.com/)
 - **Language**: TypeScript
 - **Hosting**: [Vercel](https://vercel.com/)
 
@@ -34,7 +35,8 @@ Exa Answer Chat App is a free and open-source application that shows how to use 
 ### Prerequisites
 - Node.js 18+ installed
 - Exa API key ([Get it here](https://dashboard.exa.ai/api-keys))
-- PostgreSQL database for auth (or use Vercel Postgres)
+- Supabase account for authentication
+- Upstash Redis for chat history
 
 ### Installation
 
@@ -53,19 +55,21 @@ npm install
 ```bash
 cp .env.example .env.local
 ```
-Then add your API keys and database URLs to `.env.local`:
+Then add your API keys and service URLs to `.env.local`:
 ```
-# Exa API
-EXA_API_KEY=your-api-key-here
+# API Keys
+EXA_API_KEY=your-exa-api-key
+GROQ_API_KEY=your-groq-api-key
+GOOGLE_AI_API_KEY=your-google-ai-api-key  # Required for Gemini models
 
-# Auth (required)
-DATABASE_URL=your-postgres-url
-NEXTAUTH_SECRET=your-nextauth-secret-key
-NEXTAUTH_URL=http://localhost:3000
-
-# Redis (required for chat history)
+# Upstash Redis
 UPSTASH_REDIS_REST_URL=your_upstash_redis_url
 UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
+
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
 
 4. Run the development server
@@ -79,32 +83,17 @@ npm run dev
 
 ## 🔐 Authentication System
 
-This application uses NextAuth.js as the primary authentication system, with custom extensions for enhanced functionality:
+This application uses Supabase Auth as the primary authentication system:
 
 ### Features
 
 - Secure credential-based authentication
 - JWT session management
 - Persistent user sessions
-- Database integration with PostgreSQL
+- Database integration with Supabase PostgreSQL
 - Custom signup and profile management
 - Protected API routes and pages
 
-### Usage
-
-The app provides a centralized authentication hook that should be used in all components:
-
-```tsx
-import { useAuth } from '@/lib/hooks/useAuth';
-
-function MyComponent() {
-  const { user, isAuthenticated, signIn, signUp, signOut } = useAuth();
-  
-  // Use these methods and state for auth operations
-}
-```
-
-For server-side authentication checking, use NextAuth's built-in methods.
 
 <br>
 
@@ -115,8 +104,6 @@ This project showcases [Exa's](https://exa.ai) Answer endpoint, which provides:
 * Real-time streaming responses
 * High-quality answers with citations
 * Simple API integration (with OpenAI compatible API)
-
-[Try Exa API](https://dashboard.exa.ai) today and build your own AI-powered applications!
 
 <br>
 
@@ -152,39 +139,34 @@ UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
 - Conversation history
 - Authentication with Supabase
 - Mobile-responsive design
+- Math formula support with KaTeX
+- Code syntax highlighting
+- Markdown rendering
 
 ## Environment Variables
 
 The application requires these environment variables:
 
 ```
-# Supabase Configuration (for authentication)
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+# API Keys
+EXA_API_KEY=your-exa-api-key
+GROQ_API_KEY=your-groq-api-key
+GOOGLE_AI_API_KEY=your-google-ai-api-key  # Required for Gemini models
 
-# Redis Configuration (for conversation storage)
+# Upstash Redis
 UPSTASH_REDIS_REST_URL=your_upstash_redis_url
 UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
 
-# AI Model API Keys
-EXA_API_KEY=your_exa_api_key
-GOOGLE_AI_API_KEY=your_google_ai_api_key
-GROQ_API_KEY=your_groq_api_key
-OPENROUTER_API_KEY=your_openrouter_api_key
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
-
-## Getting Started
-
-1. Clone the repository
-2. Install dependencies with `npm install`
-3. Create a `.env.local` file with the environment variables
-4. Run the development server with `npm run dev`
 
 ## API Integrations
 
 ### Google Gemini API
-Provides access to Google's Gemini models. Get an API key from [Google AI Studio](https://makersuite.google.com/).
+Provides access to Google's Gemini models. Get an API key from [Google AI Studio](https://aistudio.google.com/).
 
 ### Groq API
 Fast inference for various open-source models. Get an API key from [Groq Cloud](https://console.groq.com/).
@@ -199,9 +181,9 @@ Provides access to a variety of models including Gemma 3 27B. Get an API key fro
 
 The application includes support for:
 
-- Google Gemini models (1.5 Pro, 1.5 Flash)
+- Google Gemini models (2.5 Pro, 2.0 Flash etc.)
 - Groq-hosted models (LLaMA 3, Mistral, etc.)
-- OpenRouter models (including Gemma 3 27B)
+- OpenRouter models (including Gemma 3 27B, Mistral 3.1 24B)
 - Exa Search
 
 ## Deployment
