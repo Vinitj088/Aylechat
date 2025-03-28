@@ -5,10 +5,17 @@ import { AuthError } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
+// Define the route context type
+type RouteContext = {
+  params: Promise<{
+    threadId: string
+  }>
+};
+
 // GET a specific thread
 export async function GET(
   req: NextRequest,
-  context: { params: { threadId: string } }
+  context: RouteContext
 ) {
   try {
     const { threadId } = await context.params;
@@ -66,7 +73,7 @@ export async function GET(
 // PUT/UPDATE a specific thread
 export async function PUT(
   req: NextRequest,
-  context: { params: { threadId: string } }
+  context: RouteContext
 ) {
   try {
     const { threadId } = await context.params;
@@ -153,7 +160,7 @@ export async function PUT(
 // DELETE a specific thread
 export async function DELETE(
   req: NextRequest,
-  context: { params: { threadId: string } }
+  context: RouteContext
 ) {
   try {
     const { threadId } = await context.params;

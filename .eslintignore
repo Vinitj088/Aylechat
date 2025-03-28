@@ -1,0 +1,32 @@
+# Build output
+.next
+out
+dist
+build
+
+# Dependencies
+node_modules
+
+# Cache
+.cache
+.npm
+
+# Logs
+*.log
+
+# Environment variables
+.env*
+!.env.example
+
+# Test coverage
+coverage
+
+# Typescript declaration files
+*.d.ts
+
+# Generated files
+public/sw.js
+public/workbox-*.js
+
+# Type definitions
+app/types/react-syntax-highlighter.d.ts 

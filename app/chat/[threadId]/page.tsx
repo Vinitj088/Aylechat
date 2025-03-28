@@ -14,8 +14,9 @@ import { useRouter } from 'next/navigation';
 import { ChatThread } from '@/lib/redis';
 import { toast } from 'sonner';
 import QueryEnhancer from '../../component/QueryEnhancer';
+import React from 'react';
 
-export default function ChatThreadPage({ params }: { params: { threadId: string } }) {
+export default function ChatThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -39,7 +40,7 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
   const abortControllerRef = useRef<AbortController | null>(null);
   const { user, session } = useAuth();
   const router = useRouter();
-  const { threadId } = params;
+  const threadId = React.use(params).threadId;
   const chatInputRef = useRef<ChatInputHandle>(null);
 
   const isAuthenticated = !!user;

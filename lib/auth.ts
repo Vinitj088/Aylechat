@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 export async function getAuthSession() {
   try {
     // Get cookies
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabaseAuthToken = cookieStore.get('supabase.auth.token');
     const appUserId = cookieStore.get('app-user-id');
     
@@ -66,7 +66,7 @@ export async function getAuthSession() {
 
 export async function getUserIdFromCookies() {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const appUserId = cookieStore.get('app-user-id')?.value;
     
     if (!appUserId) {
