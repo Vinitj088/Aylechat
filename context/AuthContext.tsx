@@ -93,11 +93,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   // Set up periodic health check
   useEffect(() => {
+    const refreshInterval = 45 * 60 * 1000; // 45 minutes
     const healthCheckInterval = setInterval(async () => {
       if (user) {
         await refreshSession();
       }
-    }, 5 * 60 * 1000); // Check every 5 minutes
+    }, refreshInterval);
     
     return () => {
       clearInterval(healthCheckInterval);
