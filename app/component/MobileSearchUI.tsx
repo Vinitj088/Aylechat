@@ -3,6 +3,7 @@ import { Model } from '../types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ModelSelector from './ModelSelector';
+import QueryEnhancer from './QueryEnhancer';
 
 // Add the parseMessageContent helper function
 const parseMessageContent = (content: string) => {
@@ -39,8 +40,6 @@ interface MobileSearchUIProps {
   selectedModel: string;
   handleModelChange: (modelId: string) => void;
   models: Model[];
-  autoprompt: boolean;
-  toggleAutoprompt: () => void;
   setInput: (input: string) => void;
   messages: { id: string; role: string; content: string }[];
   isExa?: boolean;
@@ -55,8 +54,6 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
   selectedModel,
   handleModelChange,
   models,
-  autoprompt,
-  toggleAutoprompt,
   setInput,
   messages,
   isExa = true,
@@ -183,16 +180,8 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
             
             <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--secondary-darkest)]">
               <div className="flex items-center gap-2">
-                <button 
-                  type="button"
-                  onClick={toggleAutoprompt}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${autoprompt ? 'bg-[var(--brand-default)]' : 'bg-gray-200 dark:bg-gray-700'}`}
-                >
-                  <span 
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoprompt ? 'translate-x-6' : 'translate-x-1'}`} 
-                  />
-                </button>
-                <span className="text-xs text-[var(--text-light-muted)]">Autoprompt</span>
+                <QueryEnhancer input={input} setInput={setInput} isLoading={isLoading} />
+                <span className="text-xs text-[var(--text-light-muted)]">Enhance</span>
               </div>
               
               <button

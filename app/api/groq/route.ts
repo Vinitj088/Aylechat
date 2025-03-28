@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       return handleWarmup();
     }
     
-    const { query, model, messages } = body;
+    const { query, model, messages, enhance, systemPrompt } = body;
     
     if (!query) {
       return new Response(JSON.stringify({ error: 'query is required' }), { status: 400 });
@@ -87,14 +87,22 @@ export async function POST(req: NextRequest) {
     }
     
     // Add role to messages 
-    const formattedMessages = [{ role: 'user', content: query }];
+    const formattedMessages = [];
+    
+    // Add system prompt if provided
+    if (systemPrompt) {
+      formattedMessages.push({ role: 'system', content: systemPrompt });
+    }
+    
+    // Add user message
+    formattedMessages.push({ role: 'user', content: query });
     
     // Parameters for GROQ API
     const params = {
       messages: formattedMessages,
       model: model,
       temperature: 0.5,
-      max_tokens: 4000,
+      max_tokens: enhance ? 1000 : 4000, // Use smaller max_tokens for enhancements
       stream: true,
       top_p: 1,
     };

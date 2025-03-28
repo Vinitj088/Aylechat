@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Send, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ModelSelector from './ModelSelector';
+import QueryEnhancer from './QueryEnhancer';
 
 // Function to prefetch API endpoints
 const prefetchAPI = async (modelId: string) => {
@@ -167,6 +168,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
               placeholder:text-[var(--text-light-subtle)] text-[var(--text-light-default)] font-medium shadow-sm dark:focus:ring-0 dark:focus:outline-none"
               disabled={isLoading}
             />
+            
+            <div className="absolute right-14 top-1/2 -translate-y-1/2 h-9">
+              <QueryEnhancer input={input} setInput={(value) => handleInputChange({ target: { value } } as any)} isLoading={isLoading} />
+            </div>
+            
             <Button
               type="submit"
               size="icon"

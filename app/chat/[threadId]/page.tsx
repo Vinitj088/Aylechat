@@ -13,6 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { ChatThread } from '@/lib/redis';
 import { toast } from 'sonner';
+import QueryEnhancer from '../../component/QueryEnhancer';
 
 export default function ChatThreadPage({ params }: { params: { threadId: string } }) {
   const [messages, setMessages] = useState<Message[]>([]);

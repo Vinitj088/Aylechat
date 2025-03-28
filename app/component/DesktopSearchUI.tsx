@@ -3,6 +3,7 @@ import { Model } from '../types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ModelSelector from './ModelSelector';
+import QueryEnhancer from './QueryEnhancer';
 
 // Add the parseMessageContent helper function
 const parseMessageContent = (content: string) => {
@@ -39,8 +40,6 @@ interface DesktopSearchUIProps {
   selectedModel: string;
   handleModelChange: (modelId: string) => void;
   models: Model[];
-  autoprompt: boolean;
-  toggleAutoprompt: () => void;
   setInput: (input: string) => void;
   isExa?: boolean;
   providerName?: string;
@@ -55,8 +54,6 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   selectedModel,
   handleModelChange,
   models,
-  autoprompt,
-  toggleAutoprompt,
   setInput,
   isExa,
   providerName,
@@ -188,22 +185,8 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
             
             <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--secondary-darkest)]">
               <div className="flex items-center gap-2">
-                <button 
-                  type="button"
-                  onClick={toggleAutoprompt}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${autoprompt ? 'bg-[var(--brand-default)]' : 'bg-gray-200 dark:bg-gray-700'}`}
-                >
-                  <span 
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${autoprompt ? 'translate-x-6' : 'translate-x-1'}`} 
-                  />
-                </button>
-                <span className="text-sm text-[var(--text-light-muted)]">Autoprompt</span>
-                <div className="relative group">
-                  <svg className="w-4 h-4 text-[var(--text-light-muted)]" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-                    <path d="M12 16V12M12 8H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                </div>
+                <QueryEnhancer input={input} setInput={setInput} isLoading={isLoading} />
+                <span className="text-sm text-[var(--text-light-muted)]">Enhance Query</span>
               </div>
               
               <button

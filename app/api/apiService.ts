@@ -113,6 +113,62 @@ const updateMessages = (
   }
 };
 
+// Function to enhance a query using LLaMA 3.1 8B instant
+export const enhanceQuery = async (query: string): Promise<string> => {
+  try {
+    const response = await fetch('/api/groq', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        query,
+        model: 'llama-3.1-8b-instant',
+        systemPrompt: 'You are QueryClarifier, an AI assistant specialized in improving how user queries are phrased. Your task is to rephrase the query to make it more clearly written, grammatically correct, and well-structured, while preserving its exact original intent. DO NOT add context, make assumptions, or expand the scope of the query. DO NOT suggest multiple variations or explain your changes. Simply return the improved version of the text. Focus only on clarity of expression and proper syntax, not on changing the meaning or adding information. Important: If the query refers to "above content" or "this text" or similar contextual references, preserve those references exactly as they appear - your job is NOT to resolve these references but to improve the clarity of how the query itself is expressed.',
+        enhance: true
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No reader available');
+
+    let enhancedQuery = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      // Convert the chunk to text
+      const chunk = new TextDecoder().decode(value);
+      const lines = chunk.split('\n').filter(line => line.trim());
+
+      for (const line of lines) {
+        try {
+          const data = JSON.parse(line);
+          if (data.choices && data.choices[0]?.delta?.content) {
+            enhancedQuery += data.choices[0].delta.content;
+          }
+        } catch (e) {
+          // Silently ignore parsing errors and continue
+          continue;
+        }
+      }
+    }
+
+    return enhancedQuery.trim();
+  } catch (error) {
+    console.error('Error enhancing query:', error);
+    // Return the original query if enhancement fails
+    return query;
+  }
+};
+
 // Format previous messages to pass to API
 export const fetchResponse = async (
   input: string,

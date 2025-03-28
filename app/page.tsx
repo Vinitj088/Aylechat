@@ -43,7 +43,6 @@ function PageContent() {
       searchMode: true
     }
   ]);
-  const [autoprompt, setAutoprompt] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
@@ -427,10 +426,6 @@ function PageContent() {
     setSelectedModel(modelId as ModelType);
   };
 
-  const toggleAutoprompt = () => {
-    setAutoprompt(!autoprompt);
-  };
-
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
@@ -691,8 +686,6 @@ function PageContent() {
             selectedModel={selectedModel}
             handleModelChange={handleModelChange}
             models={models}
-            autoprompt={autoprompt}
-            toggleAutoprompt={toggleAutoprompt}
             setInput={setInput}
             messages={messages}
             isExa={selectedModel.includes('exa')}
@@ -706,8 +699,6 @@ function PageContent() {
             selectedModel={selectedModel}
             handleModelChange={handleModelChange}
             models={models}
-            autoprompt={autoprompt}
-            toggleAutoprompt={toggleAutoprompt}
             setInput={setInput}
             isExa={selectedModel.includes('exa')}
             providerName={selectedModel.includes('exa') ? 'Exa' : 'Groq'}
