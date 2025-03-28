@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, Suspense, useCallback } from 'react';
 import { Message, Model, ModelType } from './types';
 import Header from './component/Header';
 import ChatMessages from './component/ChatMessages';
-import ChatInput from './component/ChatInput';
+import ChatInput, { ChatInputHandle } from './component/ChatInput';
 import MobileSearchUI from './component/MobileSearchUI';
 import DesktopSearchUI from './component/DesktopSearchUI';
 import Sidebar from './component/Sidebar';
@@ -51,6 +51,7 @@ function PageContent() {
   const { user, session, isLoading: authLoading, openAuthDialog } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const chatInputRef = useRef<ChatInputHandle>(null);
 
   const isAuthenticated = !!user;
 
@@ -645,6 +646,30 @@ function PageContent() {
     warmupApiRoutes();
   }, []);  // Empty dependency array ensures this runs once after initial render
 
+  // Add global keyboard shortcut for focusing the chat input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if we're in an input field or textarea already
+      if (
+        e.target instanceof HTMLInputElement || 
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
+      // Focus chat input when "/" is pressed
+      if (e.key === '/' && !isLoading) {
+        e.preventDefault();
+        chatInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLoading]);
+
   return (
     <main className="flex min-h-screen flex-col">
       
@@ -701,6 +726,7 @@ function PageContent() {
 
           {hasMessages && (
             <ChatInput 
+              ref={chatInputRef}
               input={input}
               handleInputChange={handleInputChange}
               handleSubmit={handleSubmit}

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Model } from '../types';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,10 @@ const prefetchAPI = async (modelId: string) => {
   }
 };
 
+export interface ChatInputHandle {
+  focus: () => void;
+}
+
 interface ChatInputProps {
   input: string;
   handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
@@ -55,7 +59,7 @@ interface ChatInputProps {
   onNewChat: () => void;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({
+const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   input,
   handleInputChange,
   handleSubmit,
@@ -65,9 +69,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
   models,
   isExa,
   onNewChat
-}) => {
+}, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastModelRef = useRef<string>(selectedModel);
+
+  // Expose the focus method to parent components
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      textareaRef.current?.focus();
+    }
+  }));
 
   // Cache the model change handler with useCallback to prevent unnecessary recreations
   const handleModelChangeWithPrefetch = useCallback((modelId: string) => {
@@ -148,7 +159,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               autoFocus
-              placeholder={isExa ? "Search with Exa..." : "Ask a question..."}
+              placeholder={isExa ? "Press / to search with Exa..." : "Press / to ask a question..."}
               rows={1}
               className="w-full p-3 pr-[70px] resize-none min-h-[50px] max-h-[120px] 
               bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] rounded-md
@@ -175,6 +186,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
       </div>
     </div>
   );
-};
+});
+
+ChatInput.displayName = 'ChatInput';
 
 export default ChatInput; 

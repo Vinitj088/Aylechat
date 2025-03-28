@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import { Message, Model, ModelType } from '../../types';
 import Header from '../../component/Header';
 import ChatMessages from '../../component/ChatMessages';
-import ChatInput from '../../component/ChatInput';
+import ChatInput, { ChatInputHandle } from '../../component/ChatInput';
 import Sidebar from '../../component/Sidebar';
 import { fetchResponse } from '../../api/apiService';
 import modelsData from '../../../models.json';
@@ -39,6 +39,7 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
   const { user, session } = useAuth();
   const router = useRouter();
   const { threadId } = params;
+  const chatInputRef = useRef<ChatInputHandle>(null);
 
   const isAuthenticated = !!user;
 
@@ -163,6 +164,30 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
       fetchThread();
     }
   }, [threadId, isAuthenticated, user, router]);
+
+  // Add global keyboard shortcut for focusing the chat input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if we're in an input field or textarea already
+      if (
+        e.target instanceof HTMLInputElement || 
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
+      // Focus chat input when "/" is pressed
+      if (e.key === '/' && !isLoading) {
+        e.preventDefault();
+        chatInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLoading]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     setInput(e.target.value);
@@ -422,6 +447,7 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
       />
 
       <ChatInput 
+        ref={chatInputRef}
         input={input}
         handleInputChange={handleInputChange}
         handleSubmit={handleSubmit}
