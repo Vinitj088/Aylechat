@@ -7,7 +7,6 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { AuthDialog } from '@/components/AuthDialog';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { toast } from 'sonner';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -17,41 +16,11 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
   const router = useRouter();
   const { user, signOut, openAuthDialog } = useAuth();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const [isFixingSession, setIsFixingSession] = useState(false);
 
   const handleHomeClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    // Navigate to home without disrupting authentication state
     // Use a simple navigation instead of forcing a push/redirect
     window.location.href = '/';
-  };
-
-  const handleFixSession = async () => {
-    setIsFixingSession(true);
-    
-    try {
-      // Call the fix-session API
-      const response = await fetch('/api/fix-session', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        toast.success('Session cookies cleared', {
-          description: 'Please sign in again to get a fresh session'
-        });
-        
-        // Force sign in dialog
-        setShowAuthDialog(true);
-      } else {
-        toast.error('Could not fix session cookies');
-      }
-    } catch (e) {
-      console.error('Error fixing session:', e);
-      toast.error('Error fixing session');
-    } finally {
-      setIsFixingSession(false);
-    }
   };
 
   return (
@@ -94,15 +63,6 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                 className="px-2 py-1 text-xs"
               >
                 Sign In
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleFixSession}
-                disabled={isFixingSession}
-                className="px-2 py-1 text-xs bg-orange-100 hover:bg-orange-200"
-              >
-                {isFixingSession ? 'Fixing...' : 'Fix Session'}
               </Button>
             </div>
           )} */}

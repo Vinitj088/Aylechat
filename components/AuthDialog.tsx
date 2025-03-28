@@ -19,7 +19,6 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isFixingSession, setIsFixingSession] = useState(false);
   
   const { signIn, signUp, isAuthDialogOpen, closeAuthDialog } = useAuth();
 
@@ -64,33 +63,6 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
       console.error(err);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleFixSession = async () => {
-    setIsFixingSession(true);
-    setError(null);
-    
-    try {
-      const response = await fetch('/api/fix-session', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        toast.success('Session cookies cleared', {
-          description: 'Please sign in again to get a fresh session'
-        });
-        setSuccessMessage('Session cookies cleared. Please sign in again.');
-      } else {
-        setError('Could not fix session cookies');
-      }
-    } catch (err) {
-      setError('An error occurred while fixing the session');
-      console.error('Error fixing session:', err);
-    } finally {
-      setIsFixingSession(false);
     }
   };
 
@@ -193,21 +165,6 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
               {isSignIn ? 'Need an account?' : 'Already have an account?'}
             </button>
           </div>
-          
-          {/* Session fix section
-          <div className="pt-4 mt-4 border-t-2 border-[var(--secondary-darkest)]">
-            <p className="text-sm text-[var(--text-light-muted)] mb-2">
-              Having trouble signing in? Try fixing your session:
-            </p>
-            <button
-              type="button"
-              onClick={handleFixSession}
-              disabled={isFixingSession}
-              className="w-full px-4 py-2 text-sm font-medium bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all"
-            >
-              {isFixingSession ? 'Fixing...' : 'Fix Session Issues'}
-            </button>
-          </div> */}
         </form>
       </div>
     </div>

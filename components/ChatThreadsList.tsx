@@ -1,13 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { ChatThread } from '@/lib/redis';
 import { LoginButton } from '@/components/LoginButton';
 
+type Thread = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages?: any[];
+  model?: string;
+};
+
 export default function ChatThreadsList() {
-  const [threads, setThreads] = useState<ChatThread[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { session, openAuthDialog } = useAuth();
 
@@ -16,20 +24,15 @@ export default function ChatThreadsList() {
       setLoading(true);
       setError(null);
       
-      // Make API call using session if available
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
+      const response = await fetch('/api/chat/threads', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
       
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
-      
-      if (session?.user?.id) {
-        headers['x-user-id'] = session.user.id;
-      }
-      
-      const response = await fetch('/api/chat/threads', { headers });
       const data = await response.json();
       
       if (response.ok) {
@@ -57,22 +60,13 @@ export default function ChatThreadsList() {
       setLoading(true);
       setError(null);
       
-      // Make API call using session if available
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
-      
-      if (session?.user?.id) {
-        headers['x-user-id'] = session.user.id;
-      }
-      
       const response = await fetch('/api/chat/threads', {
         method: 'POST',
-        headers,
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
         body: JSON.stringify({
           messages,
           title,

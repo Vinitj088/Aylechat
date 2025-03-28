@@ -19,7 +19,16 @@
       "toolCallType": "openrouter"
     },
     {
-      "id": "gemma3-27b",
+      "id": "deepseek/deepseek-chat-v3-0324:free",
+      "name": "DeepSeek Chat v3",
+      "provider": "OpenRouter",
+      "providerId": "openrouter",
+      "avatarType": "deepseek",
+      "enabled": true,
+      "toolCallType": "openrouter"
+    },
+    {
+      "id": "google/gemma-3-27b-it:free",
       "name": "Gemma 3 27B (Openrouter)",
       "provider": "OpenRouter",
       "providerId": "openrouter",

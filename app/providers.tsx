@@ -20,5 +20,3 @@ export function Providers({ children }: { children: ReactNode }) {
     </AuthProvider>
   );
 }
-
-export { SessionFixer } from '@/components/SessionFixer'; 

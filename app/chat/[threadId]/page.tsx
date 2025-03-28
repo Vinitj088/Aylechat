@@ -20,7 +20,7 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isThreadLoading, setIsThreadLoading] = useState(true);
-  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.5-pro-exp-03-25');
+  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
   const [models, setModels] = useState<Model[]>([
     {
       id: 'exa',
@@ -93,47 +93,11 @@ export default function ChatThreadPage({ params }: { params: { threadId: string 
             setIsThreadLoading(false);
             return;
           } else if (response.status === 401) {
-            // Try to refresh the session
-            toast.info('Attempting to fix session...');
-            
-            // Call the fix-session endpoint
-            const fixResponse = await fetch('/api/fix-session', {
-              method: 'POST',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
-              }
+            // Authentication issue - show auth dialog
+            toast.error('Authentication required', {
+              description: 'Please sign in to view this thread'
             });
             
-            if (fixResponse.ok) {
-              // Try fetching the thread again after fixing the session
-              const retryResponse = await fetch(`/api/chat/threads/${threadId}?t=${Date.now()}`, {
-                method: 'GET',
-                credentials: 'include',
-                headers: {
-                  'Cache-Control': 'no-cache, no-store, must-revalidate',
-                  'Content-Type': 'application/json'
-                }
-              });
-              
-              if (retryResponse.ok) {
-                // Success! Process the data
-                const data = await retryResponse.json();
-                if (data.success && data.thread) {
-                  setThread(data.thread);
-                  setMessages(data.thread.messages || []);
-                  // If it has an associated model, set it
-                  if (data.thread.model) {
-                    setSelectedModel(data.thread.model as ModelType);
-                  }
-                  setIsThreadLoading(false);
-                  return;
-                }
-              }
-            }
-            
-            // If we got here, fixing the session didn't work
             setShowAuthDialog(true);
             setIsThreadLoading(false);
             return;

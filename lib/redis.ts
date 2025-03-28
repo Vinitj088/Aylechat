@@ -161,18 +161,44 @@ export class RedisService {
   // Delete a chat thread
   static async deleteChatThread(userId: string, threadId: string): Promise<boolean> {
     try {
-      const exists = await redis.exists(`thread:${userId}:${threadId}`);
-      if (!exists) return false;
+      const threadKey = `thread:${userId}:${threadId}`;
+      const exists = await redis.exists(threadKey);
+      if (!exists) {
+        console.log(`Thread ${threadId} not found for user ${userId}`);
+        return false;
+      }
 
       // Delete thread data
-      await redis.del(`thread:${userId}:${threadId}`);
-
-      // Remove from user's thread list
-      const threads = await this.getUserChatThreads(userId);
-      const updatedThreads = threads.filter(t => t.id !== threadId);
-      await redis.del(`user:${userId}:threads`);
-      for (const t of updatedThreads) {
-        await redis.rpush(`user:${userId}:threads`, JSON.stringify(t));
+      await redis.del(threadKey);
+      
+      // Find the thread in the user's threads list
+      const userThreadsKey = `user:${userId}:threads`;
+      const threads = await redis.lrange(userThreadsKey, 0, -1);
+      
+      // Find the index of the thread
+      let threadIndex = -1;
+      for (let i = 0; i < threads.length; i++) {
+        try {
+          const threadData = typeof threads[i] === 'string' 
+            ? JSON.parse(threads[i]) 
+            : threads[i];
+          
+          if (threadData.id === threadId) {
+            threadIndex = i;
+            break;
+          }
+        } catch (e) {
+          console.error('Error parsing thread data:', e);
+        }
+      }
+      
+      if (threadIndex !== -1) {
+        // Remove just this thread from the list
+        const placeholder = JSON.stringify({ id: 'deleted', title: 'deleted' });
+        await redis.lset(userThreadsKey, threadIndex, placeholder);
+        await redis.lrem(userThreadsKey, 1, placeholder);
+      } else {
+        console.log(`Thread ${threadId} not found in user's thread list`);
       }
 
       return true;

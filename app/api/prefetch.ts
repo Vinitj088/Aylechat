@@ -40,7 +40,7 @@ export async function prefetchApiData() {
     };
     
     // Fetch models list if available
-    fetch('/api/models', options).catch(() => {});
+    // fetch('/api/models', options).catch(() => {});
     
     // Add more prefetch calls as needed for other API endpoints
     // that are commonly accessed and might benefit from caching

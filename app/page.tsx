@@ -31,7 +31,7 @@ function PageContent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.5-pro-exp-03-25');
+  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
   const [models, setModels] = useState<Model[]>([
     {
       id: 'exa',
@@ -94,33 +94,13 @@ function PageContent() {
 
     // Handle session format errors
     if (sessionError === 'true' || cookieError === 'true') {
-      toast.error('Session format issue detected', {
-        description: 'Please click the "Auth Debug" button and use "Fix Session Issues"',
-        duration: 10000,
+      toast.error('Session issue detected', {
+        description: 'Please sign in again to get a fresh session',
+        duration: 6000,
         action: {
-          label: 'Fix Now',
-          onClick: async () => {
-            try {
-              // Call the fix-session API
-              const response = await fetch('/api/fix-session', {
-                method: 'POST',
-                credentials: 'include',
-              });
-              
-              if (response.ok) {
-                toast.success('Session cookies cleared', {
-                  description: 'Please sign in again to get a fresh session'
-                });
-                
-                // Force sign in dialog
-                openAuthDialog();
-              } else {
-                toast.error('Could not fix session cookies');
-              }
-            } catch (e) {
-              console.error('Error fixing session:', e);
-              toast.error('Error fixing session');
-            }
+          label: 'Sign In',
+          onClick: () => {
+            openAuthDialog();
           }
         }
       });

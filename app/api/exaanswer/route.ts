@@ -20,14 +20,17 @@ export async function POST(req: NextRequest) {
 
     // Add timeout promise to avoid hanging requests
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Exa API request timed out')), 20000); // 20 seconds timeout
+      setTimeout(() => reject(new Error('Exa API request timed out')), 60000); // 60 seconds timeout
     });
 
     // Format previous messages for context if they exist
     let enhancedQuery = query;
     if (messages && messages.length > 0) {
+      // Take only the last 3 messages to limit context window size
+      const recentMessages = messages.slice(-3);
+      
       // Convert messages to a conversation context string
-      const conversationContext = messages
+      const conversationContext = recentMessages
         .map((msg: Message) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
         .join('\n\n');
       
@@ -60,7 +63,7 @@ export async function POST(req: NextRequest) {
           // Add a timeout for the entire streaming process
           const streamTimeout = setTimeout(() => {
             controller.error(new Error('Streaming response timed out'));
-          }, 20000); // 20 seconds timeout
+          }, 60000); // 60 seconds timeout
           
           for await (const chunk of stream) {
             // Send citations if present

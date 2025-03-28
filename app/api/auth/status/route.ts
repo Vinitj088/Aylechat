@@ -10,15 +10,15 @@ export async function GET(request: NextRequest) {
   const supabase = createClient();
   
   try {
-    // Get the session
-    const { data: { session }, error } = await supabase.auth.getSession();
+    // Use getUser to revalidate the token
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (error) {
-      console.error('Error getting session:', error.message);
+    if (userError) {
+      console.error('Error getting user:', userError.message);
       return NextResponse.json(
         { 
           authenticated: false,
-          error: error.message
+          error: userError.message
         },
         { 
           status: 401,
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json(
         { authenticated: false },
         { 
@@ -46,10 +46,10 @@ export async function GET(request: NextRequest) {
       {
         authenticated: true,
         user: {
-          id: session.user.id,
-          email: session.user.email,
-          created_at: session.user.created_at,
-          user_metadata: session.user.user_metadata
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at,
+          user_metadata: user.user_metadata
         }
       },
       { 

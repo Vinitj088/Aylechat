@@ -27,9 +27,10 @@ const handleWarmup = () => {
 
 // Model mapping - this maps our internal model IDs to OpenRouter model IDs
 const MODEL_MAPPING: Record<string, string> = {
-  'gemma3-27b': 'google/gemma-3-27b-it:free', // Gemma 3 27B model ID on OpenRouter with free variant
+  'google/gemma-3-27b-it:free': 'google/gemma-3-27b-it:free', // Gemma 3 27B model ID on OpenRouter with free variant
   'mistralai/mistral-small-3.1-24b-instruct:free': 'mistralai/mistral-small-3.1-24b-instruct:free',
   'deepseek/deepseek-r1:free': 'deepseek/deepseek-r1:free',
+  'deepseek/deepseek-chat-v3-0324:free': 'deepseek/deepseek-chat-v3-0324:free',
 };
 
 // Create a stream transformer to process the chunks efficiently

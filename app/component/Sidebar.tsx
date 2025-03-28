@@ -180,9 +180,8 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
             ) : (
               <ul className="space-y-2.5">
                 {threads.map((thread) => (
-                  <li key={thread.id}>
-                    <button
-                      onClick={() => handleThreadClick(thread.id)}
+                  <li key={thread.id} className="relative">
+                    <div
                       className={cn(
                         "w-full text-left p-3 rounded-md border transition-all duration-200",
                         pathname === `/chat/${thread.id}` 
@@ -191,7 +190,10 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                       )}
                     >
                       <div className="flex justify-between items-start">
-                        <div className="font-medium truncate pr-2 text-sm text-[var(--text-light-default)]">
+                        <div 
+                          className="font-medium truncate pr-2 text-sm text-[var(--text-light-default)] cursor-pointer" 
+                          onClick={() => handleThreadClick(thread.id)}
+                        >
                           {thread.title}
                         </div>
                         <button
@@ -202,11 +204,14 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                      <div className="text-xs text-[var(--text-light-muted)] mt-1.5 flex items-center">
+                      <div 
+                        className="text-xs text-[var(--text-light-muted)] mt-1.5 flex items-center cursor-pointer" 
+                        onClick={() => handleThreadClick(thread.id)}
+                      >
                         <Clock className="h-3 w-3 mr-1 inline-block text-[var(--brand-faint)]" />
                         {formatDistanceToNow(new Date(thread.updatedAt), { addSuffix: true })}
                       </div>
-                    </button>
+                    </div>
                   </li>
                 ))}
                 <li className="text-center mt-4 pt-3 border-t border-dashed border-[var(--secondary-darker)]">
