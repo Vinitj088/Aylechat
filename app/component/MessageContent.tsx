@@ -202,9 +202,12 @@ interface CodeProps {
 const CodeBlock = React.memo(({ inline, className, children, ...props }: CodeProps) => {
   const match = /language-(\w+)/.exec(className || '');
   const [copied, setCopied] = useState(false);
+  const [highlighted, setHighlighted] = React.useState<React.ReactNode>(null);
   const code = String(children).replace(/\n$/, '');
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const language = match ? match[1] : '';
+  const title = language ? language.charAt(0).toUpperCase() + language.slice(1) : 'Code';
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(code).then(
@@ -217,24 +220,10 @@ const CodeBlock = React.memo(({ inline, className, children, ...props }: CodePro
       }
     );
   };
-  
-  const language = match ? match[1] : '';
-  const title = language ? language.charAt(0).toUpperCase() + language.slice(1) : 'Code';
 
-  // For inline code, return simple styled code element
-  if (inline) {
-    return (
-      <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 text-gray-800 dark:text-gray-200 text-sm font-mono" {...props}>
-        {children}
-      </code>
-    );
-  }
-
-  // For code blocks, use starry-night
-  const [highlighted, setHighlighted] = React.useState<React.ReactNode>(null);
-
+  // Effect for syntax highlighting
   React.useEffect(() => {
-    if (!language) {
+    if (inline || !language) {
       setHighlighted(code);
       return;
     }
@@ -250,8 +239,18 @@ const CodeBlock = React.memo(({ inline, className, children, ...props }: CodePro
       const reactNode = toJsxRuntime(tree, { Fragment: React.Fragment, jsx, jsxs });
       setHighlighted(reactNode);
     });
-  }, [code, language]);
+  }, [code, language, inline]);
 
+  // For inline code, return simple styled code element
+  if (inline) {
+    return (
+      <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 text-gray-800 dark:text-gray-200 text-sm font-mono" {...props}>
+        {children}
+      </code>
+    );
+  }
+
+  // For code blocks, use starry-night with highlighting
   return (
     <div className="overflow-hidden border border-gray-300 dark:border-[#333] mb-4 bg-gray-100 dark:bg-[#1E1E1E]">
       <div className="flex items-center justify-between px-4 py-2 bg-gray-200 dark:bg-[#2D2D2D] border-b border-gray-300 dark:border-[#333]">
