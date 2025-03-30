@@ -79,4 +79,38 @@ export async function getUser() {
   } catch (error: any) {
     return { user: null, error: error.message }
   }
+}
+
+export async function resetPassword(formData: FormData) {
+  const supabase = createClient()
+  
+  const email = formData.get('email') as string
+  const redirectTo = formData.get('redirectTo') as string || `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password/update`
+  
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo
+  })
+  
+  if (error) {
+    return { error: error.message, success: false }
+  }
+  
+  return { success: true, error: null }
+}
+
+export async function updatePassword(formData: FormData) {
+  const supabase = createClient()
+  
+  const password = formData.get('password') as string
+  
+  const { error } = await supabase.auth.updateUser({
+    password
+  })
+  
+  if (error) {
+    return { error: error.message, success: false }
+  }
+  
+  revalidatePath('/', 'layout')
+  return { success: true, error: null }
 } 

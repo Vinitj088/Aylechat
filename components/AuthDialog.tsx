@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 // Update the component to accept props
 interface AuthDialogProps {
@@ -13,14 +14,16 @@ interface AuthDialogProps {
 
 export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
   const [isSignIn, setIsSignIn] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const router = useRouter();
   
-  const { signIn, signUp, isAuthDialogOpen, closeAuthDialog } = useAuth();
+  const { signIn, signUp, isAuthDialogOpen, closeAuthDialog, resetPassword } = useAuth();
 
   // Determine if dialog should be open based on prop or context
   const shouldBeOpen = isOpen !== undefined ? isOpen : isAuthDialogOpen;
@@ -34,7 +37,16 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
     setIsLoading(true);
     
     try {
-      if (isSignIn) {
+      if (isForgotPassword) {
+        // Handle forgot password flow
+        const result = await resetPassword(email);
+        if (result.error) {
+          setError(result.error.message);
+        } else {
+          setSuccessMessage(`Password reset email sent to ${email}. Please check your inbox.`);
+          toast.success('Password reset email sent!');
+        }
+      } else if (isSignIn) {
         const { error, success } = await signIn(email, password);
         if (error) {
           setError(error.message);
@@ -66,6 +78,13 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
     }
   };
 
+  // Handle back button for forgot password flow
+  const handleBack = () => {
+    setIsForgotPassword(false);
+    setError(null);
+    setSuccessMessage(null);
+  };
+
   if (!shouldBeOpen) {
     return null;
   }
@@ -76,7 +95,9 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
       <div className="bg-[var(--secondary-faint)] dark:bg-[var(--secondary-default)] border-2 border-[var(--secondary-darkest)] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] rounded-none p-6 max-w-md w-full relative z-10">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-[var(--text-light-default)]">
-            {isSignIn ? 'Sign In' : 'Sign Up'}
+            {isForgotPassword 
+              ? 'Reset Password'
+              : isSignIn ? 'Sign In' : 'Sign Up'}
           </h2>
           <button 
             onClick={handleClose}
@@ -101,70 +122,130 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
         )}
 
         <form onSubmit={handleSubmit}>
-          {!isSignIn && (
-            <div className="mb-4">
-              <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="name">
-                Name
-              </label>
-              <input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
-                required
-              />
-            </div>
+          {isForgotPassword ? (
+            <>
+              <p className="text-[var(--text-light-default)] mb-4">
+                Enter your email address and we&apos;ll send you a link to reset your password.
+              </p>
+              <div className="mb-6">
+                <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="email">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
+                  required
+                />
+              </div>
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="text-sm font-medium text-[var(--brand-default)] hover:underline"
+                >
+                  Back to Sign In
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className={`px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
+                    isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {isLoading ? 'Sending...' : 'Send Reset Link'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {!isSignIn && (
+                <div className="mb-4">
+                  <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="name">
+                    Name
+                  </label>
+                  <input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
+                    required
+                  />
+                </div>
+              )}
+              <div className="mb-4">
+                <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="email">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
+                  required
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="password">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
+                  required
+                  minLength={6}
+                />
+                {isSignIn && (
+                  <div className="mt-1 text-right">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsForgotPassword(true);
+                        setError(null);
+                        setSuccessMessage(null);
+                      }}
+                      className="text-xs font-medium text-[var(--brand-default)] hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className={`px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
+                    isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {isLoading 
+                    ? 'Loading...' 
+                    : isSignIn 
+                      ? 'Sign In' 
+                      : 'Sign Up'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSignIn(!isSignIn);
+                    setError(null);
+                    setSuccessMessage(null);
+                  }}
+                  className="text-sm font-medium text-[var(--brand-default)] hover:underline"
+                >
+                  {isSignIn ? 'Need an account?' : 'Already have an account?'}
+                </button>
+              </div>
+            </>
           )}
-          <div className="mb-4">
-            <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
-              required
-            />
-          </div>
-          <div className="mb-6">
-            <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
-              required
-              minLength={6}
-            />
-          </div>
-          <div className="flex items-center justify-between mb-4">
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={`px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
-                isLoading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {isLoading 
-                ? 'Loading...' 
-                : isSignIn 
-                  ? 'Sign In' 
-                  : 'Sign Up'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsSignIn(!isSignIn)}
-              className="text-sm font-medium text-[var(--brand-default)] hover:underline"
-            >
-              {isSignIn ? 'Need an account?' : 'Already have an account?'}
-            </button>
-          </div>
         </form>
       </div>
     </div>

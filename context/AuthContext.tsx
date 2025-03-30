@@ -5,7 +5,7 @@ import { Session, User, AuthError } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { signIn as serverSignIn, signUp as serverSignUp, signOut as serverSignOut } from '@/app/auth/actions';
+import { signIn as serverSignIn, signUp as serverSignUp, signOut as serverSignOut, resetPassword as serverResetPassword, updatePassword as serverUpdatePassword } from '@/app/auth/actions';
 
 interface AuthContextType {
   session: Session | null;
@@ -20,6 +20,14 @@ interface AuthContextType {
     success: boolean;
   }>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string, redirectTo?: string) => Promise<{
+    error: AuthError | null;
+    success: boolean;
+  }>;
+  updatePassword: (password: string) => Promise<{
+    error: AuthError | null;
+    success: boolean;
+  }>;
   openAuthDialog: () => void;
   closeAuthDialog: () => void;
   isAuthDialogOpen: boolean;
@@ -183,6 +191,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthDialogOpen(false);
   };
 
+  const resetPassword = async (email: string, redirectTo?: string) => {
+    try {
+      const formData = new FormData();
+      formData.append('email', email);
+      
+      // Use current site URL if not provided
+      const defaultRedirectUrl = window.location.origin + '/auth/update-password';
+      const finalRedirectTo = redirectTo || defaultRedirectUrl;
+      
+      formData.append('redirectTo', finalRedirectTo);
+      
+      const result = await serverResetPassword(formData);
+      
+      if (result.error) {
+        return { error: { message: result.error } as AuthError, success: false };
+      }
+      
+      return { error: null, success: true };
+    } catch (error) {
+      console.error('Unexpected error during password reset:', error);
+      return { error: error as AuthError, success: false };
+    }
+  };
+
+  const updatePassword = async (password: string) => {
+    try {
+      const formData = new FormData();
+      formData.append('password', password);
+      
+      const result = await serverUpdatePassword(formData);
+      
+      if (result.error) {
+        return { error: { message: result.error } as AuthError, success: false };
+      }
+      
+      // Refresh session after password update
+      await refreshSession();
+      
+      return { error: null, success: true };
+    } catch (error) {
+      console.error('Unexpected error during password update:', error);
+      return { error: error as AuthError, success: false };
+    }
+  };
+
   const value = {
     session,
     user,
@@ -190,6 +243,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signUp,
     signOut,
+    resetPassword,
+    updatePassword,
     openAuthDialog,
     closeAuthDialog,
     isAuthDialogOpen,

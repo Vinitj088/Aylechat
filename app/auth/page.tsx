@@ -106,6 +106,14 @@ export default function AuthPage() {
                   placeholder="Password"
                   required
                 />
+                <div className="text-right">
+                  <a 
+                    href="/auth/reset-password" 
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Forgot Password?
+                  </a>
+                </div>
               </div>
               
               {error && (
