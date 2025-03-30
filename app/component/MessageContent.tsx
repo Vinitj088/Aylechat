@@ -5,11 +5,24 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { atomDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
-import { oneLight } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { common, createStarryNight } from '@wooorm/starry-night';
+import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
+import { jsx, jsxs } from 'react/jsx-runtime';
 import { useTheme } from 'next-themes';
 import 'katex/dist/katex.min.css';
+// Import the default light/dark theme CSS
+import '@wooorm/starry-night/style/both';
+
+// Initialize starry-night with common grammars
+let starryNightPromise: Promise<Awaited<ReturnType<typeof createStarryNight>>>;
+
+// Create singleton instance
+const getStarryNight = () => {
+  if (!starryNightPromise) {
+    starryNightPromise = createStarryNight(common);
+  }
+  return starryNightPromise;
+};
 
 type ParsedContent = {
   thinking: string;
@@ -47,22 +60,129 @@ const parseMessageContent = (content: string): ParsedContent => {
   };
 };
 
-// Helper function to normalize markdown content
-const normalizeMarkdown = (content: string): string => {
-  if (!content) return '';
+// Type for a segment of content
+type ContentSegment = {
+  type: 'text' | 'table';
+  content: string;
+};
+
+// Function to split content into text and table segments
+const splitContentByTables = (content: string): ContentSegment[] => {
+  if (!content) return [];
   
-  return content
-    // Fix code blocks with missing language or extra spaces
-    .replace(/```\s*([a-zA-Z0-9]*)\s*\n/g, '```$1\n')
-    // Fix lists with incorrect spacing
-    .replace(/^\s*[-*+]\s+/gm, '- ')
-    // Fix for inconsistent table formatting
-    .replace(/\|\s+/g, '| ')
-    .replace(/\s+\|/g, ' |')
-    // Fix for broken inline code
-    .replace(/`([^`]+)`/g, '`$1`')
-    // Remove unnecessary escaping of characters
-    .replace(/\\([#_*])/g, '$1');
+  const segments: ContentSegment[] = [];
+  // Split by table markdown pattern
+  const tableRegex = /^\s*\|(.+\|)+\s*\n\s*\|(\s*[-:]+\s*\|)(\s*[-:]+\s*\|)+\s*\n(\s*\|(.+\|)+\s*\n)+/gm;
+  
+  let lastIndex = 0;
+  let match;
+  
+  while ((match = tableRegex.exec(content)) !== null) {
+    // Add text before table
+    if (match.index > lastIndex) {
+      segments.push({
+        type: 'text',
+        content: content.substring(lastIndex, match.index)
+      });
+    }
+    
+    // Add table
+    segments.push({
+      type: 'table',
+      content: match[0]
+    });
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text
+  if (lastIndex < content.length) {
+    segments.push({
+      type: 'text',
+      content: content.substring(lastIndex)
+    });
+  }
+  
+  return segments;
+};
+
+// Convert markdown table to HTML table
+const convertMarkdownTableToHTML = (tableMarkdown: string): JSX.Element => {
+  const lines = tableMarkdown.trim().split('\n');
+  if (lines.length < 3) return <></>;
+  
+  // Process markdown in cell text (currently just bold)
+  const processMarkdownInCell = (text: string): React.ReactNode => {
+    // Handle bold text with ** or __ patterns
+    const boldRegex = /(\*\*|__)(.*?)\1/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = boldRegex.exec(text)) !== null) {
+      // Add text before the match
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
+      }
+      
+      // Add the bold text
+      parts.push(<strong key={match.index}>{match[2]}</strong>);
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add any remaining text
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+    
+    return parts.length ? parts : text;
+  };
+  
+  // Extract header row
+  const headerCells = lines[0]
+    .trim()
+    .split('|')
+    .filter(cell => cell.trim() !== '')
+    .map(cell => cell.trim());
+  
+  // Skip separator row (line 1)
+  
+  // Extract data rows
+  const dataRows = lines.slice(2).map(line => 
+    line
+      .trim()
+      .split('|')
+      .filter(cell => cell.trim() !== '')
+      .map(cell => cell.trim())
+  );
+  
+  return (
+    <div className="overflow-x-auto my-2">
+      <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-700">
+        <thead className="bg-gray-100 dark:bg-gray-800">
+          <tr>
+            {headerCells.map((cell, index) => (
+              <th key={index} className="border border-gray-300 dark:border-gray-700 px-4 py-2 text-left font-semibold">
+                {processMarkdownInCell(cell)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {dataRows.map((row, rowIndex) => (
+            <tr key={rowIndex}>
+              {row.map((cell, cellIndex) => (
+                <td key={cellIndex} className="border border-gray-300 dark:border-gray-700 px-4 py-2">
+                  {processMarkdownInCell(cell)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 };
 
 interface MessageContentProps {
@@ -74,11 +194,6 @@ interface MessageContentProps {
 interface CodeProps {
   inline?: boolean;
   className?: string;
-  children?: React.ReactNode;
-  [key: string]: unknown;
-}
-
-interface TableProps {
   children?: React.ReactNode;
   [key: string]: unknown;
 }
@@ -106,7 +221,38 @@ const CodeBlock = React.memo(({ inline, className, children, ...props }: CodePro
   const language = match ? match[1] : '';
   const title = language ? language.charAt(0).toUpperCase() + language.slice(1) : 'Code';
 
-  return !inline && match ? (
+  // For inline code, return simple styled code element
+  if (inline) {
+    return (
+      <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 text-gray-800 dark:text-gray-200 text-sm font-mono" {...props}>
+        {children}
+      </code>
+    );
+  }
+
+  // For code blocks, use starry-night
+  const [highlighted, setHighlighted] = React.useState<React.ReactNode>(null);
+
+  React.useEffect(() => {
+    if (!language) {
+      setHighlighted(code);
+      return;
+    }
+
+    getStarryNight().then(starryNight => {
+      const scope = starryNight.flagToScope(language);
+      if (!scope) {
+        setHighlighted(code);
+        return;
+      }
+
+      const tree = starryNight.highlight(code, scope);
+      const reactNode = toJsxRuntime(tree, { Fragment: React.Fragment, jsx, jsxs });
+      setHighlighted(reactNode);
+    });
+  }, [code, language]);
+
+  return (
     <div className="overflow-hidden border border-gray-300 dark:border-[#333] mb-4 bg-gray-100 dark:bg-[#1E1E1E]">
       <div className="flex items-center justify-between px-4 py-2 bg-gray-200 dark:bg-[#2D2D2D] border-b border-gray-300 dark:border-[#333]">
         <div className="flex items-center gap-2">
@@ -149,34 +295,12 @@ const CodeBlock = React.memo(({ inline, className, children, ...props }: CodePro
           ))}
         </div>
         <div className="p-4 overflow-auto w-full bg-gray-100 dark:bg-[#131313]">
-          <SyntaxHighlighter
-            style={isDark ? atomDark : oneLight}
-            language={match[1]}
-            PreTag="div"
-            showLineNumbers={false}
-            customStyle={{
-              margin: 0,
-              padding: 0,
-              background: 'transparent',
-              fontSize: '14px',
-              lineHeight: '1.5',
-            }}
-            codeTagProps={{
-              style: {
-                fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
-              }
-            }}
-            {...props}
-          >
-            {code}
-          </SyntaxHighlighter>
+          <pre className="!bg-transparent !border-0 !p-0 !m-0">
+            {highlighted}
+          </pre>
         </div>
       </div>
     </div>
-  ) : (
-    <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 text-gray-800 dark:text-gray-200 text-sm font-mono" {...props}>
-      {children}
-    </code>
   );
 });
 
@@ -187,30 +311,14 @@ export default function MessageContent({ content, role }: MessageContentProps) {
   const { thinking, visible } = parseMessageContent(content || '');
   const [copied, setCopied] = useState(false);
   
-  // Use useMemo to only recompute when content changes
-  const normalizedContent = useMemo(() => normalizeMarkdown(visible), [visible]);
-  
-  // Memoize the markdown components
-  const markdownComponents = useMemo(() => ({
-    code: CodeBlock as any,
-    table({ ...props }: TableProps) {
-      return (
-        <div className="overflow-x-auto">
-          <table className="border-collapse border border-[var(--secondary-darkest)]" {...props} />
-        </div>
-      );
-    },
-    th({ ...props }: TableProps) {
-      return <th className="border border-[var(--secondary-darkest)] px-4 py-2 bg-[var(--secondary-darker)] text-[var(--text-light-default)]" {...props} />;
-    },
-    td({ ...props }: TableProps) {
-      return <td className="border border-[var(--secondary-darkest)] px-4 py-2 text-[var(--text-light-default)]" {...props} />;
-    }
-  }), []);
+  // Process content into segments
+  const contentSegments = useMemo(() => 
+    splitContentByTables(visible), 
+  [visible]);
   
   // Check if this is an AI response with actual content to copy
   const isAIResponse = role === 'assistant';
-  const hasContent = normalizedContent;
+  const hasContent = visible && visible.length > 0;
   const showCopyButton = isAIResponse && hasContent;
   
   // Check if this is an error message - with null check
@@ -230,6 +338,16 @@ export default function MessageContent({ content, role }: MessageContentProps) {
       }
     );
   };
+  
+  // Memoize the markdown components
+  const markdownComponents = useMemo(() => ({
+    code: CodeBlock as any,
+    pre: ({ children, ...props }: any) => (
+      <pre className="!bg-transparent !border-0 !p-0 !m-0" {...props}>
+        {children}
+      </pre>
+    )
+  }), []);
 
   return (
     <div className="relative">
@@ -247,16 +365,24 @@ export default function MessageContent({ content, role }: MessageContentProps) {
           </div>
         </div>
       )}
-      {normalizedContent && (
+      
+      {contentSegments.length > 0 && (
         <div className="prose prose-base max-w-none dark:prose-invert [&_.markdown-body]:!bg-transparent [&_pre]:!bg-transparent [&_pre]:!p-0 [&_pre]:!m-0 [&_pre]:!border-0">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeRaw, rehypeSanitize, rehypeKatex]}
-            // @ts-expect-error - The typing for markdown components is complex
-            components={markdownComponents}
-          >
-            {normalizedContent}
-          </ReactMarkdown>
+          {contentSegments.map((segment, index) => (
+            <React.Fragment key={index}>
+              {segment.type === 'text' ? (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeRaw, rehypeSanitize, rehypeKatex]}
+                  components={markdownComponents}
+                >
+                  {segment.content}
+                </ReactMarkdown>
+              ) : (
+                convertMarkdownTableToHTML(segment.content)
+              )}
+            </React.Fragment>
+          ))}
         </div>
       )}
       
@@ -264,7 +390,7 @@ export default function MessageContent({ content, role }: MessageContentProps) {
       {showCopyButton && !isErrorMessage && (
         <div className="flex justify-end mt-4">
           <button
-            onClick={() => copyToClipboard(normalizedContent)}
+            onClick={() => copyToClipboard(visible)}
             className="flex items-center gap-1 py-1 px-2 text-xs bg-[var(--secondary-darker)] text-[var(--text-light-default)] border border-[var(--secondary-darkest)] rounded hover:bg-[var(--secondary-dark)] transition-colors"
             title="Copy to clipboard"
           >
