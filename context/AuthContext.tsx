@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { signIn as serverSignIn, signUp as serverSignUp, signOut as serverSignOut, resetPassword as serverResetPassword, updatePassword as serverUpdatePassword } from '@/app/auth/actions';
+import posthog from 'posthog-js';
 
 interface AuthContextType {
   session: Session | null;
@@ -129,6 +130,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Refresh client-side session
       await refreshSession();
+
+      // Identify user in PostHog if available
+      if (posthog && user) {
+        posthog.identify(user.id, {
+          email: user.email,
+          name: user.user_metadata?.name || user.email,
+        });
+      }
       
       setIsAuthDialogOpen(false);
       router.refresh();
@@ -154,6 +163,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: { message: result.error } as AuthError, success: false };
       }
       
+      // Track signup event in PostHog
+      if (posthog) {
+        posthog.capture('user_signed_up', {
+          email: email,
+          name: name
+        });
+      }
+      
       return { error: null, success: true };
     } catch (error) {
       console.error('Unexpected error during sign up:', error);
@@ -169,6 +186,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (result.error) {
         toast.error('Failed to sign out. Please try again.');
         return;
+      }
+
+      // Reset PostHog user identity
+      if (posthog) {
+        posthog.reset();
       }
       
       // Clear client-side state
@@ -208,6 +230,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: { message: result.error } as AuthError, success: false };
       }
       
+      // Track password reset request in PostHog
+      if (posthog) {
+        posthog.capture('password_reset_requested', {
+          email: email
+        });
+      }
+      
       return { error: null, success: true };
     } catch (error) {
       console.error('Unexpected error during password reset:', error);
@@ -228,6 +257,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Refresh session after password update
       await refreshSession();
+      
+      // Track password update in PostHog
+      if (posthog && user) {
+        posthog.capture('password_updated', {
+          user_id: user.id
+        });
+      }
       
       return { error: null, success: true };
     } catch (error) {

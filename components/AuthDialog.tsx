@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { usePostHog } from 'posthog-js/react';
 
 // Update the component to accept props
 interface AuthDialogProps {
@@ -22,6 +23,7 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const router = useRouter();
+  const posthog = usePostHog();
   
   const { signIn, signUp, isAuthDialogOpen, closeAuthDialog, resetPassword } = useAuth();
 
@@ -42,16 +44,20 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
         const result = await resetPassword(email);
         if (result.error) {
           setError(result.error.message);
+          posthog?.capture('password_reset_failed', { error: result.error.message });
         } else {
           setSuccessMessage(`Password reset email sent to ${email}. Please check your inbox.`);
           toast.success('Password reset email sent!');
+          posthog?.capture('password_reset_email_sent', { email });
         }
       } else if (isSignIn) {
         const { error, success } = await signIn(email, password);
         if (error) {
           setError(error.message);
+          posthog?.capture('login_failed', { error: error.message });
         } else if (success) {
           setSuccessMessage('Signed in successfully!');
+          posthog?.capture('login_successful');
           setTimeout(() => {
             handleClose();
             // Call onSuccess if provided
@@ -62,8 +68,10 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
         const { error, success } = await signUp(email, password, name);
         if (error) {
           setError(error.message);
+          posthog?.capture('signup_failed', { error: error.message });
         } else if (success) {
           setSuccessMessage('Signed up successfully! You can now sign in with your new account.');
+          posthog?.capture('signup_successful');
           setTimeout(() => {
             // Switch to sign in mode after successful signup
             setIsSignIn(true);
@@ -72,6 +80,7 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
       }
     } catch (err) {
       setError('An unexpected error occurred');
+      posthog?.capture('auth_error', { message: 'An unexpected error occurred' });
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -83,6 +92,7 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
     setIsForgotPassword(false);
     setError(null);
     setSuccessMessage(null);
+    posthog?.capture('auth_navigation', { action: 'back_to_signin' });
   };
 
   if (!shouldBeOpen) {
@@ -210,6 +220,7 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
                         setIsForgotPassword(true);
                         setError(null);
                         setSuccessMessage(null);
+                        posthog?.capture('auth_navigation', { action: 'to_forgot_password' });
                       }}
                       className="text-xs font-medium text-[var(--brand-default)] hover:underline"
                     >
@@ -238,6 +249,7 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
                     setIsSignIn(!isSignIn);
                     setError(null);
                     setSuccessMessage(null);
+                    posthog?.capture('auth_navigation', { action: isSignIn ? 'to_signup' : 'to_signin' });
                   }}
                   className="text-sm font-medium text-[var(--brand-default)] hover:underline"
                 >
