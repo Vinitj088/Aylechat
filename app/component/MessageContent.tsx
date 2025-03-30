@@ -5,24 +5,11 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
-import { common, createStarryNight } from '@wooorm/starry-night';
-import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
-import { jsx, jsxs } from 'react/jsx-runtime';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { oneLight } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { useTheme } from 'next-themes';
 import 'katex/dist/katex.min.css';
-// Import the default light/dark theme CSS
-import '@wooorm/starry-night/style/both';
-
-// Initialize starry-night with common grammars
-let starryNightPromise: Promise<Awaited<ReturnType<typeof createStarryNight>>>;
-
-// Create singleton instance
-const getStarryNight = () => {
-  if (!starryNightPromise) {
-    starryNightPromise = createStarryNight(common);
-  }
-  return starryNightPromise;
-};
 
 type ParsedContent = {
   thinking: string;
@@ -202,12 +189,9 @@ interface CodeProps {
 const CodeBlock = React.memo(({ inline, className, children, ...props }: CodeProps) => {
   const match = /language-(\w+)/.exec(className || '');
   const [copied, setCopied] = useState(false);
-  const [highlighted, setHighlighted] = React.useState<React.ReactNode>(null);
   const code = String(children).replace(/\n$/, '');
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const language = match ? match[1] : '';
-  const title = language ? language.charAt(0).toUpperCase() + language.slice(1) : 'Code';
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(code).then(
@@ -220,38 +204,11 @@ const CodeBlock = React.memo(({ inline, className, children, ...props }: CodePro
       }
     );
   };
+  
+  const language = match ? match[1] : '';
+  const title = language ? language.charAt(0).toUpperCase() + language.slice(1) : 'Code';
 
-  // Effect for syntax highlighting
-  React.useEffect(() => {
-    if (inline || !language) {
-      setHighlighted(code);
-      return;
-    }
-
-    getStarryNight().then(starryNight => {
-      const scope = starryNight.flagToScope(language);
-      if (!scope) {
-        setHighlighted(code);
-        return;
-      }
-
-      const tree = starryNight.highlight(code, scope);
-      const reactNode = toJsxRuntime(tree, { Fragment: React.Fragment, jsx, jsxs });
-      setHighlighted(reactNode);
-    });
-  }, [code, language, inline]);
-
-  // For inline code, return simple styled code element
-  if (inline) {
-    return (
-      <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 text-gray-800 dark:text-gray-200 text-sm font-mono" {...props}>
-        {children}
-      </code>
-    );
-  }
-
-  // For code blocks, use starry-night with highlighting
-  return (
+  return !inline && match ? (
     <div className="overflow-hidden border border-gray-300 dark:border-[#333] mb-4 bg-gray-100 dark:bg-[#1E1E1E]">
       <div className="flex items-center justify-between px-4 py-2 bg-gray-200 dark:bg-[#2D2D2D] border-b border-gray-300 dark:border-[#333]">
         <div className="flex items-center gap-2">
@@ -294,12 +251,34 @@ const CodeBlock = React.memo(({ inline, className, children, ...props }: CodePro
           ))}
         </div>
         <div className="p-4 overflow-auto w-full bg-gray-100 dark:bg-[#131313]">
-          <pre className="!bg-transparent !border-0 !p-0 !m-0">
-            {highlighted}
-          </pre>
+          <SyntaxHighlighter
+            style={isDark ? atomDark : oneLight}
+            language={match[1]}
+            PreTag="div"
+            showLineNumbers={false}
+            customStyle={{
+              margin: 0,
+              padding: 0,
+              background: 'transparent',
+              fontSize: '14px',
+              lineHeight: '1.5',
+            }}
+            codeTagProps={{
+              style: {
+                fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
+              }
+            }}
+            {...props}
+          >
+            {code}
+          </SyntaxHighlighter>
         </div>
       </div>
     </div>
+  ) : (
+    <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 text-gray-800 dark:text-gray-200 text-sm font-mono" {...props}>
+      {children}
+    </code>
   );
 });
 
