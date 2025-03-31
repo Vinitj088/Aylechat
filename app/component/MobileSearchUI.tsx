@@ -61,6 +61,14 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Handle keyboard shortcuts
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && !isLoading && input.trim()) {
+      e.preventDefault();
+      handleSubmit(e as unknown as React.FormEvent);
+    }
+  };
+
   // Auto-resize textarea based on content
   useEffect(() => {
     if (textareaRef.current) {
@@ -168,6 +176,7 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
               ref={textareaRef}
               value={input}
               onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
               autoFocus
               placeholder="Ask a question or search..."
               rows={1}

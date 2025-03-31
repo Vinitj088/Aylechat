@@ -61,6 +61,14 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Handle keyboard shortcuts
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && !isLoading && input.trim()) {
+      e.preventDefault();
+      handleSubmit(e as unknown as React.FormEvent);
+    }
+  };
+
   // Auto-resize textarea based on content
   useEffect(() => {
     if (textareaRef.current) {
@@ -173,6 +181,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
               ref={textareaRef}
               value={input}
               onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
               autoFocus
               placeholder="Try a search or paste a link to find similar"
               rows={1}
