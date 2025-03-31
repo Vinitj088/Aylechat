@@ -17,6 +17,19 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <Script id="sw-register" strategy="beforeInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(registration => {
+                  console.log('SW registered:', registration);
+                }).catch(error => {
+                  console.log('SW registration failed:', error);
+                });
+              });
+            }
+          `}
+        </Script>
         <Script id="theme-switcher" strategy="beforeInteractive">
           {`
             (function() {

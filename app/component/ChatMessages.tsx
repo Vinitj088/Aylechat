@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, memo } from 'react';
+import React, { useEffect, useRef, useState, memo, useCallback } from 'react';
 import { Message, Model } from "../types";
 import MessageContent from './MessageContent';
 import Citation from './Citation';
@@ -55,12 +55,13 @@ const LoadingIndicator = memo(({ isExa, modelName }: { isExa: boolean, modelName
 // Add display name to the component
 LoadingIndicator.displayName = 'LoadingIndicator';
 
-const ChatMessages: React.FC<ChatMessagesProps> = ({ 
-  messages,
-  isLoading,
+const ChatMessages = memo(function ChatMessages({ 
+  messages, 
+  isLoading, 
+  selectedModel,
   selectedModelObj,
-  isExa
-}) => {
+  isExa 
+}: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messageCount, setMessageCount] = useState(0);
   
@@ -88,16 +89,20 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   // Get the model name for display
   const modelName = selectedModelObj?.name as string || '';
 
+  const renderMessage = useCallback((message: Message) => {
+    return (
+      <ChatMessage 
+        key={message.id} 
+        message={message} 
+        isUser={message.role === 'user'} 
+      />
+    );
+  }, []);
+
   return (
     <div className="pt-16 pb-32 w-full overflow-x-hidden">
       <div className="w-full max-w-full md:max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {messages.map((message) => (
-          <ChatMessage 
-            key={message.id} 
-            message={message} 
-            isUser={message.role === 'user'} 
-          />
-        ))}
+        {messages.map(renderMessage)}
         
         {isLoading && (
           <LoadingIndicator isExa={isExa} modelName={modelName} />
@@ -108,9 +113,9 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
       </div>
     </div>
   );
-};
+});
 
 // Add display name to the main component
 ChatMessages.displayName = 'ChatMessages';
 
-export default React.memo(ChatMessages); 
+export default ChatMessages; 

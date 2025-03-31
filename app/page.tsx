@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect, Suspense, useCallback } from 'react';
 import { Message, Model, ModelType } from './types';
 import Header from './component/Header';
-import ChatMessages from './component/ChatMessages';
-import ChatInput, { ChatInputHandle } from './component/ChatInput';
+import dynamic from 'next/dynamic';
+import { ChatInputHandle } from './component/ChatInput';
 import MobileSearchUI from './component/MobileSearchUI';
 import DesktopSearchUI from './component/DesktopSearchUI';
 import Sidebar from './component/Sidebar';
@@ -25,6 +25,24 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { prefetchAll } from './api/prefetch';
+
+// Lazy load heavy components
+const ChatMessages = dynamic(() => import('./component/ChatMessages'), {
+  loading: () => (
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>
+  ),
+  ssr: false
+});
+
+const DynamicChatInput = dynamic(() => import('./component/ChatInput'), {
+  ssr: false
+});
+
+const DynamicSidebar = dynamic(() => import('./component/Sidebar'), {
+  ssr: false
+});
 
 // Create a new component that uses useSearchParams
 function PageContent() {
@@ -645,11 +663,28 @@ function PageContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLoading]);
 
+  // Update prefetching effect
+  useEffect(() => {
+    // Prefetch common routes
+    router.prefetch('/chat');
+    router.prefetch('/auth');
+    
+    // If user is authenticated, prefetch their chat threads
+    if (user) {
+      const recentThreads = localStorage.getItem('recentThreads');
+      if (recentThreads) {
+        JSON.parse(recentThreads).forEach((threadId: string) => {
+          router.prefetch(`/chat/${threadId}`);
+        });
+      }
+    }
+  }, [user, router]);
+
   return (
     <main className="flex min-h-screen flex-col">
       
       <Header toggleSidebar={toggleSidebar} />
-      <Sidebar 
+      <DynamicSidebar 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
         onSignInClick={openAuthDialog}
@@ -696,7 +731,7 @@ function PageContent() {
           />
 
           {hasMessages && (
-            <ChatInput 
+            <DynamicChatInput 
               ref={chatInputRef}
               input={input}
               handleInputChange={handleInputChange}

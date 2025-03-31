@@ -5,6 +5,10 @@
  * for faster subsequent requests by loading needed code ahead of time.
  */
 
+import { fetchResponse } from './apiService';
+
+const PREFETCH_MODELS = ['gemini-2.0-flash', 'claude-3-opus', 'gpt-4-turbo'];
+
 // Prefetch API modules to reduce cold start times
 export async function prefetchApiModules() {
   try {
@@ -51,11 +55,55 @@ export async function prefetchApiData() {
 
 // Main prefetch function that orchestrates all prefetching
 export async function prefetchAll() {
+  // Prefetch API modules
+  const apiPrefetchPromises = [
+    import('./apiService'),
+    import('./groq/route'),
+    import('./openrouter/route'),
+    import('./gemini/route'),
+    import('./exaanswer/route')
+  ];
+
+  // Prefetch models config separately
+  const modelConfigPromise = import('../../models.json');
+
+  // Warm up API endpoints with minimal payloads
+  const apiEndpoints = ['/api/groq', '/api/openrouter', '/api/gemini', '/api/exaanswer'];
+  
+  const warmupPromises = apiEndpoints.map(endpoint => 
+    fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Warmup': 'true'
+      },
+      body: JSON.stringify({ warmup: true }),
+      signal: AbortSignal.timeout(1000)
+    }).catch(() => {/* Ignore warmup errors */})
+  );
+
   // Execute all prefetch operations in parallel
-  return Promise.all([
-    prefetchApiModules(),
-    prefetchApiData()
-  ]).catch(() => {
-    // Silently catch errors - this is just optimization
+  await Promise.allSettled([...apiPrefetchPromises, modelConfigPromise, ...warmupPromises]);
+}
+
+// Cache commonly used responses
+export const responseCache = new Map();
+
+export function cacheResponse(model: string, input: string, response: any) {
+  const key = `${model}:${input}`;
+  responseCache.set(key, {
+    response,
+    timestamp: Date.now()
   });
+}
+
+export function getCachedResponse(model: string, input: string) {
+  const key = `${model}:${input}`;
+  const cached = responseCache.get(key);
+  
+  if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) { // 5 minute cache
+    return cached.response;
+  }
+  
+  return null;
 } 
