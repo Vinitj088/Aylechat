@@ -1,9 +1,11 @@
 import React, { useRef, useEffect } from 'react';
 import { Model } from '../types';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import Markdown from 'markdown-to-jsx';
 import ModelSelector from './ModelSelector';
 import QueryEnhancer from './QueryEnhancer';
+
+// Import markdown options from MessageContent for consistent rendering
+import { markdownOptions, processMarkdown } from './MessageContent';
 
 // Add the parseMessageContent helper function
 const parseMessageContent = (content: string) => {
@@ -126,8 +128,8 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
                                 </div>
                               )}
                               {isComplete && finalResponse && (
-                                <div className="prose prose-sm max-w-none compact-prose dark:prose-invert">
-                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{finalResponse}</ReactMarkdown>
+                                <div className="prose prose-sm max-w-none compact-prose dark:prose-invert overflow-hidden">
+                                  <Markdown options={markdownOptions}>{processMarkdown(finalResponse)}</Markdown>
                                 </div>
                               )}
                             </>

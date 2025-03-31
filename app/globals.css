@@ -344,3 +344,263 @@ p, span, div, li, button, input, textarea {
 .dark button[disabled] {
   opacity: 0.5;
 }
+
+/* Custom styling for markdown content */
+.markdown-content {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.markdown-content pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+.markdown-content code {
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 0.9em;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  background-color: var(--secondary-darker);
+  color: var(--text-light-default);
+  word-break: break-word;
+}
+
+.markdown-content pre code {
+  padding: 0;
+  background-color: transparent;
+  border-radius: 0;
+  white-space: pre;
+}
+
+/* Improved table styling for better scrolling */
+.markdown-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.8em 0;
+  font-size: 0.9em;
+  table-layout: auto;
+  white-space: nowrap;
+}
+
+.markdown-content .overflow-x-auto {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.markdown-content table th,
+.markdown-content table td {
+  padding: 0.75em;
+  border: 1px solid var(--secondary-darkest);
+  min-width: 100px;
+  white-space: normal;
+}
+
+.markdown-content table th {
+  background-color: var(--secondary-darker);
+  font-weight: 600;
+}
+
+.markdown-content blockquote {
+  border-left: 4px solid var(--secondary-darkest);
+  padding-left: 1em;
+  margin-left: 0;
+  font-style: italic;
+  margin: 1.5em 0;
+}
+
+/* Improved spacing for paragraphs */
+.prose p {
+  margin-top: 1.25em !important;
+  margin-bottom: 1.25em !important;
+  line-height: 1.7;
+}
+
+/* Better spacing for lists */
+.prose ul, 
+.prose ol {
+  margin-top: 1.25em !important;
+  margin-bottom: 1.25em !important;
+  padding-left: 1.75em;
+}
+
+.prose li {
+  margin-bottom: 0.6em !important;
+}
+
+/* Increased spacing between elements */
+.prose > * {
+  margin-top: 1em !important;
+  margin-bottom: 1em !important;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  margin-top: 1.8em !important;
+  margin-bottom: 0.8em !important;
+}
+
+/* Fix mobile overflow issues */
+@media (max-width: 768px) {
+  .markdown-content {
+    max-width: 100%;
+  }
+
+  .markdown-content pre,
+  .markdown-content code {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .markdown-content table {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .markdown-content pre > div {
+    white-space: pre-wrap;
+  }
+}
+
+/* Code block wrapper styles */
+.codeblock-wrapper {
+  margin: 1.5em 0;
+}
+
+.codeblock-wrapper > pre {
+  margin: 0 !important;
+}
+
+.codeblock-wrapper > * {
+  margin: 0 !important;
+}
+
+/* Theme-specific styling for highlight.js */
+.github {
+  background-color: #f6f8fa !important;
+}
+
+.github-dark {
+  background-color: #0d1117 !important;
+}
+
+/* Override for hljs to ensure proper styling */
+.hljs {
+  background: transparent !important;
+}
+
+pre.hljs, 
+code.hljs {
+  background: transparent !important;
+}
+
+/* Fix code blocks in markdown - ensure backgrounds are properly styled */
+.markdown-content pre, 
+.markdown-content code {
+  background: transparent !important;
+}
+
+pre code.hljs {
+  background: transparent !important;
+  padding: 0;
+  white-space: pre;
+  word-break: normal;
+}
+
+/* Dark mode overrides for highlight.js - GitHub Dark style */
+.dark .hljs {
+  color: #c9d1d9 !important;
+  background: transparent !important;
+}
+
+.dark .hljs-doctag,
+.dark .hljs-keyword,
+.dark .hljs-meta .hljs-keyword,
+.dark .hljs-template-tag,
+.dark .hljs-template-variable,
+.dark .hljs-type,
+.dark .hljs-variable.language_ {
+  color: #ff7b72 !important;
+}
+
+.dark .hljs-title,
+.dark .hljs-title.class_,
+.dark .hljs-title.class_.inherited__,
+.dark .hljs-title.function_ {
+  color: #d2a8ff !important;
+}
+
+.dark .hljs-attr,
+.dark .hljs-attribute,
+.dark .hljs-literal,
+.dark .hljs-meta,
+.dark .hljs-number,
+.dark .hljs-operator,
+.dark .hljs-selector-attr,
+.dark .hljs-selector-class,
+.dark .hljs-selector-id,
+.dark .hljs-variable {
+  color: #79c0ff !important;
+}
+
+.dark .hljs-meta .hljs-string,
+.dark .hljs-regexp,
+.dark .hljs-string {
+  color: #a5d6ff !important;
+}
+
+.dark .hljs-built_in,
+.dark .hljs-symbol {
+  color: #ffa657 !important;
+}
+
+.dark .hljs-comment,
+.dark .hljs-code,
+.dark .hljs-formula {
+  color: #8b949e !important;
+}
+
+.dark .hljs-name,
+.dark .hljs-quote,
+.dark .hljs-selector-tag,
+.dark .hljs-selector-pseudo {
+  color: #7ee787 !important;
+}
+
+.dark .hljs-subst {
+  color: #c9d1d9 !important;
+}
+
+.dark .hljs-section {
+  color: #1f6feb !important;
+  font-weight: bold !important;
+}
+
+.dark .hljs-bullet {
+  color: #f2cc60 !important;
+}
+
+.dark .hljs-emphasis {
+  color: #c9d1d9 !important;
+  font-style: italic !important;
+}
+
+.dark .hljs-strong {
+  color: #c9d1d9 !important;
+  font-weight: bold !important;
+}
+
+.dark .hljs-addition {
+  color: #aff5b4 !important;
+  background-color: #033a16 !important;
+}
+
+.dark .hljs-deletion {
+  color: #ffdcd7 !important;
+  background-color: #67060c !important;
+}

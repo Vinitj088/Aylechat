@@ -1,20 +1,22 @@
-import React, { useState, useMemo } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import rehypeRaw from 'rehype-raw';
-import rehypeSanitize from 'rehype-sanitize';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { atomDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
-import { oneLight } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import 'katex/dist/katex.min.css';
+import Markdown from 'markdown-to-jsx';
+// Use standard highlight.js import to avoid TypeScript errors
+import hljs from 'highlight.js';
+// Import highlight.js CSS styles that exist in the package
+import 'highlight.js/styles/github.css'; // Light theme
+// Don't import styles for dark mode - we'll handle dark mode with our own CSS
 
 type ParsedContent = {
   thinking: string;
   visible: string;
 };
+
+// Message content props interface
+interface MessageContentProps {
+  content: string;
+  role: string;
+}
 
 // Add the parseMessageContent helper function
 const parseMessageContent = (content: string): ParsedContent => {
@@ -47,152 +49,52 @@ const parseMessageContent = (content: string): ParsedContent => {
   };
 };
 
-// Type for a segment of content
-type ContentSegment = {
-  type: 'text' | 'table';
-  content: string;
-};
-
-// Function to split content into text and table segments
-const splitContentByTables = (content: string): ContentSegment[] => {
-  if (!content) return [];
-  
-  const segments: ContentSegment[] = [];
-  // Split by table markdown pattern
-  const tableRegex = /^\s*\|(.+\|)+\s*\n\s*\|(\s*[-:]+\s*\|)(\s*[-:]+\s*\|)+\s*\n(\s*\|(.+\|)+\s*\n)+/gm;
-  
-  let lastIndex = 0;
-  let match;
-  
-  while ((match = tableRegex.exec(content)) !== null) {
-    // Add text before table
-    if (match.index > lastIndex) {
-      segments.push({
-        type: 'text',
-        content: content.substring(lastIndex, match.index)
-      });
-    }
-    
-    // Add table
-    segments.push({
-      type: 'table',
-      content: match[0]
-    });
-    
-    lastIndex = match.index + match[0].length;
-  }
-  
-  // Add remaining text
-  if (lastIndex < content.length) {
-    segments.push({
-      type: 'text',
-      content: content.substring(lastIndex)
-    });
-  }
-  
-  return segments;
-};
-
-// Convert markdown table to HTML table
-const convertMarkdownTableToHTML = (tableMarkdown: string): JSX.Element => {
-  const lines = tableMarkdown.trim().split('\n');
-  if (lines.length < 3) return <></>;
-  
-  // Process markdown in cell text (currently just bold)
-  const processMarkdownInCell = (text: string): React.ReactNode => {
-    // Handle bold text with ** or __ patterns
-    const boldRegex = /(\*\*|__)(.*?)\1/g;
-    const parts = [];
-    let lastIndex = 0;
-    let match;
-    
-    while ((match = boldRegex.exec(text)) !== null) {
-      // Add text before the match
-      if (match.index > lastIndex) {
-        parts.push(text.substring(lastIndex, match.index));
-      }
-      
-      // Add the bold text
-      parts.push(<strong key={match.index}>{match[2]}</strong>);
-      
-      lastIndex = match.index + match[0].length;
-    }
-    
-    // Add any remaining text
-    if (lastIndex < text.length) {
-      parts.push(text.substring(lastIndex));
-    }
-    
-    return parts.length ? parts : text;
-  };
-  
-  // Extract header row
-  const headerCells = lines[0]
-    .trim()
-    .split('|')
-    .filter(cell => cell.trim() !== '')
-    .map(cell => cell.trim());
-  
-  // Skip separator row (line 1)
-  
-  // Extract data rows
-  const dataRows = lines.slice(2).map(line => 
-    line
-      .trim()
-      .split('|')
-      .filter(cell => cell.trim() !== '')
-      .map(cell => cell.trim())
-  );
-  
+// Simple inline code component
+const InlineCode = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="overflow-x-auto my-2">
-      <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-700">
-        <thead className="bg-gray-100 dark:bg-gray-800">
-          <tr>
-            {headerCells.map((cell, index) => (
-              <th key={index} className="border border-gray-300 dark:border-gray-700 px-4 py-2 text-left font-semibold">
-                {processMarkdownInCell(cell)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {dataRows.map((row, rowIndex) => (
-            <tr key={rowIndex}>
-              {row.map((cell, cellIndex) => (
-                <td key={cellIndex} className="border border-gray-300 dark:border-gray-700 px-4 py-2">
-                  {processMarkdownInCell(cell)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <code className="bg-gray-100 dark:bg-gray-800 rounded px-1.5 py-0.5 text-gray-800 dark:text-gray-200 text-sm font-mono break-words">
+      {children}
+    </code>
   );
 };
 
-interface MessageContentProps {
-  content: string;
-  role: string;
-}
-
-// Types for React-Markdown components
-interface CodeProps {
-  inline?: boolean;
-  className?: string;
-  children?: React.ReactNode;
-  [key: string]: unknown;
-}
-
-// Memoized code component to prevent re-renders
-const CodeBlock = React.memo(({ inline, className, children, ...props }: CodeProps) => {
-  const match = /language-(\w+)/.exec(className || '');
+// Code block component with highlight.js and copy button
+const CodeBlock = ({ className, children }: { className?: string; children: React.ReactNode }) => {
   const [copied, setCopied] = useState(false);
-  const code = String(children).replace(/\n$/, '');
+  const [highlighted, setHighlighted] = useState<string | null>(null);
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  
+  // Parse language from className
+  const match = /language-(\w+)/.exec(className || '');
+  const language = match ? match[1] : '';
+  const title = language ? language.charAt(0).toUpperCase() + language.slice(1) : 'Code';
+  
+  const code = String(children).trim();
+  
+  // Highlight code when language or code changes
+  useEffect(() => {
+    if (!language || !code) {
+      setHighlighted(code);
+      return;
+    }
 
+    try {
+      // Try to highlight with the specified language
+      const result = hljs.highlight(code, { language, ignoreIllegals: true });
+      setHighlighted(result.value);
+    } catch (error) {
+      // Fallback to auto-detection if specified language fails
+      try {
+        const result = hljs.highlightAuto(code);
+        setHighlighted(result.value);
+      } catch {
+        // If all fails, just use the plain code
+        setHighlighted(code);
+      }
+    }
+  }, [language, code, theme]); // Add theme as dependency to re-highlight on theme change
+  
   const copyToClipboard = () => {
     navigator.clipboard.writeText(code).then(
       () => {
@@ -205,106 +107,299 @@ const CodeBlock = React.memo(({ inline, className, children, ...props }: CodePro
     );
   };
   
-  const language = match ? match[1] : '';
-  const title = language ? language.charAt(0).toUpperCase() + language.slice(1) : 'Code';
-
-  return !inline && match ? (
-    <div className="overflow-hidden border border-gray-300 dark:border-[#333] mb-4 bg-gray-100 dark:bg-[#1E1E1E]">
-      <div className="flex items-center justify-between px-4 py-2 bg-gray-200 dark:bg-[#2D2D2D] border-b border-gray-300 dark:border-[#333]">
+  // For inline code (no language)
+  if (!language) {
+    return <InlineCode>{children}</InlineCode>;
+  }
+  
+  // For code blocks with language
+  return (
+    <div className={`overflow-hidden border border-gray-200 dark:border-gray-700 rounded-md mb-5 ${isDark ? 'github-dark' : 'github'} shadow-sm`}>
+      {/* Header with language and copy button */}
+      <div className="flex items-center justify-between px-4 py-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-600 dark:text-[#AAAAAA]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-600 dark:text-gray-300">
             <path d="M8 3H7C5.89543 3 5 3.89543 5 5V7M8 3H16M8 3V2M16 3H17C18.1046 3 19 3.89543 19 5V7M16 3V2M19 7V15M19 7H20M5 7V15M5 7H4M19 15V17C19 18.1046 18.1046 19 17 19H16M19 15H20M5 15V17C5 18.1046 5.89543 19 7 19H8M5 15H4M8 19H16M8 19V20M16 19V20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
-          <span className="text-sm font-medium text-gray-700 dark:text-[#AAAAAA]">{title} Implementation</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{title}</span>
         </div>
-        <div className="flex items-center">
-          <button
-            onClick={copyToClipboard}
-            className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 dark:text-[#AAAAAA] dark:hover:text-white transition-colors"
-            title="Copy code"
-          >
-            {copied ? (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                <span>Done</span>
-              </>
-            ) : (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-                <span>Copy</span>
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          onClick={copyToClipboard}
+          className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors"
+          title="Copy code"
+        >
+          {copied ? (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <span>Copied!</span>
+            </>
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span>Copy</span>
+            </>
+          )}
+        </button>
       </div>
-      <div className="flex text-sm">
-        <div className="py-4 pl-4 pr-2 text-right select-none bg-gray-200 dark:bg-[#252525] text-gray-500 dark:text-[#666] border-r border-gray-300 dark:border-[#333] min-w-[48px]">
-          {code.split('\n').map((_, i) => (
-            <div key={i} className="leading-relaxed">
-              {i + 1}
-            </div>
-          ))}
-        </div>
-        <div className="p-4 overflow-auto w-full bg-gray-100 dark:bg-[#131313]">
-          <SyntaxHighlighter
-            style={isDark ? atomDark : oneLight}
-            language={match[1]}
-            PreTag="div"
-            showLineNumbers={false}
-            customStyle={{
-              margin: 0,
-              padding: 0,
-              background: 'transparent',
-              fontSize: '14px',
-              lineHeight: '1.5',
-            }}
-            codeTagProps={{
-              style: {
-                fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
-              }
-            }}
-            {...props}
-          >
-            {code}
-          </SyntaxHighlighter>
-        </div>
+      
+      {/* Code content with highlighting */}
+      <div className={`overflow-auto p-4 font-mono text-sm ${isDark ? 'bg-[#0d1117]' : 'bg-[#f6f8fa]'} whitespace-pre`}>
+        {highlighted ? (
+          <pre className="hljs m-0 p-0 bg-transparent">
+            <code 
+              dangerouslySetInnerHTML={{ __html: highlighted }} 
+              className={`language-${language} hljs`}
+            />
+          </pre>
+        ) : (
+          <pre className="hljs m-0 p-0 bg-transparent">
+            <code className={`language-${language} hljs`}>{code}</code>
+          </pre>
+        )}
       </div>
     </div>
-  ) : (
-    <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 text-gray-800 dark:text-gray-200 text-sm font-mono" {...props}>
-      {children}
-    </code>
   );
-});
+};
 
-// Add display name
-CodeBlock.displayName = 'CodeBlock';
+// Custom task list item component for rendering checkboxes in markdown
+const TaskListItem = ({ checked, children }: { checked?: boolean; children: React.ReactNode }) => {
+  return (
+    <li className="flex items-start gap-2 mb-3">
+      <div className="flex-shrink-0 mt-1">
+        <div className={`w-4 h-4 border rounded ${checked 
+          ? 'bg-blue-500 border-blue-500 flex items-center justify-center' 
+          : 'border-gray-300 dark:border-gray-600'}`}>
+          {checked && (
+            <svg className="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          )}
+        </div>
+      </div>
+      <div className="flex-1">{children}</div>
+    </li>
+  );
+};
+
+// Create a custom processor for the markdown content
+export const processMarkdown = (content: string): string => {
+  // Process task lists
+  let processed = content.replace(/^(\s*)-\s*\[([ xX])\]\s*(.*?)$/gm, (_, indent, check, text) => {
+    const isChecked = check.toLowerCase() === 'x';
+    return `${indent}- [task:${isChecked ? 'checked' : 'unchecked'}] ${text}`;
+  });
+  
+  return processed;
+};
+
+// Define a wrapper for code blocks so they render properly
+const PreBlock = ({ children, ...props }: any) => {
+  // Check if children is a valid React element
+  if (React.isValidElement(children)) {
+    // Type assertion for the element
+    const codeElement = children as React.ReactElement;
+    
+    // Check if it's a code element with a className
+    if (codeElement.type === 'code' && 
+        codeElement.props && 
+        typeof codeElement.props.className === 'string' && 
+        codeElement.props.className.startsWith('language-')) {
+      
+      // Return our custom code block component with the props
+      return <CodeBlock className={codeElement.props.className}>{codeElement.props.children}</CodeBlock>;
+    }
+  }
+  
+  // Otherwise, render as a regular pre element
+  return (
+    <pre className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md mb-6 overflow-x-auto whitespace-pre-wrap" {...props}>
+      {children}
+    </pre>
+  );
+};
+
+// Custom list item component that can render both regular list items and task list items
+const ListItem = ({ children, ...props }: any) => {
+  // Check if this is a task list item
+  if (children && typeof children[0] === 'string') {
+    const match = children[0].match(/^\[task:(checked|unchecked)\]\s(.*)/);
+    if (match) {
+      const isChecked = match[1] === 'checked';
+      // Replace the task marker with the actual text
+      const actualText = match[2];
+      const otherChildren = children.slice(1);
+      
+      return (
+        <TaskListItem checked={isChecked}>
+          {actualText}
+          {otherChildren}
+        </TaskListItem>
+      );
+    }
+  }
+  
+  // Regular list item
+  return (
+    <li className="mb-3" {...props}>
+      {children}
+    </li>
+  );
+};
+
+// Define markdown rendering options with custom components
+export const markdownOptions = {
+  forceBlock: true,
+  disableParsingRawHTML: false,
+  overrides: {
+    code: {
+      component: CodeBlock
+    },
+    pre: {
+      component: PreBlock
+    },
+    a: {
+      component: ({ children, ...props }: any) => (
+        <a 
+          {...props} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          {children}
+        </a>
+      )
+    },
+    table: {
+      component: ({ children, ...props }: any) => (
+        <div className="overflow-x-auto my-6 border border-gray-200 dark:border-gray-700 rounded-md shadow-sm">
+          <table className="min-w-full border-collapse bg-white dark:bg-gray-800 table-fixed" {...props}>
+            {children}
+          </table>
+        </div>
+      )
+    },
+    thead: {
+      component: ({ children, ...props }: any) => (
+        <thead className="bg-gray-50 dark:bg-gray-800" {...props}>
+          {children}
+        </thead>
+      )
+    },
+    th: {
+      component: ({ children, ...props }: any) => (
+        <th className="border-b border-gray-200 dark:border-gray-700 px-4 py-2 text-left font-semibold bg-gray-50 dark:bg-gray-700" {...props}>
+          {children}
+        </th>
+      )
+    },
+    td: {
+      component: ({ children, ...props }: any) => (
+        <td className="border-b border-gray-200 dark:border-gray-700 px-4 py-2" {...props}>
+          {children}
+        </td>
+      )
+    },
+    ul: {
+      component: ({ children, ...props }: any) => (
+        <ul className="list-disc pl-6 mb-6 space-y-2" {...props}>
+          {children}
+        </ul>
+      )
+    },
+    ol: {
+      component: ({ children, ...props }: any) => (
+        <ol className="list-decimal pl-6 mb-6 space-y-2" {...props}>
+          {children}
+        </ol>
+      )
+    },
+    li: {
+      component: ListItem
+    },
+    blockquote: {
+      component: ({ children, ...props }: any) => (
+        <blockquote className="border-l-4 border-gray-200 dark:border-gray-700 pl-4 italic my-6 text-gray-700 dark:text-gray-300" {...props}>
+          {children}
+        </blockquote>
+      )
+    },
+    h1: {
+      component: ({ children, ...props }: any) => (
+        <h1 className="text-2xl font-bold mt-8 mb-4" {...props}>
+          {children}
+        </h1>
+      )
+    },
+    h2: {
+      component: ({ children, ...props }: any) => (
+        <h2 className="text-xl font-bold mt-7 mb-3" {...props}>
+          {children}
+        </h2>
+      )
+    },
+    h3: {
+      component: ({ children, ...props }: any) => (
+        <h3 className="text-lg font-bold mt-6 mb-3" {...props}>
+          {children}
+        </h3>
+      )
+    },
+    h4: {
+      component: ({ children, ...props }: any) => (
+        <h4 className="text-base font-bold mt-5 mb-2" {...props}>
+          {children}
+        </h4>
+      )
+    },
+    h5: {
+      component: ({ children, ...props }: any) => (
+        <h5 className="text-sm font-bold mt-4 mb-2" {...props}>
+          {children}
+        </h5>
+      )
+    },
+    h6: {
+      component: ({ children, ...props }: any) => (
+        <h6 className="text-xs font-bold mt-3 mb-2" {...props}>
+          {children}
+        </h6>
+      )
+    },
+    p: {
+      component: ({ children, ...props }: any) => (
+        <p className="mb-6 leading-relaxed" {...props}>
+          {children}
+        </p>
+      )
+    },
+    hr: {
+      component: ({ ...props }: any) => (
+        <hr className="my-6 border-t border-gray-200 dark:border-gray-700" {...props} />
+      )
+    },
+    img: {
+      component: ({ src, alt, ...props }: any) => (
+        <img 
+          src={src} 
+          alt={alt || ''} 
+          className="max-w-full h-auto my-5 rounded-md shadow-sm"
+          {...props}
+        />
+      )
+    }
+  }
+};
 
 export default function MessageContent({ content, role }: MessageContentProps) {
   const { thinking, visible } = parseMessageContent(content || '');
   const [copied, setCopied] = useState(false);
-  
-  // Process content into segments
-  const contentSegments = useMemo(() => 
-    splitContentByTables(visible), 
-  [visible]);
-  
-  // Check if this is an AI response with actual content to copy
-  const isAIResponse = role === 'assistant';
-  const hasContent = visible && visible.length > 0;
-  const showCopyButton = isAIResponse && hasContent;
-  
-  // Check if this is an error message - with null check
-  const isErrorMessage = content ? (
-    content.includes('Sorry, there was an error') || 
-    content.includes('error processing your request')
-  ) : false;
 
+  // Function to copy text to clipboard
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(
       () => {
@@ -316,16 +411,9 @@ export default function MessageContent({ content, role }: MessageContentProps) {
       }
     );
   };
-  
-  // Memoize the markdown components
-  const markdownComponents = useMemo(() => ({
-    code: CodeBlock as any,
-    pre: ({ children, ...props }: any) => (
-      <pre className="!bg-transparent !border-0 !p-0 !m-0" {...props}>
-        {children}
-      </pre>
-    )
-  }), []);
+
+  // Process the markdown content for task lists
+  const processedContent = processMarkdown(visible);
 
   return (
     <div className="relative">
@@ -344,28 +432,14 @@ export default function MessageContent({ content, role }: MessageContentProps) {
         </div>
       )}
       
-      {contentSegments.length > 0 && (
-        <div className="prose prose-base max-w-none dark:prose-invert [&_.markdown-body]:!bg-transparent [&_pre]:!bg-transparent [&_pre]:!p-0 [&_pre]:!m-0 [&_pre]:!border-0">
-          {contentSegments.map((segment, index) => (
-            <React.Fragment key={index}>
-              {segment.type === 'text' ? (
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkMath]}
-                  rehypePlugins={[rehypeRaw, rehypeSanitize, rehypeKatex]}
-                  components={markdownComponents}
-                >
-                  {segment.content}
-                </ReactMarkdown>
-              ) : (
-                convertMarkdownTableToHTML(segment.content)
-              )}
-            </React.Fragment>
-          ))}
+      {visible && (
+        <div className="markdown-content prose prose-base max-w-none dark:prose-invert overflow-hidden">
+          <Markdown options={markdownOptions}>{processedContent}</Markdown>
         </div>
       )}
       
-      {/* Copy button below content - only shown for AI responses with content */}
-      {showCopyButton && !isErrorMessage && (
+      {/* Copy button at bottom - restored as requested */}
+      {role === 'assistant' && visible && (
         <div className="flex justify-end mt-4">
           <button
             onClick={() => copyToClipboard(visible)}
