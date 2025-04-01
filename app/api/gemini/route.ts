@@ -16,23 +16,6 @@ const handleWarmup = () => {
   );
 };
 
-/**
- * Map model IDs to Google API model names
- * Current model list as of August 2024:
- * - gemini-1.0-pro
- * - gemini-1.0-pro-vision
- * - gemini-1.5-flash
- * - gemini-1.5-pro
- * - gemini-1.5-flash-exp-0827
- * - gemini-1.5-pro-exp-0827
- * - gemini-1.5-flash-8b-exp-0827
- * 
- * Note: The Gemma models are not directly available via the Gemini API.
- * They require the VertexAI API or using them through a provider like Groq.
- * 
- * For experimental models, keep checking Google's documentation as they may be updated frequently.
- * Check https://ai.google.dev/gemini-api/docs/models/gemini for the latest models.
- */
 const MODEL_MAPPING: Record<string, string> = {
   'gemini-2.5-pro-exp-03-25': 'gemini-2.5-pro-exp-03-25', // Direct mapping to call the 2.5 model
   'gemini-2.0-pro-exp-02-05': 'gemini-2.0-pro-exp-02-05', // Direct mapping to call the 2.0 model

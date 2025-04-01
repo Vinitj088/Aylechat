@@ -43,10 +43,7 @@ export async function prefetchApiData() {
       cache: 'no-store' as RequestCache // Ensure fresh data with correct type
     };
     
-    // Fetch models list if available
-    // fetch('/api/models', options).catch(() => {});
     
-    // Add more prefetch calls as needed for other API endpoints
     // that are commonly accessed and might benefit from caching
   } catch (error) {
     // Silently ignore prefetch errors
