@@ -361,7 +361,7 @@ p, span, div, li, button, input, textarea {
 
 .markdown-content code {
   font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
-  font-size: 0.9em;
+  font-size: 1.1em;
   padding: 0.2em 0.4em;
   border-radius: 3px;
   background-color: var(--secondary-darker);
