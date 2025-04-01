@@ -45,10 +45,13 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   // When sidebar opens, check if we should refresh based on the last update time
   useEffect(() => {
     if (isOpen && isAuthenticated && user) {
-      // Try to fetch threads when sidebar opens, the context will handle caching
-      fetchThreads(false);
+      // Only fetch if we don't have any threads or if the last update was more than 5 minutes ago
+      const now = Date.now();
+      if (threads.length === 0 || (now - lastUpdated > 5 * 60 * 1000)) {
+        fetchThreads(false);
+      }
     }
-  }, [isOpen, isAuthenticated, user, fetchThreads]);
+  }, [isOpen, isAuthenticated, user, fetchThreads, threads.length, lastUpdated]);
 
   const handleThreadClick = (threadId: string) => {
     router.push(`/chat/${threadId}`);

@@ -75,6 +75,12 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         return;
       }
 
+      // Don't fetch if we already have the thread data
+      if (thread && thread.id === threadId) {
+        setIsThreadLoading(false);
+        return;
+      }
+
       try {
         setIsThreadLoading(true);
         // Add a timestamp to prevent caching
@@ -129,7 +135,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     if (threadId) {
       fetchThread();
     }
-  }, [threadId, isAuthenticated, user, router]);
+  }, [threadId, isAuthenticated, user]);
 
   // Add global keyboard shortcut for focusing the chat input
   useEffect(() => {
