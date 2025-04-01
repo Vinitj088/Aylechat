@@ -1,9 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import Markdown from 'markdown-to-jsx';
-// Import Starry Night
-import { common, createStarryNight } from '@wooorm/starry-night';
-import { toHtml } from 'hast-util-to-html';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/github.css'; // Import default style
+import '@/app/styles/highlight.css'; // Import our custom styles
+
+// Initialize highlight.js - not needed as we're using the full build
+// but added for clarity
+hljs.configure({
+  ignoreUnescapedHTML: true
+});
 
 type ParsedContent = {
   thinking: string;
@@ -56,128 +62,34 @@ const InlineCode = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-// Map of language aliases to standard names
-const languageMap: Record<string, string> = {
-  js: 'javascript',
-  ts: 'typescript',
-  py: 'python',
-  sh: 'bash',
-  yml: 'yaml',
-  html: 'html',
-  xml: 'xml',
-  svg: 'xml',
-  rb: 'ruby',
-  rs: 'rust',
-  cs: 'csharp',
-  cpp: 'cpp',
-  c: 'c',
-  go: 'go',
-  java: 'java',
-  php: 'php',
-  json: 'json',
-  md: 'markdown',
-  sql: 'sql',
-  txt: 'plaintext'
-};
-
-// Initialize Starry Night once
-let starryNightInstance: any = null;
-let starryNightPromise: Promise<any> | null = null;
-
-// Initialize the starry night instance
-const getStarryNight = async () => {
-  if (starryNightInstance) return starryNightInstance;
-  
-  if (!starryNightPromise) {
-    console.log('Creating new Starry Night instance with common languages');
-    starryNightPromise = createStarryNight(common);
-  }
-  
-  starryNightInstance = await starryNightPromise;
-  console.log('Starry Night instance ready:', starryNightInstance);
-  return starryNightInstance;
-};
-
-// Code block component with Starry Night and copy button
+// Code block component with highlight.js and copy button
 const CodeBlock = ({ className, children }: { className?: string; children: React.ReactNode }) => {
   const [copied, setCopied] = useState(false);
   const [highlighted, setHighlighted] = useState('');
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   
-  // Parse language from className - but always use cpp highlighting
-  const match = /language-(\w+)/.exec(className || '');
-  let language = match ? match[1] : '';
-  const displayLanguage = language || 'Code'; // For display purposes only
-  
-  const title = displayLanguage ? displayLanguage.charAt(0).toUpperCase() + displayLanguage.slice(1) : 'Code';
   const code = String(children).trim();
   
-  // Highlight code using Starry Night with C++ highlighting for all languages
+  // Use highlight.js to highlight the code
   useEffect(() => {
     if (!code) return;
-
-    const highlightCode = async () => {
-      try {
-        console.log(`Highlighting all code as C++ (cpp), theme: ${theme}`);
-        const starryNight = await getStarryNight();
-        
-        // Always use C++ scope for highlighting
-        let scope = '';
-        try {
-          scope = starryNight.flagToScope('cpp');
-          console.log(`Using C++ scope for all code: ${scope}`);
-        } catch (error) {
-          console.log('Error with C++ scope, using plaintext');
-          scope = 'source.plaintext';
-        }
-        
-        // Highlight the code
-        if (scope) {
-          console.log(`Highlighting with C++ scope: ${scope}`);
-          
-          // Handle plaintext separately for empty code blocks
-          if (!code.trim()) {
-            console.log('Empty code, using plaintext formatting');
-            setHighlighted('');
-          } else {
-            const tree = starryNight.highlight(code, scope);
-            console.log('Highlight tree created');
-            const html = toHtml(tree);
-            console.log('HTML generated, length:', html.length);
-            
-            // Replace scope-source class with hljs class for consistent styling
-            const processedHtml = html.replace(/class="([^"]*?)"/g, (match, classNames) => {
-              const cssClass = classNames.includes('source') ? 'hljs ' + classNames : classNames;
-              return `class="${cssClass}"`;
-            });
-            
-            setHighlighted(processedHtml);
-          }
-        } else {
-          // Fallback to plain text
-          console.log('No scope available, using plain text');
-          const escapedCode = code
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-          
-          setHighlighted(`<span class="source plaintext">${escapedCode}</span>`);
-        }
-      } catch (error) {
-        console.error('Error highlighting code:', error);
-        // Even if there's an error, still display the code
-        const escapedCode = code
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;');
-        
-        setHighlighted(`<span class="source plaintext">${escapedCode}</span>`);
-      }
-    };
     
-    highlightCode();
-  }, [code, theme]);
+    try {
+      // Let highlight.js auto-detect the language
+      const result = hljs.highlightAuto(code);
+      console.log('Highlighted with language:', result.language);
+      setHighlighted(result.value);
+    } catch (error) {
+      console.error('Error highlighting code:', error);
+      // Escape HTML and set as plain text
+      const escapedCode = code
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      setHighlighted(escapedCode);
+    }
+  }, [code]);
   
   const copyToClipboard = () => {
     navigator.clipboard.writeText(code).then(
@@ -196,16 +108,16 @@ const CodeBlock = ({ className, children }: { className?: string; children: Reac
     return <InlineCode>{children}</InlineCode>;
   }
   
-  // For code blocks with language
+  // For code blocks
   return (
     <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-md mb-5 shadow-sm">
-      {/* Header with language and copy button */}
+      {/* Header with copy button */}
       <div className="flex items-center justify-between px-4 py-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-600 dark:text-gray-300">
             <path d="M8 3H7C5.89543 3 5 3.89543 5 5V7M8 3H16M8 3V2M16 3H17C18.1046 3 19 3.89543 19 5V7M16 3V2M19 7V15M19 7H20M5 7V15M5 7H4M19 15V17C19 18.1046 18.1046 19 17 19H16M19 15H20M5 15V17C5 18.1046 5.89543 19 7 19H8M5 15H4M8 19H16M8 19V20M16 19V20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{title}</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Code</span>
         </div>
         <button
           onClick={copyToClipboard}
@@ -232,20 +144,17 @@ const CodeBlock = ({ className, children }: { className?: string; children: Reac
       </div>
       
       {/* Code content with highlighting */}
-      <div 
-        
-        className="overflow-auto p-4 font-mono text-sm"
-      >
+      <div className={`overflow-auto p-1 text-sm code-block`}>
         {highlighted ? (
           <pre className="m-0 p-0">
             <code 
               dangerouslySetInnerHTML={{ __html: highlighted }} 
-              className={`language-${language} hljs`}
+              className={`hljs ${isDark ? 'dark' : ''}`}
             />
           </pre>
         ) : (
           <pre className="m-0 p-0">
-            <code className={`language-${language}`}>{code}</code>
+            <code className={isDark ? 'dark' : ''}>{code}</code>
           </pre>
         )}
       </div>
@@ -281,26 +190,19 @@ export const processMarkdown = (content: string): string => {
     return `${indent}- [task:${isChecked ? 'checked' : 'unchecked'}] ${text}`;
   });
   
-  // We don't need to detect languages anymore - all code will use cpp highlighting
-  
   return processed;
 };
 
 // Define a wrapper for code blocks so they render properly
-const PreBlock = ({ children, ...props }: any) => {
-  // Check if children is a valid React element
-  if (React.isValidElement(children)) {
-    // Type assertion for the element
-    const codeElement = children as React.ReactElement;
-    
-    // Check if it's a code element with a className
-    if (codeElement.type === 'code') {
-      // Always use cpp highlighting regardless of the language specified
-      return <CodeBlock className="language-cpp">{codeElement.props.children}</CodeBlock>;
-    }
+const PreBlock = ({ children, ...props }: { children: React.ReactNode; [key: string]: any }) => {
+  if (
+    React.isValidElement(children) && 
+    typeof children.type === 'string' && 
+    children.type === 'code'
+  ) {
+    return <CodeBlock>{(children.props as { children: React.ReactNode }).children}</CodeBlock>;
   }
   
-  // Otherwise, render as a regular pre element
   return (
     <pre className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md mb-6 overflow-x-auto whitespace-pre-wrap" {...props}>
       {children}
