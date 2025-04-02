@@ -8,14 +8,22 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ChatThread } from '@/lib/redis';
+import React from 'react';
 
-export default function SharedThreadPage({ params }: { params: { shareId: string } }) {
+// Use the same pattern as in app/chat/[threadId]/page.tsx
+interface SharedPageParams {
+  params: {
+    shareId: string
+  }
+}
+
+export default function SharedThreadPage({ params }: { params: Promise<{ shareId: string }> }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [thread, setThread] = useState<ChatThread | null>(null);
   const router = useRouter();
-  const { shareId } = params;
+  const shareId = React.use(params).shareId;
 
   useEffect(() => {
     async function fetchSharedThread() {
