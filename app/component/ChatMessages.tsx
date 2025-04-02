@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState, memo, useCallback } from 'react';
 import { Message, Model } from "../types";
 import MessageContent from './MessageContent';
 import Citation from './Citation';
+import ShareButton from './ShareButton';
+import { useParams } from 'next/navigation';
 
 interface ChatMessagesProps {
   messages: Message[];
@@ -12,7 +14,7 @@ interface ChatMessagesProps {
 }
 
 // Memoized message component to prevent unnecessary re-renders
-const ChatMessage = memo(({ message, isUser }: { message: Message, isUser: boolean }) => (
+const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isUser: boolean, threadId?: string }) => (
   <div className="w-full">
     <div
       className={`flex ${
@@ -31,6 +33,11 @@ const ChatMessage = memo(({ message, isUser }: { message: Message, isUser: boole
         </div>
         {message.citations && message.citations.length > 0 && (
           <Citation citations={message.citations} />
+        )}
+        {!isUser && threadId && message.content && message.content.length > 0 && (
+          <div className="mt-2 flex justify-end border-t pt-2 border-gray-100 dark:border-gray-700">
+            <ShareButton threadId={threadId} />
+          </div>
         )}
       </div>
     </div>
@@ -64,6 +71,8 @@ const ChatMessages = memo(function ChatMessages({
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messageCount, setMessageCount] = useState(0);
+  const params = useParams();
+  const threadId = params?.threadId as string;
   
   // Track message count to only scroll when new messages are added
   useEffect(() => {
@@ -95,9 +104,10 @@ const ChatMessages = memo(function ChatMessages({
         key={message.id} 
         message={message} 
         isUser={message.role === 'user'} 
+        threadId={threadId}
       />
     );
-  }, []);
+  }, [threadId]);
 
   return (
     <div className="pt-16 pb-32 w-full overflow-x-hidden">

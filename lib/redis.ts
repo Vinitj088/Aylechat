@@ -32,6 +32,8 @@ export interface ChatThread {
   model?: string;
   createdAt: string;
   updatedAt: string;
+  isPublic?: boolean;
+  shareId?: string;
 }
 
 export class RedisService {
@@ -154,6 +156,73 @@ export class RedisService {
       return updatedThread;
     } catch (error) {
       console.error('Error updating chat thread:', error);
+      return null;
+    }
+  }
+
+  // Make a thread shareable by generating a shareId and setting isPublic to true
+  static async makeThreadShareable(userId: string, threadId: string): Promise<{ shareId: string; thread: ChatThread } | null> {
+    try {
+      const threadKey = `thread:${userId}:${threadId}`;
+      const exists = await redis.exists(threadKey);
+      if (!exists) return null;
+      
+      // Get current thread data
+      const threadData = await redis.get(threadKey);
+      if (!threadData) return null;
+      
+      // Ensure threadData is a string before parsing
+      const stringData = typeof threadData === 'string' ? threadData : JSON.stringify(threadData);
+      const thread = JSON.parse(stringData) as ChatThread;
+      
+      // If thread is already shared, just return the existing shareId and thread
+      if (thread.isPublic && thread.shareId) {
+        console.log(`Thread ${threadId} is already shared with ID: ${thread.shareId}`);
+        return { shareId: thread.shareId, thread };
+      }
+      
+      // Generate a shareId if not already present
+      const shareId = thread.shareId || crypto.randomUUID();
+      
+      // Update thread with isPublic flag and shareId
+      const updatedThread = {
+        ...thread,
+        isPublic: true,
+        shareId,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Save the updated thread
+      await redis.set(threadKey, JSON.stringify(updatedThread));
+      
+      // Store a reference to this thread in a shared threads index for quick lookup
+      await redis.set(`shared:${shareId}`, `${userId}:${threadId}`);
+      
+      return { shareId, thread: updatedThread };
+    } catch (error) {
+      console.error('Error making thread shareable:', error);
+      return null;
+    }
+  }
+
+  // Get a shared thread by its shareId (public access)
+  static async getSharedThread(shareId: string): Promise<ChatThread | null> {
+    try {
+      // Get the userId:threadId reference
+      const threadRef = await redis.get(`shared:${shareId}`);
+      if (!threadRef || typeof threadRef !== 'string') return null;
+      
+      // Split into userId and threadId
+      const [userId, threadId] = threadRef.split(':');
+      if (!userId || !threadId) return null;
+      
+      // Get the thread
+      const thread = await this.getChatThread(userId, threadId);
+      if (!thread || !thread.isPublic) return null;
+      
+      return thread;
+    } catch (error) {
+      console.error('Error getting shared thread:', error);
       return null;
     }
   }
