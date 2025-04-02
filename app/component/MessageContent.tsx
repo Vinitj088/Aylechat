@@ -424,34 +424,6 @@ export default function MessageContent({ content, role }: MessageContentProps) {
           <Markdown options={markdownOptions}>{processedContent}</Markdown>
         </div>
       )}
-      
-      {/* Copy button at bottom - restored as requested */}
-      {role === 'assistant' && visible && (
-        <div className="flex justify-end mt-4">
-          <button
-            onClick={() => copyToClipboard(visible)}
-            className="flex items-center gap-1 py-1 px-2 text-xs bg-[var(--secondary-darker)] text-[var(--text-light-default)] border border-[var(--secondary-darkest)] rounded hover:bg-[var(--secondary-dark)] transition-colors"
-            title="Copy to clipboard"
-          >
-            {copied ? (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                <span>Copied!</span>
-              </>
-            ) : (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-                <span>Copy</span>
-              </>
-            )}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
