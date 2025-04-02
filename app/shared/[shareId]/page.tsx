@@ -10,13 +10,6 @@ import { Button } from '@/components/ui/button';
 import { ChatThread } from '@/lib/redis';
 import React from 'react';
 
-// Use the same pattern as in app/chat/[threadId]/page.tsx
-interface SharedPageParams {
-  params: {
-    shareId: string
-  }
-}
-
 export default function SharedThreadPage({ params }: { params: Promise<{ shareId: string }> }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
