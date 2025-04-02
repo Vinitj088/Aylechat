@@ -4,6 +4,12 @@ export interface Message {
   content: string;
   citations?: any[];
   completed?: boolean;
+  images?: ImageData[];
+}
+
+export interface ImageData {
+  mimeType: string;
+  data: string;
 }
 
 export interface Model {
@@ -15,6 +21,7 @@ export interface Model {
   enabled: boolean;
   toolCallType: string;
   searchMode?: boolean;
+  imageGenerationMode?: boolean;
 }
 
 // Define model types

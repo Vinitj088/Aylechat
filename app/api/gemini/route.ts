@@ -21,9 +21,13 @@ const MODEL_MAPPING: Record<string, string> = {
   'gemini-2.0-pro-exp-02-05': 'gemini-2.0-pro-exp-02-05', // Direct mapping to call the 2.0 model
   'gemini-2.0-flash': 'gemini-2.0-flash', // Direct mapping for 2.0 flash model
   'gemini-2.0-flash-thinking-exp-01-21': 'gemini-2.0-flash-thinking-exp-01-21', // Direct mapping for flash thinking model
-  'gemini-1.5-pro': 'gemini-1.5-pro', // Direct mapping for stable model
-  'gemini-1.5-flash': 'gemini-1.5-flash' // Direct mapping for stable model
+  'gemini-2.0-flash-exp-image-generation': 'gemini-2.0-flash-exp-image-generation', // Image generation model
 };
+
+// Define image generation models to use special handling
+const IMAGE_GENERATION_MODELS = [
+  'gemini-2.0-flash-exp-image-generation',
+];
 
 // Get a list of currently available models
 const AVAILABLE_MODELS = Object.values(MODEL_MAPPING);
@@ -97,6 +101,11 @@ export async function POST(req: NextRequest) {
     
     // Get the actual model name from the mapping
     const actualModelName = MODEL_MAPPING[model] || model;
+    
+    // Check if this is an image generation request
+    if (IMAGE_GENERATION_MODELS.includes(actualModelName)) {
+      return handleImageGeneration(genAI, actualModelName, query, messages);
+    }
     
     // Create a model instance
     const genModel = genAI.getGenerativeModel({
@@ -244,6 +253,172 @@ export async function POST(req: NextRequest) {
     
     return new Response(
       JSON.stringify(errorResponse), 
+      { status: 500 }
+    );
+  }
+}
+
+// Handler for image generation requests
+async function handleImageGeneration(
+  genAI: any, 
+  modelName: string, 
+  prompt: string, 
+  messages: any[]
+) {
+  try {
+    console.log(`Generating image with model: ${modelName}, prompt: "${prompt.substring(0, 50)}..."`);
+    
+    // Create a model instance with response modality settings for both text and image
+    const imageModel = genAI.getGenerativeModel({
+      model: modelName,
+      safetySettings,
+      generationConfig: {
+        responseModalities: ["TEXT", "IMAGE"] // Use uppercase as per API spec
+      }
+    });
+
+    // Create formatted content from the prompt
+    // For simplicity we just use the prompt directly
+    const generationResponse = await imageModel.generateContent({
+      contents: [{ 
+        role: 'user', 
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        responseModalities: ["TEXT", "IMAGE"] // Also include in the request itself
+      }
+    });
+
+    // Process the response to extract text and images
+    const response = generationResponse.response;
+    if (!response) {
+      throw new Error("No response received from image generation model");
+    }
+
+    // Log the response structure to help debug
+    console.log('Image generation response structure:', 
+      JSON.stringify({
+        hasResponse: !!response,
+        hasCandidates: !!response.candidates,
+        candidatesCount: response.candidates?.length || 0,
+        firstCandidate: response.candidates?.[0] ? {
+          hasContent: !!response.candidates[0].content,
+          hasParts: !!response.candidates[0].content?.parts,
+          partsCount: response.candidates[0].content?.parts?.length || 0
+        } : null
+      }, null, 2)
+    );
+
+    // Format the response for the client
+    interface ImageData {
+      mimeType: string;
+      data: string;
+    }
+    
+    const formattedResponse: {
+      text: string;
+      images: ImageData[];
+    } = {
+      text: '', // Will contain text parts
+      images: [] // Will contain image parts
+    };
+
+    // Extract text and images from response
+    if (response.candidates && response.candidates.length > 0) {
+      const candidate = response.candidates[0];
+      if (candidate.content && candidate.content.parts) {
+        for (const part of candidate.content.parts) {
+          if (part.text) {
+            formattedResponse.text += part.text;
+          } else if (part.inlineData) {
+            // Ensure the image data is valid
+            try {
+              // Verify we have proper base64 data
+              if (!part.inlineData.data) {
+                console.error('Image data is missing in response part');
+                continue;
+              }
+              
+              // If data contains a data URL prefix, strip it
+              let imageData = part.inlineData.data;
+              if (imageData.startsWith('data:')) {
+                const commaIndex = imageData.indexOf(',');
+                if (commaIndex !== -1) {
+                  imageData = imageData.substring(commaIndex + 1);
+                }
+              }
+              
+              // Verify it's valid base64 by decoding a small sample
+              atob(imageData.slice(0, 10));
+              
+              // Add the valid image
+              formattedResponse.images.push({
+                mimeType: part.inlineData.mimeType || 'image/png',
+                data: imageData
+              });
+            } catch (err) {
+              console.error('Invalid image data in response:', err);
+            }
+          }
+        }
+      }
+    }
+
+    // Log image count for debugging
+    console.log(`Extracted ${formattedResponse.images.length} images and ${formattedResponse.text.length > 0 ? 'text content' : 'no text'}`);
+    
+    // If no images or text were found, provide fallback content
+    if (formattedResponse.images.length === 0 && formattedResponse.text.length === 0) {
+      formattedResponse.text = "I attempted to generate an image based on your request, but wasn't able to create one. This might be due to content safety policies or technical limitations. Please try again with a different description.";
+    }
+    
+    // Return the formatted response
+    return new Response(
+      JSON.stringify(formattedResponse),
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      }
+    );
+  } catch (error: any) {
+    console.error('Error generating image with Gemini:', error);
+    
+    // Check if it's a 404 error (model not available)
+    if (error.toString().includes('404')) {
+      return new Response(
+        JSON.stringify({
+          error: 'Model not available',
+          message: "The image generation model is currently not available or experimental. Please try a different model.",
+          text: "The image generation model is currently not available. Please try a different model.",
+          images: []
+        }),
+        { status: 404 }
+      );
+    }
+    
+    // Handle rate limiting errors
+    if (error.toString().includes('429')) {
+      return new Response(
+        JSON.stringify({
+          error: 'Rate limit exceeded',
+          message: "You've reached the rate limit for image generation. Please try again later.",
+          text: "You've reached the rate limit for image generation. Please try again later.",
+          images: []
+        }),
+        { status: 429 }
+      );
+    }
+    
+    // For other errors
+    return new Response(
+      JSON.stringify({
+        error: `Failed to generate image | ${error.message}`,
+        message: "I apologize, but I couldn't generate the requested image. This experimental feature might not be available in your region or API tier.",
+        text: "I wasn't able to generate an image due to a technical issue. Please try again with a different model or description.",
+        images: []
+      }),
       { status: 500 }
     );
   }

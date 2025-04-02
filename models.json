@@ -47,6 +47,17 @@
       "searchMode": true
     },
     {
+      "id": "gemini-2.0-flash-exp-image-generation",
+      "name": "Gemini 2.0 Flash Image Gen",
+      "provider": "Google Generative AI",
+      "providerId": "google",
+      "avatarType": "google",
+      "enabled": false,
+      "toolCallType": "native",
+      "imageGenerationMode": true,
+      "experimental": true
+    },
+    {
       "id": "gemini-2.0-flash-thinking-exp-01-21",
       "name": "Gemini 2.0 Flash Thinking (Exp)",
       "provider": "Google Generative AI",

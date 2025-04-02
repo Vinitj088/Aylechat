@@ -4,6 +4,7 @@ import Markdown from 'markdown-to-jsx';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css'; // Import default style
 import '@/app/styles/highlight.css'; // Import our custom styles
+import Image from 'next/image';
 
 // Initialize highlight.js - not needed as we're using the full build
 // but added for clarity
@@ -20,6 +21,7 @@ type ParsedContent = {
 interface MessageContentProps {
   content: string;
   role: string;
+  images?: { mimeType: string; data: string }[];
 }
 
 // Add the parseMessageContent helper function
@@ -51,6 +53,123 @@ const parseMessageContent = (content: string): ParsedContent => {
     thinking: '',
     visible: content
   };
+};
+
+// Component to display generated images
+const GeneratedImageView = ({ images }: { images: { mimeType: string; data: string }[] }) => {
+  const [imagesLoaded, setImagesLoaded] = useState<Record<number, boolean>>({});
+  const [errorStates, setErrorStates] = useState<Record<number, boolean>>({});
+  
+  useEffect(() => {
+    // Reset loading states when images change
+    if (images && images.length > 0) {
+      const newLoadedStates: Record<number, boolean> = {};
+      const newErrorStates: Record<number, boolean> = {};
+      
+      images.forEach((_, index) => {
+        newLoadedStates[index] = false;
+        newErrorStates[index] = false;
+      });
+      
+      setImagesLoaded(newLoadedStates);
+      setErrorStates(newErrorStates);
+    }
+  }, [images]);
+  
+  if (!images || images.length === 0) {
+    console.log('No images provided to GeneratedImageView');
+    return null;
+  }
+  
+  console.log(`Rendering ${images.length} generated images`);
+  
+  const handleImageLoad = (index: number) => {
+    setImagesLoaded(prev => ({
+      ...prev,
+      [index]: true
+    }));
+  };
+  
+  const handleImageError = (index: number) => {
+    console.error(`Error loading image at index ${index}`);
+    setErrorStates(prev => ({
+      ...prev,
+      [index]: true
+    }));
+  };
+  
+  return (
+    <div className="mt-4 space-y-6">
+      {images.map((image, index) => {
+        if (!image.data) {
+          return (
+            <div key={`error-${index}`} className="p-4 border border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-800 rounded-md">
+              <p className="text-red-600 dark:text-red-400 text-sm">Image data is missing</p>
+            </div>
+          );
+        }
+        
+        return (
+          <div key={`image-${index}`} className="relative rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="absolute top-2 right-2 z-10">
+              <a 
+                href={`data:${image.mimeType || 'image/png'};base64,${image.data}`}
+                download={`generated-image-${index}.png`}
+                className="bg-white dark:bg-gray-800 p-2 rounded-full shadow-md flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                title="Download image"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+              </a>
+            </div>
+            
+            <div className="flex justify-center items-center pt-6 pb-8 px-4">
+              {/* Loading indicator */}
+              {!imagesLoaded[index] && !errorStates[index] && (
+                <div className="h-[300px] w-full max-w-[500px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-md">
+                  <div className="animate-pulse flex flex-col items-center">
+                    <svg className="w-10 h-10 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="mt-2 text-sm text-gray-500">Loading image...</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Error state */}
+              {errorStates[index] && (
+                <div className="h-[200px] w-full max-w-[500px] flex items-center justify-center bg-red-50 dark:bg-red-900/20 rounded-md border border-red-200 dark:border-red-900">
+                  <div className="flex flex-col items-center text-center p-4">
+                    <svg className="w-10 h-10 text-red-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <p className="mt-2 text-sm text-red-600 dark:text-red-400">Failed to load image</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Actual image element - hidden when loading or error */}
+              <div className={`max-w-full relative ${(!imagesLoaded[index] || errorStates[index]) ? 'hidden' : ''}`}>
+                <img 
+                  src={`data:${image.mimeType || 'image/png'};base64,${image.data}`}
+                  alt="AI Generated Image"
+                  className="max-h-[600px] max-w-full object-contain rounded-md"
+                  onLoad={() => handleImageLoad(index)}
+                  onError={() => handleImageError(index)}
+                />
+                <div className="absolute bottom-2 right-2 text-xs text-white bg-black bg-opacity-50 px-2 py-1 rounded">
+                  Generated by Gemini
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
 // Simple inline code component
@@ -382,7 +501,7 @@ export const markdownOptions = {
   }
 };
 
-export default function MessageContent({ content, role }: MessageContentProps) {
+export default function MessageContent({ content, role, images }: MessageContentProps) {
   const { thinking, visible } = parseMessageContent(content || '');
   const [copied, setCopied] = useState(false);
 
@@ -423,6 +542,10 @@ export default function MessageContent({ content, role }: MessageContentProps) {
         <div className="markdown-content prose prose-base max-w-none dark:prose-invert overflow-hidden">
           <Markdown options={markdownOptions}>{processedContent}</Markdown>
         </div>
+      )}
+
+      {images && (
+        <GeneratedImageView images={images} />
       )}
     </div>
   );

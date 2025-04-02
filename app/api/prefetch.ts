@@ -5,10 +5,6 @@
  * for faster subsequent requests by loading needed code ahead of time.
  */
 
-import { fetchResponse } from './apiService';
-
-const PREFETCH_MODELS = ['gemini-2.0-flash', 'claude-3-opus', 'gpt-4-turbo'];
-
 // Prefetch API modules to reduce cold start times
 export async function prefetchApiModules() {
   try {
@@ -18,7 +14,8 @@ export async function prefetchApiModules() {
       import('./groq/route'),
       import('./openrouter/route'),
       import('./gemini/route'),
-      import('./exaanswer/route')
+      import('./exaanswer/route'),
+      import('./cerebras/route')
     ]).catch(() => {
       // Silently catch errors - this is just optimization
     });
@@ -58,14 +55,15 @@ export async function prefetchAll() {
     import('./groq/route'),
     import('./openrouter/route'),
     import('./gemini/route'),
-    import('./exaanswer/route')
+    import('./exaanswer/route'),
+    import('./cerebras/route')
   ];
 
   // Prefetch models config separately
   const modelConfigPromise = import('../../models.json');
 
   // Warm up API endpoints with minimal payloads
-  const apiEndpoints = ['/api/groq', '/api/openrouter', '/api/gemini', '/api/exaanswer'];
+  const apiEndpoints = ['/api/groq', '/api/openrouter', '/api/gemini', '/api/exaanswer', '/api/cerebras'];
   
   const warmupPromises = apiEndpoints.map(endpoint => 
     fetch(endpoint, {

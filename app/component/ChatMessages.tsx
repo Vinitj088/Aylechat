@@ -52,7 +52,11 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
           }`}
         >
           <div className="whitespace-pre-wrap text-[15px]">
-            <MessageContent content={message.content} role={message.role} />
+            <MessageContent 
+              content={message.content} 
+              role={message.role} 
+              images={message.images}
+            />
           </div>
           {message.citations && message.citations.length > 0 && (
             <Citation citations={message.citations} />
