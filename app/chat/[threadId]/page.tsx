@@ -50,6 +50,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     const groqModels = modelsData.models.filter(model => model.providerId === 'groq');
     const googleModels = modelsData.models.filter(model => model.providerId === 'google');
     const openRouterModels = modelsData.models.filter(model => model.providerId === 'openrouter');
+    const cerebrasModels = modelsData.models.filter(model => model.providerId === 'cerebras');
     
     // Replace the model list instead of appending
     setModels([
@@ -64,17 +65,13 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
       },
       ...googleModels,
       ...openRouterModels,
-      ...groqModels
+      ...groqModels,
+      ...cerebrasModels
     ]);
   }, []);
 
   useEffect(() => {
     const fetchThread = async () => {
-      if (!isAuthenticated || !user) {
-        setIsThreadLoading(false);
-        return;
-      }
-
       // Don't fetch if we already have the thread data
       if (thread && thread.id === threadId) {
         setIsThreadLoading(false);
@@ -95,17 +92,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         });
 
         if (!response.ok) {
-          if (response.status === 404) {
-            // Thread not found, but don't redirect - just mark as loaded
-            setIsThreadLoading(false);
-            return;
-          } else if (response.status === 401) {
-            // Authentication issue - show auth dialog
-            toast.error('Authentication required', {
-              description: 'Please sign in to view this thread'
-            });
-            
-            setShowAuthDialog(true);
+          if (response.status === 404 || response.status === 401) {
+            // Thread not found or unauthorized - just mark as loaded
             setIsThreadLoading(false);
             return;
           }
@@ -126,7 +114,6 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         }
       } catch (error) {
         console.error('Error loading thread:', error);
-        // Don't redirect on error, just log it
       } finally {
         setIsThreadLoading(false);
       }
@@ -135,7 +122,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     if (threadId) {
       fetchThread();
     }
-  }, [threadId, isAuthenticated, user]);
+  }, [threadId, thread]);
 
   // Add global keyboard shortcut for focusing the chat input
   useEffect(() => {
@@ -177,8 +164,11 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    // Don't submit if auth dialog is open
-    if (showAuthDialog) {
+    // Block requests if user is not authenticated with just a toast
+    if (!isAuthenticated) {
+      toast.error('Please sign in to chat', {
+        description: 'You can sign in using the sidebar or homepage'
+      });
       return;
     }
 

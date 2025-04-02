@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { enhanceQuery } from '../api/apiService';
 import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
 
 interface QueryEnhancerProps {
   input: string;
@@ -11,9 +12,19 @@ interface QueryEnhancerProps {
 
 const QueryEnhancer: React.FC<QueryEnhancerProps> = ({ input, setInput, isLoading }) => {
   const [isEnhancing, setIsEnhancing] = useState(false);
+  const { user } = useAuth();
+  const isAuthenticated = !!user;
 
   const handleEnhanceQuery = async () => {
     if (!input.trim() || isLoading || isEnhancing) return;
+
+    // Block requests if user is not authenticated with just a toast
+    if (!isAuthenticated) {
+      toast.error('Please sign in to enhance queries', {
+        description: 'You can sign in using the sidebar or homepage'
+      });
+      return;
+    }
     
     try {
       setIsEnhancing(true);
