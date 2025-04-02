@@ -206,6 +206,8 @@ export const fetchResponse = async (
       apiEndpoint = getAssetPath('/api/openrouter');
     } else if (selectedModel.includes('gemini')) {
       apiEndpoint = getAssetPath('/api/gemini');
+    } else if (modelConfig?.providerId === 'cerebras') {
+      apiEndpoint = getAssetPath('/api/cerebras');
     } else {
       apiEndpoint = getAssetPath('/api/groq');
     }

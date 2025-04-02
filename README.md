@@ -61,6 +61,7 @@ Then add your API keys and service URLs to `.env.local`:
 EXA_API_KEY=your-exa-api-key
 GROQ_API_KEY=your-groq-api-key
 GOOGLE_AI_API_KEY=your-google-ai-api-key  # Required for Gemini models
+CEREBRAS_API_KEY=your-cerebras-api-key  # Required for Cerebras models
 
 # Upstash Redis
 UPSTASH_REDIS_REST_URL=your_upstash_redis_url
@@ -152,6 +153,7 @@ The application requires these environment variables:
 EXA_API_KEY=your-exa-api-key
 GROQ_API_KEY=your-groq-api-key
 GOOGLE_AI_API_KEY=your-google-ai-api-key  # Required for Gemini models
+CEREBRAS_API_KEY=your-cerebras-api-key  # Required for Cerebras models
 
 # Upstash Redis
 UPSTASH_REDIS_REST_URL=your_upstash_redis_url
@@ -177,6 +179,9 @@ Provides search capabilities with AI-powered answers. Get an API key from [Exa](
 ### OpenRouter API
 Provides access to a variety of models including Gemma 3 27B. Get an API key from [OpenRouter](https://openrouter.ai/).
 
+### Cerebras API
+High-performance inference for LLaMA 3 models. Get an API key from [Cerebras Inference](https://inference.cerebras.ai/).
+
 ## Available Models
 
 The application includes support for:
@@ -184,6 +189,7 @@ The application includes support for:
 - Google Gemini models (2.5 Pro, 2.0 Flash etc.)
 - Groq-hosted models (LLaMA 3, Mistral, etc.)
 - OpenRouter models (including Gemma 3 27B, Mistral 3.1 24B)
+- Cerebras models (LLaMA 3.1 8B, LLaMA 3.3 70B)
 - Exa Search
 
 ## Deployment

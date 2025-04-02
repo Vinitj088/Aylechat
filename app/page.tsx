@@ -144,6 +144,7 @@ function PageContent() {
     const groqModels = modelsData.models.filter(model => model.providerId === 'groq');
     const googleModels = modelsData.models.filter(model => model.providerId === 'google');
     const openRouterModels = modelsData.models.filter(model => model.providerId === 'openrouter');
+    const cerebrasModels = modelsData.models.filter(model => model.providerId === 'cerebras');
     
     // Start with just the Exa model and then add the others
     setModels([
@@ -157,8 +158,10 @@ function PageContent() {
         searchMode: true
       },
       ...googleModels,
+      ...cerebrasModels,
       ...openRouterModels,
-      ...groqModels
+      ...groqModels,
+      
     ]);
     
     // Get search params

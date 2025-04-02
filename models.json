@@ -201,6 +201,24 @@
       "enabled": true,
       "toolCallType": "native",
       "searchMode": true
+    },
+    {
+      "id": "llama3.1-8b",
+      "name": "LLaMA 3.1 8B (Cerebras)",
+      "provider": "Cerebras",
+      "providerId": "cerebras",
+      "avatarType": "meta",
+      "enabled": true,
+      "toolCallType": "manual"
+    },
+    {
+      "id": "llama-3.3-70b",
+      "name": "LLaMA 3.3 70B (Cerebras)",
+      "provider": "Cerebras",
+      "providerId": "cerebras",
+      "avatarType": "meta",
+      "enabled": true,
+      "toolCallType": "manual"
     }
   ]
 }
