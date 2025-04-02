@@ -64,9 +64,9 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         searchMode: true
       },
       ...googleModels,
+      ...cerebrasModels,
       ...openRouterModels,
       ...groqModels,
-      ...cerebrasModels
     ]);
   }, []);
 
