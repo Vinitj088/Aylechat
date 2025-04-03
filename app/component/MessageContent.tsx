@@ -21,7 +21,7 @@ type ParsedContent = {
 interface MessageContentProps {
   content: string;
   role: string;
-  images?: { mimeType: string; data: string; url?: string }[];
+  images?: { mimeType: string; data: string; url?: string | null }[];
 }
 
 // Add the parseMessageContent helper function
