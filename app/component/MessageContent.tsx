@@ -21,7 +21,7 @@ type ParsedContent = {
 interface MessageContentProps {
   content: string;
   role: string;
-  images?: { mimeType: string; data: string }[];
+  images?: { mimeType: string; data: string; url?: string }[];
 }
 
 // Add the parseMessageContent helper function
@@ -56,7 +56,7 @@ const parseMessageContent = (content: string): ParsedContent => {
 };
 
 // Component to display generated images
-const GeneratedImageView = ({ images }: { images: { mimeType: string; data: string }[] }) => {
+const GeneratedImageView = ({ images }: { images: { mimeType: string; data: string; url?: string | null }[] }) => {
   const [imagesLoaded, setImagesLoaded] = useState<Record<number, boolean>>({});
   const [errorStates, setErrorStates] = useState<Record<number, boolean>>({});
   
@@ -73,17 +73,59 @@ const GeneratedImageView = ({ images }: { images: { mimeType: string; data: stri
       
       setImagesLoaded(newLoadedStates);
       setErrorStates(newErrorStates);
+      
+      // Enhanced debug image sources
+      console.log('🔍 Image sources:', images.map((img, idx) => ({
+        index: idx,
+        hasUrl: !!img.url,
+        url: img.url ? img.url.substring(0, 50) + '...' : null,
+        hasData: !!img.data,
+        dataLength: img.data ? img.data.length : 0,
+        dataIsUrl: img.data?.startsWith('http') || false,
+        dataPrefix: img.data ? img.data.substring(0, 30) + '...' : null,
+        mimeType: img.mimeType
+      })));
+      
+      // Preload images to handle loading state properly
+      images.forEach((image, index) => {
+        if (image.url || image.data.startsWith('http')) {
+          const imgSource = image.url || image.data;
+          const img = new window.Image();
+          
+          img.onload = () => {
+            console.log(`✅ Preloaded image ${index} successfully`);
+            setImagesLoaded(prev => ({
+              ...prev,
+              [index]: true
+            }));
+          };
+          
+          img.onerror = () => {
+            console.error(`❌ Preload error for image ${index}`);
+            setErrorStates(prev => ({
+              ...prev,
+              [index]: true
+            }));
+          };
+          
+          // Start loading the image
+          img.src = imgSource;
+        }
+      });
+    } else {
+      console.log('🚫 No images array or empty images array provided to GeneratedImageView');
     }
   }, [images]);
   
   if (!images || images.length === 0) {
-    console.log('No images provided to GeneratedImageView');
+    console.log('⚠️ No images provided to GeneratedImageView, rendering null');
     return null;
   }
   
-  console.log(`Rendering ${images.length} generated images`);
+  console.log(`🖼️ Rendering ${images.length} generated images`);
   
   const handleImageLoad = (index: number) => {
+    console.log(`✅ Image ${index} loaded successfully`);
     setImagesLoaded(prev => ({
       ...prev,
       [index]: true
@@ -91,7 +133,7 @@ const GeneratedImageView = ({ images }: { images: { mimeType: string; data: stri
   };
   
   const handleImageError = (index: number) => {
-    console.error(`Error loading image at index ${index}`);
+    console.error(`❌ Error loading image at index ${index}`);
     setErrorStates(prev => ({
       ...prev,
       [index]: true
@@ -101,7 +143,8 @@ const GeneratedImageView = ({ images }: { images: { mimeType: string; data: stri
   return (
     <div className="mt-4 space-y-6">
       {images.map((image, index) => {
-        if (!image.data) {
+        if (!image.data && !image.url) {
+          console.error(`🚫 Image at index ${index} has no data and no URL`);
           return (
             <div key={`error-${index}`} className="p-4 border border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-800 rounded-md">
               <p className="text-red-600 dark:text-red-400 text-sm">Image data is missing</p>
@@ -109,11 +152,28 @@ const GeneratedImageView = ({ images }: { images: { mimeType: string; data: stri
           );
         }
         
+        // Determine image source - prefer URL over base64 for efficiency
+        const imageSource = image.url || 
+          (image.data.startsWith('http') ? image.data : 
+           `data:${image.mimeType || 'image/png'};base64,${image.data}`);
+        
+        // Log the image source being used
+        console.log(`🔗 Image ${index} source type: ${image.url ? 'URL from url field' : 
+          (image.data.startsWith('http') ? 'URL from data field' : 'base64 data')}`);
+        
+        // Determine download link - same logic as image source
+        const downloadLink = image.url || 
+          (image.data.startsWith('http') ? image.data : 
+           `data:${image.mimeType || 'image/png'};base64,${image.data}`);
+        
+        // For base64 data, don't use preloading
+        const isDirectBase64 = !image.url && !image.data.startsWith('http');
+        
         return (
           <div key={`image-${index}`} className="relative rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
             <div className="absolute top-2 right-2 z-10">
               <a 
-                href={`data:${image.mimeType || 'image/png'};base64,${image.data}`}
+                href={downloadLink}
                 download={`generated-image-${index}.png`}
                 className="bg-white dark:bg-gray-800 p-2 rounded-full shadow-md flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 title="Download image"
@@ -127,8 +187,8 @@ const GeneratedImageView = ({ images }: { images: { mimeType: string; data: stri
             </div>
             
             <div className="flex justify-center items-center pt-6 pb-8 px-4">
-              {/* Loading indicator */}
-              {!imagesLoaded[index] && !errorStates[index] && (
+              {/* Loading indicator - only show for base64 images or if URL images haven't loaded yet */}
+              {(!imagesLoaded[index] && !errorStates[index]) && (
                 <div className="h-[300px] w-full max-w-[500px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-md">
                   <div className="animate-pulse flex flex-col items-center">
                     <svg className="w-10 h-10 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -147,18 +207,30 @@ const GeneratedImageView = ({ images }: { images: { mimeType: string; data: stri
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <p className="mt-2 text-sm text-red-600 dark:text-red-400">Failed to load image</p>
+                    <p className="mt-1 text-xs text-red-500 dark:text-red-300">
+                      {image.url ? 'Error loading from URL' : 'Error loading image data'}
+                    </p>
                   </div>
                 </div>
               )}
               
-              {/* Actual image element - hidden when loading or error */}
-              <div className={`max-w-full relative ${(!imagesLoaded[index] || errorStates[index]) ? 'hidden' : ''}`}>
+              {/* Actual image element - only hidden when loading/error for base64 images. 
+                  For URL images that were preloaded, we control visibility with CSS */}
+              <div className={`max-w-full relative ${
+                (isDirectBase64 && (!imagesLoaded[index] || errorStates[index])) ? 'hidden' : 
+                (!imagesLoaded[index]) ? 'invisible' : ''
+              }`}>
                 <img 
-                  src={`data:${image.mimeType || 'image/png'};base64,${image.data}`}
+                  src={imageSource}
                   alt="AI Generated Image"
                   className="max-h-[600px] max-w-full object-contain rounded-md"
-                  onLoad={() => handleImageLoad(index)}
-                  onError={() => handleImageError(index)}
+                  onLoad={() => isDirectBase64 && handleImageLoad(index)}
+                  onError={(e) => {
+                    if (isDirectBase64) {
+                      console.error(`❌ Image load error for index ${index}:`, e);
+                      handleImageError(index);
+                    }
+                  }}
                 />
                 <div className="absolute bottom-2 right-2 text-xs text-white bg-black bg-opacity-50 px-2 py-1 rounded">
                   Generated by Gemini

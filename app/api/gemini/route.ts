@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { processImageData } from '@/lib/supabase';
 
 // Change to auto for optimization
 export const dynamic = 'auto';
@@ -313,6 +314,7 @@ async function handleImageGeneration(
     interface ImageData {
       mimeType: string;
       data: string;
+      url?: string | null;  // Change to allow null for type compatibility
     }
     
     const formattedResponse: {
@@ -324,6 +326,8 @@ async function handleImageGeneration(
     };
 
     // Extract text and images from response
+    const imagesForProcessing: ImageData[] = [];
+    
     if (response.candidates && response.candidates.length > 0) {
       const candidate = response.candidates[0];
       if (candidate.content && candidate.content.parts) {
@@ -341,21 +345,46 @@ async function handleImageGeneration(
               
               // If data contains a data URL prefix, strip it
               let imageData = part.inlineData.data;
+              console.log('Raw image data prefix:', imageData.substring(0, 50));
+              
               if (imageData.startsWith('data:')) {
+                console.log('Image data contains data URL prefix, stripping it');
                 const commaIndex = imageData.indexOf(',');
                 if (commaIndex !== -1) {
                   imageData = imageData.substring(commaIndex + 1);
                 }
               }
               
-              // Verify it's valid base64 by decoding a small sample
-              atob(imageData.slice(0, 10));
-              
-              // Add the valid image
-              formattedResponse.images.push({
-                mimeType: part.inlineData.mimeType || 'image/png',
-                data: imageData
-              });
+              // Verify it's valid base64 by attempting to decode and checking length
+              try {
+                // Check if it's a valid base64 string
+                const decodedSample = atob(imageData.slice(0, 10));
+                console.log(`Successfully decoded sample base64 (${imageData.length} chars)`);
+                
+                // Add the valid image to processing queue
+                imagesForProcessing.push({
+                  mimeType: part.inlineData.mimeType || 'image/png',
+                  data: imageData
+                });
+              } catch (decodeError) {
+                console.error('Failed to decode base64:', decodeError);
+                
+                // Try alternative encoding if standard fails
+                if (typeof Buffer !== 'undefined') {
+                  try {
+                    // Try using Buffer (for Node.js environments)
+                    const buffer = Buffer.from(imageData, 'base64');
+                    console.log('Successfully decoded with Buffer method');
+                    
+                    imagesForProcessing.push({
+                      mimeType: part.inlineData.mimeType || 'image/png',
+                      data: imageData
+                    });
+                  } catch (bufferError) {
+                    console.error('Failed to decode even with Buffer method:', bufferError);
+                  }
+                }
+              }
             } catch (err) {
               console.error('Invalid image data in response:', err);
             }
@@ -365,7 +394,30 @@ async function handleImageGeneration(
     }
 
     // Log image count for debugging
-    console.log(`Extracted ${formattedResponse.images.length} images and ${formattedResponse.text.length > 0 ? 'text content' : 'no text'}`);
+    console.log(`Extracted ${imagesForProcessing.length} images and ${formattedResponse.text.length > 0 ? 'text content' : 'no text'}`);
+    
+    if (imagesForProcessing.length === 0) {
+      console.warn('No valid images found in the Gemini response');
+    } else {
+      console.log('Images data sizes:', imagesForProcessing.map(img => img.data.length));
+    }
+    
+    // Upload images to Supabase
+    let processedImages: (ImageData | null)[] = [];
+    try {
+      console.log('Starting image processing with Supabase...');
+      const uploadPromises = imagesForProcessing.map(img => processImageData(img));
+      processedImages = await Promise.all(uploadPromises);
+      console.log('Images processing complete:', processedImages.map(img => img ? !!img.url : null));
+    } catch (error) {
+      console.error('Error during image processing:', error);
+    }
+    
+    // Add processed images to response, filtering out nulls
+    formattedResponse.images = processedImages.filter(img => img !== null) as ImageData[];
+    
+    console.log('Final images count:', formattedResponse.images.length);
+    console.log('Images have URLs:', formattedResponse.images.map(img => !!img.url));
     
     // If no images or text were found, provide fallback content
     if (formattedResponse.images.length === 0 && formattedResponse.text.length === 0) {

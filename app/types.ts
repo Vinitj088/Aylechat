@@ -9,7 +9,8 @@ export interface Message {
 
 export interface ImageData {
   mimeType: string;
-  data: string;
+  data: string;  // Base64 data for immediate display or URL for remote images
+  url?: string | null;  // URL if the image is stored in Supabase, now allows null for compatibility
 }
 
 export interface Model {

@@ -251,11 +251,25 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           data.images = []; // Ensure we have a valid array
         }
         
+        // Process images for storage - if we have URLs, we can optimize storage
+        const optimizedImages = data.images.map((img: { mimeType: string; data: string; url?: string }) => {
+          // If the image has a URL, we can store just the URL and mime type
+          if (img.url) {
+            return {
+              mimeType: img.mimeType,
+              data: img.url,  // Store the URL in the data field for backward compatibility
+              url: img.url    // Also keep the URL field
+            };
+          }
+          // Otherwise keep the original image data
+          return img;
+        });
+        
         // Update the assistant message with text and images
         const completedAssistantMessage: Message = {
           ...assistantMessage,
           content: data.text || 'Here is the generated image:',
-          images: data.images || [],
+          images: optimizedImages || [],
           completed: true
         };
         
@@ -263,7 +277,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         console.log('Adding assistant message with images:', {
           messageId: completedAssistantMessage.id,
           hasImages: !!completedAssistantMessage.images,
-          imagesCount: completedAssistantMessage.images?.length || 0
+          imagesCount: completedAssistantMessage.images?.length || 0,
+          hasUrls: completedAssistantMessage.images?.some(img => !!img.url) || false
         });
 
         // Update messages state with completed response
