@@ -319,7 +319,104 @@ function PageContent() {
         threadTitle = input.substring(0, 50) + (input.length > 50 ? '...' : '');
       }
 
-      // Fetch the response
+      // Find the selected model object to check its capabilities
+      const modelObj = models.find(m => m.id === selectedModel);
+      const isImageGenerationModel = modelObj?.imageGenerationMode === true;
+
+      if (isImageGenerationModel) {
+        // Handle image generation model
+        const response = await fetch('/api/gemini', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            query: userMessage.content,
+            model: selectedModel,
+            messages: messages // Send all previous messages for context
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Response error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Debug the response
+        console.log('Image generation client response:', {
+          hasText: !!data.text,
+          textLength: data.text?.length || 0,
+          hasImages: !!data.images,
+          imagesCount: data.images?.length || 0
+        });
+
+        // Verify images array is valid
+        if (data.images && Array.isArray(data.images)) {
+          console.log(`Received ${data.images.length} images from API`);
+        } else {
+          console.error('No valid images array in response:', data);
+          data.images = []; // Ensure we have a valid array
+        }
+        
+        // Process images for storage - if we have URLs, we can optimize storage
+        const optimizedImages = data.images.map((img: { mimeType: string; data: string; url?: string | null }) => {
+          // If the image has a URL, we can store just the URL and mime type
+          if (img.url) {
+            return {
+              mimeType: img.mimeType,
+              data: img.url,  // Store the URL in the data field for backward compatibility
+              url: img.url    // Also keep the URL field
+            };
+          }
+          // Otherwise keep the original image data
+          return img;
+        });
+        
+        // Update the assistant message with text and images
+        const completedAssistantMessage: Message = {
+          ...assistantMessage,
+          content: data.text || 'Here is the generated image:',
+          images: optimizedImages || [],
+          completed: true
+        };
+        
+        // Debug the message being added
+        console.log('Adding assistant message with images:', {
+          messageId: completedAssistantMessage.id,
+          hasImages: !!completedAssistantMessage.images,
+          imagesCount: completedAssistantMessage.images?.length || 0,
+          hasUrls: completedAssistantMessage.images?.some(img => !!img.url) || false
+        });
+        
+        // Update messages with the new assistant message containing images
+        const finalMessages = [...messages, userMessage, completedAssistantMessage];
+        setMessages(finalMessages);
+        
+        // Create or update the thread with image data
+        if (isFirstMessage) {
+          // For first message, create a new thread with image data
+          const threadId = await createOrUpdateThread({
+            messages: finalMessages,
+            title: threadTitle
+          });
+          
+          if (threadId) {
+            setCurrentThreadId(threadId);
+            // Update the URL to the new thread without forcing a reload
+            window.history.pushState({}, '', `/chat/${threadId}`);
+          }
+        }
+        
+        // Reset loading state
+        setIsLoading(false);
+        abortControllerRef.current = null;
+        return; // Exit early, we're done with image generation
+      }
+
+      // Regular text response flow - only execute this if not an image generation model
       const { content, citations } = await fetchResponse(
         input,
         messages,
