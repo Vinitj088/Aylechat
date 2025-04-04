@@ -47,8 +47,8 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
         <div
           className={`rounded-lg px-4 ${
             isUser
-              ? 'bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base message-human max-w-[75%] py-1'
-              : 'bg-white dark:bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] text-[var(--text-light-default)] text-base message-ai py-3'
+              ? 'bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base message-human max-w-[75%] py-1 w-full'
+              : 'bg-white dark:bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] text-[var(--text-light-default)] text-base message-ai py-3 w-full'
           }`}
         >
           <div className="whitespace-pre-wrap text-[15px]">
