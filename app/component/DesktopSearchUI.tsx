@@ -1,8 +1,9 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Model } from '../types';
 import Markdown from 'markdown-to-jsx';
 import ModelSelector from './ModelSelector';
 import QueryEnhancer from './QueryEnhancer';
+import { FileUp, X } from 'lucide-react';
 
 // Import markdown options from MessageContent for consistent rendering
 import { markdownOptions, processMarkdown } from './MessageContent';
@@ -46,6 +47,7 @@ interface DesktopSearchUIProps {
   isExa?: boolean;
   providerName?: string;
   messages: { id: string; role: string; content: string }[];
+  onAttachmentsChange?: (files: File[]) => void;
 }
 
 const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
@@ -59,9 +61,12 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   setInput,
   isExa,
   providerName,
-  messages
+  messages,
+  onAttachmentsChange
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -92,6 +97,19 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
       }
     }
   }, [input]);
+
+  // Add file handling functions
+  const handleFileButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setAttachments(files);
+    onAttachmentsChange?.(files);
+  };
+
+  const isGeminiModel = selectedModel.startsWith('gemini');
 
   return (
     <div className="hidden md:flex min-h-screen flex-col items-center justify-center px-4 py-8 bg-[var(--secondary-faint)] w-screen overflow-x-hidden">
@@ -200,20 +218,69 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                 <span className="text-sm text-[var(--text-light-muted)]">Enhance Query</span>
               </div>
               
-              <button
-                type="submit"
-                disabled={!input.trim() || isLoading}
-                className="bg-[var(--brand-default)] text-white px-6 py-2 rounded-md font-medium
-                disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 dark:bg-[var(--brand-dark)] dark:hover:bg-[var(--brand-muted)]"
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 4L12 12M12 12L20 4M12 12L4 20M12 12L20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                  <span>SEARCH</span>
-                </div>
-              </button>
+              <div className="flex items-center gap-2">
+                {isGeminiModel && (
+                  <button
+                    type="button"
+                    onClick={handleFileButtonClick}
+                    disabled={isLoading}
+                    className="p-2 text-[var(--text-light-muted)] hover:text-[var(--brand-default)] rounded-full hover:bg-[var(--secondary-faint)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Attach files"
+                  >
+                    <FileUp className="h-5 w-5" />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      multiple
+                    />
+                  </button>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isLoading}
+                  className="bg-[var(--brand-default)] text-white px-6 py-2 rounded-md font-medium
+                  disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 dark:bg-[var(--brand-dark)] dark:hover:bg-[var(--brand-muted)]"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 4L12 12M12 12L20 4M12 12L4 20M12 12L20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    <span>SEARCH</span>
+                  </div>
+                </button>
+              </div>
             </div>
+
+            {/* Attachments Preview */}
+            {attachments.length > 0 && (
+              <div className="px-4 py-2 border-t border-[var(--secondary-darkest)] bg-[var(--secondary-faint)]">
+                <div className="flex flex-wrap gap-2">
+                  {attachments.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 bg-white dark:bg-[var(--secondary-darker)] px-2 py-1 rounded-md text-sm"
+                    >
+                      <span className="truncate max-w-[150px]">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newAttachments = attachments.filter((_, i) => i !== index);
+                          setAttachments(newAttachments);
+                          onAttachmentsChange?.(newAttachments);
+                        }}
+                        className="text-[var(--text-light-muted)] hover:text-red-500"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </form>
         </div>
         

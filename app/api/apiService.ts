@@ -184,7 +184,8 @@ export const fetchResponse = async (
   selectedModel: string,
   abortController: AbortController,
   setMessages: MessageUpdater,
-  assistantMessage: Message
+  assistantMessage: Message,
+  attachments?: File[]
 ) => {
   // Prepare messages for conversation history, ensuring we respect context limits
   const truncatedMessages = truncateConversationHistory(messages, selectedModel);
@@ -233,7 +234,54 @@ export const fetchResponse = async (
       credentials: 'include' as RequestCredentials, // Add credentials to include cookies
     };
     
-    // Prepare request body based on the API - for Exa, include limited context for follow-up questions
+    // Process attachments if we have them
+    let processedAttachments: any[] = [];
+    if (attachments && attachments.length > 0 && selectedModel.includes('gemini')) {
+      console.log(`Processing ${attachments.length} attachments for API call`);
+      
+      // Convert files to base64 data format for API transmission
+      processedAttachments = await Promise.all(
+        attachments.map(async (file): Promise<any> => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            
+            reader.onloadend = () => {
+              try {
+                const base64data = reader.result as string;
+                if (!base64data) {
+                  reject(new Error(`Failed to read file: ${file.name}`));
+                  return;
+                }
+                
+                // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+                const base64Content = base64data.split(',')[1];
+                
+                console.log(`Successfully processed file: ${file.name} (${file.type}), size: ${(file.size / 1024).toFixed(2)}KB`);
+                
+                resolve({
+                  name: file.name,
+                  type: file.type,
+                  data: base64Content,
+                  size: file.size
+                });
+              } catch (error) {
+                console.error(`Error processing file ${file.name}:`, error);
+                reject(error);
+              }
+            };
+            
+            reader.onerror = (error) => {
+              console.error(`Error reading file ${file.name}:`, error);
+              reject(error);
+            };
+            
+            reader.readAsDataURL(file);
+          });
+        })
+      );
+    }
+    
+    // Prepare request body based on the API
     const requestBody = selectedModel === 'exa' 
       ? { 
         // For Exa, include the query and limited context for follow-up questions
@@ -244,8 +292,14 @@ export const fetchResponse = async (
         // For Groq, Gemini, and other LLMs, include the full conversation history
         query: fullQuery,
         model: selectedModel,
-        messages: truncatedMessages
+        messages: truncatedMessages,
+        ...(processedAttachments.length > 0 && { attachments: processedAttachments })
       };
+    
+    // For debugging
+    if (processedAttachments.length > 0) {
+      console.log(`Sending request with ${processedAttachments.length} attachments`);
+    }
     
     // Make the fetch request
     response = await fetch(

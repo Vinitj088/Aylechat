@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, Suspense, useCallback } from 'react';
-import { Message, Model, ModelType } from './types';
+import { Message, Model, ModelType, FileAttachment } from './types';
 import Header from './component/Header';
 import dynamic from 'next/dynamic';
 import { ChatInputHandle } from './component/ChatInput';
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { prefetchAll } from './api/prefetch';
+import { FileUp, X } from 'lucide-react';
 
 // Lazy load heavy components
 const ChatMessages = dynamic(() => import('./component/ChatMessages'), {
@@ -69,6 +70,7 @@ function PageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const chatInputRef = useRef<ChatInputHandle>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   const isAuthenticated = !!user;
 
@@ -278,8 +280,7 @@ function PageContent() {
   // The form submit handler 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() && attachments.length === 0) return;
 
     // If not authenticated, show auth dialog and keep the message in the input
     if (!isAuthenticated || !user) {
@@ -293,6 +294,58 @@ function PageContent() {
       role: 'user',
       content: input
     };
+
+    // Process attachments if any and add them to the user message
+    if (attachments.length > 0) {
+      try {
+        // Convert File objects to FileAttachment format
+        const fileAttachments: FileAttachment[] = await Promise.all(
+          attachments.map(async (file): Promise<FileAttachment> => {
+            return new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              
+              reader.onloadend = () => {
+                try {
+                  const base64data = reader.result as string;
+                  if (!base64data) {
+                    reject(new Error(`Failed to read file: ${file.name}`));
+                    return;
+                  }
+                  
+                  // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+                  const base64Content = base64data.split(',')[1];
+                  
+                  resolve({
+                    name: file.name,
+                    type: file.type,
+                    data: base64Content,
+                    size: file.size
+                  });
+                } catch (error) {
+                  console.error(`Error processing file ${file.name}:`, error);
+                  reject(error);
+                }
+              };
+              
+              reader.onerror = (error) => {
+                console.error(`Error reading file ${file.name}:`, error);
+                reject(error);
+              };
+              
+              reader.readAsDataURL(file);
+            });
+          })
+        );
+        
+        // Add attachments to the user message object for display in the UI
+        userMessage.attachments = fileAttachments;
+      } catch (error) {
+        console.error('Error processing attachments:', error);
+        toast.error('Failed to process attachments. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+    }
 
     // Create placeholder for assistant response
     const assistantMessage: Message = {
@@ -335,7 +388,8 @@ function PageContent() {
           body: JSON.stringify({
             query: userMessage.content,
             model: selectedModel,
-            messages: messages // Send all previous messages for context
+            messages: messages, // Send all previous messages for context
+            attachments: attachments
           })
         });
 
@@ -426,7 +480,8 @@ function PageContent() {
           // This callback updates messages as they stream in
           setMessages(updatedMessages);
         },
-        assistantMessage
+        assistantMessage,
+        attachments
       );
 
       // Update message with final response
@@ -508,6 +563,10 @@ function PageContent() {
       setMessages(updatedMessages);
       setIsLoading(false);
       abortControllerRef.current = null;
+    } finally {
+      setIsLoading(false);
+      // Clear attachments after submission
+      setAttachments([]);
     }
   };
   
@@ -805,6 +864,7 @@ function PageContent() {
             messages={messages}
             isExa={selectedModel.includes('exa')}
             providerName={selectedModel.includes('exa') ? 'Exa' : 'Groq'}
+            onAttachmentsChange={setAttachments}
           />
           <DesktopSearchUI 
             input={input}
@@ -818,6 +878,7 @@ function PageContent() {
             isExa={selectedModel.includes('exa')}
             providerName={selectedModel.includes('exa') ? 'Exa' : 'Groq'}
             messages={messages}
+            onAttachmentsChange={setAttachments}
           />
         </>
       ) : (
@@ -842,6 +903,7 @@ function PageContent() {
               models={models}
               isExa={isExa}
               onNewChat={handleNewChat}
+              onAttachmentsChange={setAttachments}
             />
           )}
         </>

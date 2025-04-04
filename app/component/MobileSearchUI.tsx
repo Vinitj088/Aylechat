@@ -1,8 +1,9 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Model } from '../types';
 import Markdown from 'markdown-to-jsx';
 import ModelSelector from './ModelSelector';
 import QueryEnhancer from './QueryEnhancer';
+import { FileUp, X } from 'lucide-react';
 
 // Import markdown options from MessageContent for consistent rendering
 import { markdownOptions, processMarkdown } from './MessageContent';
@@ -46,6 +47,7 @@ interface MobileSearchUIProps {
   messages: { id: string; role: string; content: string }[];
   isExa?: boolean;
   providerName?: string;
+  onAttachmentsChange?: (files: File[]) => void;
 }
 
 const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
@@ -59,9 +61,25 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
   setInput,
   messages,
   isExa = true,
-  providerName = ''
+  providerName = '',
+  onAttachmentsChange
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
+
+  // Add file handling functions
+  const handleFileButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setAttachments(files);
+    onAttachmentsChange?.(files);
+  };
+
+  const isGeminiModel = selectedModel.startsWith('gemini');
 
   // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -214,7 +232,24 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
             <div className="flex items-center justify-between px-2 py-2 border-t border-[var(--secondary-darkest)]">
               <div className="flex items-center gap-2">
                 <QueryEnhancer input={input} setInput={setInput} isLoading={isLoading} />
-                <span className="text-xs text-[var(--text-light-muted)]">Enhance</span>
+                {isGeminiModel && (
+                  <button
+                    type="button"
+                    onClick={handleFileButtonClick}
+                    disabled={isLoading}
+                    className="p-2 text-[var(--text-light-muted)] hover:text-[var(--brand-default)] rounded-full hover:bg-[var(--secondary-faint)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FileUp className="h-4 w-4" />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      multiple
+                    />
+                  </button>
+                )}
               </div>
               
               <button
@@ -231,6 +266,33 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
                 </div>
               </button>
             </div>
+
+            {/* Attachments Preview */}
+            {attachments.length > 0 && (
+              <div className="px-4 py-2 border-t border-[var(--secondary-darkest)] bg-[var(--secondary-faint)]">
+                <div className="flex flex-wrap gap-2">
+                  {attachments.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 bg-white dark:bg-[var(--secondary-darker)] px-2 py-1 rounded-md text-sm"
+                    >
+                      <span className="truncate max-w-[150px]">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newAttachments = attachments.filter((_, i) => i !== index);
+                          setAttachments(newAttachments);
+                          onAttachmentsChange?.(newAttachments);
+                        }}
+                        className="text-[var(--text-light-muted)] hover:text-red-500"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </form>
         </div>
         

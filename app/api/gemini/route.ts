@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       return handleWarmup();
     }
     
-    const { query, messages } = body;
+    const { query, messages, attachments } = body;
     model = body.model || '';  // Assign the value
     
     if (!query) {
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Log minimal information
-    console.log(`Gemini request: ${model} [${messages?.length || 0} msgs]`);
+    console.log(`Gemini request: ${model} [${messages?.length || 0} msgs] [${attachments?.length || 0} attachments]`);
     
     // Get Google API key from environment variable
     const API_KEY = process.env.GOOGLE_AI_API_KEY;
@@ -184,13 +184,90 @@ export async function POST(req: NextRequest) {
       msg && msg.parts && msg.parts.length > 0
     );
     
-    // Add the current query if not already included
+    // Add the current query if not already included in a user message
+    let userMessageAdded = false;
     if (validFormattedMessages.length === 0 || 
         validFormattedMessages[validFormattedMessages.length - 1].role !== 'user') {
-      validFormattedMessages.push({
+      // Add a new user message with the current query
+      const newUserMessage: {
+        role: string,
+        parts: Array<{text?: string, inlineData?: {data: string, mimeType: string}}> 
+      } = {
         role: 'user',
         parts: [{ text: query }]
-      });
+      };
+      
+      // Process any direct request attachments
+      if (attachments && attachments.length > 0) {
+        console.log(`Processing ${attachments.length} direct request attachments`);
+        
+        for (const attachment of attachments) {
+          // Create the appropriate part based on file type
+          if (attachment.type.startsWith('image/')) {
+            // Handle image attachment
+            newUserMessage.parts.push({
+              inlineData: {
+                data: attachment.data,
+                mimeType: attachment.type
+              }
+            });
+            console.log(`Added direct image attachment: ${attachment.name} (${attachment.type})`);
+          } else if (attachment.type === 'application/pdf') {
+            // Handle PDF attachment
+            newUserMessage.parts.push({
+              inlineData: {
+                data: attachment.data,
+                mimeType: attachment.type
+              }
+            });
+            console.log(`Added direct PDF attachment: ${attachment.name}`);
+          } else {
+            // For other file types, we'll add them as text for now
+            console.log(`Unsupported direct attachment type: ${attachment.type}, adding as text reference`);
+            newUserMessage.parts.push({ 
+              text: `[Attached file: ${attachment.name} (${attachment.type})]`
+            });
+          }
+        }
+      }
+      
+      validFormattedMessages.push(newUserMessage);
+      userMessageAdded = true;
+    } else if (attachments && attachments.length > 0) {
+      // If we already have a user message but also have direct request attachments,
+      // add them to the existing last user message
+      const lastUserMessage = validFormattedMessages[validFormattedMessages.length - 1];
+      
+      console.log(`Adding ${attachments.length} direct attachments to existing last user message`);
+      
+      for (const attachment of attachments) {
+        // Create the appropriate part based on file type
+        if (attachment.type.startsWith('image/')) {
+          // Handle image attachment
+          lastUserMessage.parts.push({
+            inlineData: {
+              data: attachment.data,
+              mimeType: attachment.type
+            }
+          });
+          console.log(`Added direct image attachment to existing message: ${attachment.name} (${attachment.type})`);
+        } else if (attachment.type === 'application/pdf') {
+          // Handle PDF attachment
+          lastUserMessage.parts.push({
+            inlineData: {
+              data: attachment.data,
+              mimeType: attachment.type
+            }
+          });
+          console.log(`Added direct PDF attachment to existing message: ${attachment.name}`);
+        } else {
+          // For other file types, we'll add them as text for now
+          console.log(`Unsupported direct attachment type: ${attachment.type}, adding as text reference`);
+          lastUserMessage.parts.push({ 
+            text: `[Attached file: ${attachment.name} (${attachment.type})]`
+          });
+        }
+      }
     }
     
     // Debug the history contents

@@ -164,7 +164,17 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
   // Modified submit handler to include attachments
   const handleSubmitWithAttachments = (e: React.FormEvent) => {
-    // Original handler will be updated in a later step to process attachments
+    e.preventDefault();
+    
+    // Extract files from attachments
+    const files = attachments.map(att => att.file);
+    
+    // Notify parent component about attachments if the callback exists
+    if (onAttachmentsChange) {
+      onAttachmentsChange(files);
+    }
+    
+    // Call the original handleSubmit, now we've passed the files to the parent
     handleSubmit(e);
     
     // Clear attachments after submit
