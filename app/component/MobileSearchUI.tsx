@@ -65,9 +65,31 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
 
   // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !isLoading && input.trim()) {
-      e.preventDefault();
-      handleSubmit(e as unknown as React.FormEvent);
+    // Check for mobile using touch events
+    // Adding navigator.maxTouchPoints > 0 for wider compatibility
+    // Added typeof window check for SSR safety
+    const isMobile = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+    // If Shift + Enter is pressed, let the default behavior (newline) happen
+    if (e.key === 'Enter' && e.shiftKey) {
+      return; // Allow newline
+    }
+
+    // If Enter is pressed (without Shift)
+    if (e.key === 'Enter' && !e.shiftKey) {
+      // If it's a mobile device, let the default behavior (newline) happen
+      if (isMobile) {
+        return; // Allow newline on mobile
+      }
+
+      // If it's NOT mobile (desktop) and conditions are met, submit the form
+      if (!isLoading && input.trim()) {
+        e.preventDefault(); // Prevent newline on desktop
+        handleSubmit(e as unknown as React.FormEvent); // Submit on desktop
+      } else {
+        // If input is empty or loading is true on desktop, prevent submission but also prevent newline
+        e.preventDefault();
+      }
     }
   };
 
