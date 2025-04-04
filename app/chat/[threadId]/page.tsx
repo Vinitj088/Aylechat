@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, Suspense } from 'react';
-import { Message, Model, ModelType } from '../../types';
+import { Message, Model, ModelType, FileAttachment } from '../../types';
 import Header from '../../component/Header';
 import ChatMessages from '../../component/ChatMessages';
 import ChatInput, { ChatInputHandle } from '../../component/ChatInput';
@@ -42,6 +42,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const router = useRouter();
   const threadId = React.use(params).threadId;
   const chatInputRef = useRef<ChatInputHandle>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   const isAuthenticated = !!user;
 
@@ -160,9 +161,9 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, files?: File[]) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && (!files || files.length === 0)) || isLoading) return;
 
     // Block requests if user is not authenticated with just a toast
     if (!isAuthenticated) {
@@ -172,12 +173,76 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
       return;
     }
 
+    // Debug log for attachments
+    if (files && files.length > 0) {
+      console.log(`Processing ${files.length} attachment(s) for message:`, 
+        files.map(file => ({
+          name: file.name,
+          type: file.type,
+          size: file.size
+        }))
+      );
+    }
+
     // Create new user message
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
       content: input.trim()
     };
+
+    // Process attachments if any
+    if (files && files.length > 0) {
+      try {
+        const fileAttachments: FileAttachment[] = await Promise.all(
+          files.map(async (file): Promise<FileAttachment> => {
+            return new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              
+              reader.onloadend = () => {
+                try {
+                  const base64data = reader.result as string;
+                  if (!base64data) {
+                    reject(new Error(`Failed to read file: ${file.name}`));
+                    return;
+                  }
+                  
+                  // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+                  const base64Content = base64data.split(',')[1];
+                  
+                  console.log(`Successfully processed file: ${file.name} (${file.type}), size: ${(file.size / 1024).toFixed(2)}KB`);
+                  
+                  resolve({
+                    name: file.name,
+                    type: file.type,
+                    data: base64Content,
+                    size: file.size
+                  });
+                } catch (error) {
+                  console.error(`Error processing file ${file.name}:`, error);
+                  reject(error);
+                }
+              };
+              
+              reader.onerror = (error) => {
+                console.error(`Error reading file ${file.name}:`, error);
+                reject(error);
+              };
+              
+              reader.readAsDataURL(file);
+            });
+          })
+        );
+        
+        // Add attachments to the message
+        userMessage.attachments = fileAttachments;
+        console.log(`Added ${fileAttachments.length} attachments to message`);
+      } catch (error) {
+        console.error('Error processing attachments:', error);
+        toast.error('Failed to process attachments. Please try again.');
+        return;
+      }
+    }
 
     // Create placeholder for assistant response
     const assistantMessage: Message = {
@@ -524,13 +589,14 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         ref={chatInputRef}
         input={input}
         handleInputChange={handleInputChange}
-        handleSubmit={handleSubmit}
+        handleSubmit={(e) => handleSubmit(e, attachments)}
         isLoading={isLoading}
         selectedModel={selectedModel}
         handleModelChange={handleModelChange}
         models={models}
-        isExa={isExa}
+        isExa={selectedModel === 'exa'}
         onNewChat={handleNewChat}
+        onAttachmentsChange={setAttachments}
       />
 
       {/* Auth Dialog */}
