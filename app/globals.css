@@ -129,6 +129,17 @@ body {
   /* Use Instrument Sans for body text */
   font-family: 'Instrument Sans', sans-serif;
   font-weight: 500;
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  & {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
 }
 
 /* Use Space Grotesk for headings */

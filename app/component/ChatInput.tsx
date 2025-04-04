@@ -128,8 +128,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-[var(--secondary-faint)] border-t border-[var(--secondary-darkest)] z-40 w-screen overflow-x-hidden shadow-md">
-      <div className="w-full max-w-full md:max-w-4xl mx-auto px-4 py-4 relative">
+    <div className="fixed bottom-0 left-0 right-0 z-40 md:max-w-4xl mx-auto">
+      <div className="w-full bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] rounded-lg shadow-lg p-3 relative">
         <form onSubmit={handleSubmit} className="relative flex flex-col w-full">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center flex-shrink overflow-hidden max-w-[65%] sm:max-w-none">
@@ -162,7 +162,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
               autoFocus
               placeholder={isExa ? "Press / to search with Exa..." : "Press / to ask a question..."}
               rows={1}
-              className="w-full p-3 pr-[70px] resize-none min-h-[50px] max-h-[120px] 
+              className="w-full p-3 pr-[70px] resize-none min-h-[50px] max-h-[120px]
               bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] rounded-md
               focus:outline-none focus:ring-1 focus:ring-[var(--brand-default)] focus:border-[var(--brand-default)]
               placeholder:text-[var(--text-light-subtle)] text-[var(--text-light-default)] font-medium shadow-sm dark:focus:ring-0 dark:focus:outline-none"
@@ -177,7 +177,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
               type="submit"
               size="icon"
               disabled={!input.trim() || isLoading}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9
               bg-[var(--brand-dark)] hover:bg-[var(--brand-muted)] text-white
               disabled:opacity-50 disabled:cursor-not-allowed font-medium
               rounded-md transition-all duration-200"

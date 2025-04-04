@@ -45,10 +45,10 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
         }`}
       >
         <div
-          className={`rounded-lg py-3 px-4 max-w-[85%] ${
+          className={`rounded-lg px-4 ${
             isUser
-              ? 'bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] text-base message-human'
-              : 'bg-white dark:bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] rounded-lg text-[var(--text-light-default)] text-base message-ai'
+              ? 'bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base message-human max-w-[75%] py-1'
+              : 'bg-white dark:bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] text-[var(--text-light-default)] text-base message-ai py-3'
           }`}
         >
           <div className="whitespace-pre-wrap text-[15px]">
@@ -61,10 +61,13 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
           {message.citations && message.citations.length > 0 && (
             <Citation citations={message.citations} />
           )}
-          {!isUser && threadId && message.content && message.content.length > 0 && (
+          {/* Show button container for AI messages with content */} 
+          {!isUser && message.content && message.content.length > 0 && (
             <div className="mt-2 flex items-center justify-end gap-2 border-t pt-2 border-gray-100 dark:border-gray-700">
               <div className="flex items-center space-x-1 sm:space-x-2">
-                <ShareButton threadId={threadId} />
+                {/* Conditionally render ShareButton only if threadId exists */} 
+                {threadId && <ShareButton threadId={threadId} />}
+                {/* Render CopyButton unconditionally within this block */} 
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -75,8 +78,8 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
                   <div className="flex items-center justify-center">
                     {copySuccess ? (
                       <>
-                        <Check className="h-4 w-4 flex-shrink-0 text-green-500" />
-                        <span className="ml-2 text-xs text-green-500">Copied!</span>
+                        <Check className="h-4 w-4 flex-shrink-0 text-[var(--brand-default)] dark:text-[var(--brand-fainter)]" />
+                        <span className="ml-2 text-xs text-[var(--brand-default)] dark:text-[var(--brand-default)]">Copied!</span>
                       </>
                     ) : (
                       <>
