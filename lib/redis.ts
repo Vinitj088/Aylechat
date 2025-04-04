@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis';
+import { type Message as UIMessage } from '@ai-sdk/react';
 
 // Initialize Redis client
 const redis = new Redis({
@@ -18,17 +19,10 @@ export async function verifyRedisConnection() {
   }
 }
 
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  citations?: any[];
-}
-
 export interface ChatThread {
   id: string;
   title: string;
-  messages: Message[];
+  messages: UIMessage[];
   model?: string;
   createdAt: string;
   updatedAt: string;
@@ -85,7 +79,7 @@ export class RedisService {
   }
 
   // Create a new chat thread
-  static async createChatThread(userId: string, title: string, messages: any[], model: string = 'exa'): Promise<ChatThread | null> {
+  static async createChatThread(userId: string, title: string, messages: UIMessage[], model: string = 'exa'): Promise<ChatThread | null> {
     try {
       const threadId = crypto.randomUUID();
       const now = new Date().toISOString();
@@ -143,14 +137,15 @@ export class RedisService {
       const threadIndex = threads.findIndex(t => t.id === threadId);
       
       if (threadIndex !== -1) {
+        // Update only necessary fields in the list for efficiency
         const threadSummary = {
           id: threadId,
           title: updatedThread.title || thread.title,
           updatedAt: now
         };
-        
-        // Use lset to update the thread at its index
         await redis.lset(`user:${userId}:threads`, threadIndex, JSON.stringify(threadSummary));
+      } else {
+        console.warn(`Thread ${threadId} not found in user list during update.`);
       }
       
       return updatedThread;

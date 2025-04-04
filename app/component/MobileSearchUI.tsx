@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Model } from '../types';
+import { type Message as UIMessage } from '@ai-sdk/react';
 import Markdown from 'markdown-to-jsx';
 import ModelSelector from './ModelSelector';
 import QueryEnhancer from './QueryEnhancer';
@@ -36,21 +37,19 @@ const parseMessageContent = (content: string) => {
 
 interface MobileSearchUIProps {
   input: string;
-  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
   selectedModel: string;
   handleModelChange: (modelId: string) => void;
   models: Model[];
   setInput: (input: string) => void;
-  messages: { id: string; role: string; content: string }[];
+  messages: UIMessage[];
   isExa?: boolean;
   providerName?: string;
 }
 
 const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
   input,
-  handleInputChange,
   handleSubmit,
   isLoading,
   selectedModel,
@@ -177,7 +176,6 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
             <textarea
               ref={textareaRef}
               value={input}
-              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               autoFocus
               placeholder="Ask a question or search..."

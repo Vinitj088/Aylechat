@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Model } from '../types';
+import { type Message as UIMessage } from '@ai-sdk/react';
 import Markdown from 'markdown-to-jsx';
 import ModelSelector from './ModelSelector';
 import QueryEnhancer from './QueryEnhancer';
@@ -36,7 +37,6 @@ const parseMessageContent = (content: string) => {
 
 interface DesktopSearchUIProps {
   input: string;
-  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
   selectedModel: string;
@@ -45,12 +45,11 @@ interface DesktopSearchUIProps {
   setInput: (input: string) => void;
   isExa?: boolean;
   providerName?: string;
-  messages: { id: string; role: string; content: string }[];
+  messages: UIMessage[];
 }
 
 const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   input,
-  handleInputChange,
   handleSubmit,
   isLoading,
   selectedModel,
@@ -182,7 +181,6 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
             <textarea
               ref={textareaRef}
               value={input}
-              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               autoFocus
               placeholder="Try a search or paste a link to find similar"

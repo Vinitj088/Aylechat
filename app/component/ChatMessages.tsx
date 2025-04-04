@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState, memo, useCallback } from 'react';
-import { Message, Model } from "../types";
+// import { Message, Model } from "../types"; // Use UIMessage instead
+import { Model } from "../types"; // Keep Model type
+import { type Message as UIMessage } from '@ai-sdk/react'; // Import UIMessage
 import MessageContent from './MessageContent';
 import Citation from './Citation';
 import ShareButton from './ShareButton';
@@ -9,7 +11,7 @@ import { Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ChatMessagesProps {
-  messages: Message[];
+  messages: UIMessage[]; // Use UIMessage[]
   isLoading: boolean;
   selectedModel: string;
   selectedModelObj?: Model;
@@ -17,7 +19,7 @@ interface ChatMessagesProps {
 }
 
 // Memoized message component to prevent unnecessary re-renders
-const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isUser: boolean, threadId?: string }) => {
+const ChatMessage = memo(({ message, isUser, threadId }: { message: UIMessage, isUser: boolean, threadId?: string }) => {
   
   const [copySuccess, setCopySuccess] = useState(false);
   
@@ -37,6 +39,12 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
     }
   };
   
+  // TODO: Handle images and citations based on UIMessage structure
+  // UIMessage standard properties don't include `images` or `citations`.
+  // You might need to use `experimental_attachments` or parse structured data within `content`.
+  // const images = (message as any).images; // Temporary cast - UNSAFE
+  // const citations = (message as any).citations; // Temporary cast - UNSAFE
+
   return (
     <div className="w-full">
       <div
@@ -55,12 +63,12 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
             <MessageContent 
               content={message.content} 
               role={message.role} 
-              images={message.images}
+              // images={images} // Commented out - UIMessage doesn't have this directly
             />
           </div>
-          {message.citations && message.citations.length > 0 && (
-            <Citation citations={message.citations} />
-          )}
+          {/* {citations && citations.length > 0 && (
+            <Citation citations={citations} />
+          )} */}
           {!isUser && threadId && message.content && message.content.length > 0 && (
             <div className="mt-2 flex items-center justify-end gap-2 border-t pt-2 border-gray-100 dark:border-gray-700">
               <div className="flex items-center space-x-1 sm:space-x-2">
@@ -116,7 +124,7 @@ const LoadingIndicator = memo(({ isExa, modelName }: { isExa: boolean, modelName
 LoadingIndicator.displayName = 'LoadingIndicator';
 
 const ChatMessages = memo(function ChatMessages({ 
-  messages, 
+  messages, // Now UIMessage[]
   isLoading, 
   selectedModel,
   selectedModelObj,
@@ -151,7 +159,8 @@ const ChatMessages = memo(function ChatMessages({
   // Get the model name for display
   const modelName = selectedModelObj?.name as string || '';
 
-  const renderMessage = useCallback((message: Message) => {
+  // Update renderMessage to accept UIMessage
+  const renderMessage = useCallback((message: UIMessage) => {
     return (
       <ChatMessage 
         key={message.id} 

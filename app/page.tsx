@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect, Suspense, useCallback } from 'react';
-import { Message, Model, ModelType } from './types';
+import { Model, ModelType } from './types';
 import Header from './component/Header';
 import dynamic from 'next/dynamic';
 import { ChatInputHandle } from './component/ChatInput';
 import MobileSearchUI from './component/MobileSearchUI';
 import DesktopSearchUI from './component/DesktopSearchUI';
 import Sidebar from './component/Sidebar';
-import { fetchResponse } from './api/apiService';
 import modelsData from '../models.json';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -25,6 +24,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { prefetchAll } from './api/prefetch';
+import { useChat, type Message as UIMessage } from '@ai-sdk/react';
+
+// Import prompt-kit components
+import { ChatContainer } from '@/components/ui/chat-container';
+import { Message } from '@/components/ui/message';
+import { PromptInput, PromptInputTextarea, PromptInputActions, PromptInputAction } from '@/components/ui/prompt-input';
+import { Loader } from '@/components/ui/loader';
+import { ScrollButton } from '@/components/ui/scroll-button';
 
 // Lazy load heavy components
 const ChatMessages = dynamic(() => import('./component/ChatMessages'), {
@@ -46,21 +53,8 @@ const DynamicSidebar = dynamic(() => import('./component/Sidebar'), {
 
 // Create a new component that uses useSearchParams
 function PageContent() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
-  const [models, setModels] = useState<Model[]>([
-    {
-      id: 'exa',
-      name: 'Exa Search',
-      provider: 'Exa',
-      providerId: 'exa',
-      enabled: true,
-      toolCallType: 'native',
-      searchMode: true
-    }
-  ]);
+  const [models, setModels] = useState<Model[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
@@ -68,13 +62,40 @@ function PageContent() {
   const { user, session, isLoading: authLoading, openAuthDialog } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const chatInputRef = useRef<ChatInputHandle>(null);
+
+  // Refs for ScrollButton
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null); // Ref for the bottom of messages list
 
   const isAuthenticated = !!user;
 
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit: handleSubmitFromHook,
+    isLoading,
+    error,
+    setMessages,
+    append,
+    reload,
+    stop,
+  } = useChat({
+    api: '/api/chat',
+    initialMessages: [],
+    id: currentThreadId ?? undefined,
+    sendExtraMessageFields: true,
+    body: {
+      model: selectedModel,
+    },
+    onError: (err) => {
+      console.error('Chat hook error:', err);
+      handleRequestError(err);
+    },
+  });
+
   // Prefetch API modules and data when the app loads
   useEffect(() => {
-    // Prefetch all API modules and data for faster initial response times
     prefetchAll().catch(() => {
       // Silently ignore prefetch errors as this is just an optimization
     });
@@ -84,25 +105,21 @@ function PageContent() {
   useEffect(() => {
     const authRequired = searchParams.get('authRequired');
     const expired = searchParams.get('expired');
-    const error = searchParams.get('error');
+    const errorParam = searchParams.get('error');
     const sessionError = searchParams.get('session_error');
     const cookieError = searchParams.get('cookie_error');
     
-    // Show auth dialog if any of these params are present
-    if (authRequired === 'true' || expired === 'true' || error) {
+    if (authRequired === 'true' || expired === 'true' || errorParam) {
       openAuthDialog();
       
-      // Show toast message if session expired
       if (expired === 'true') {
         toast.error('Your session has expired. Please sign in again.');
       }
       
-      // Show toast message if there was an error
-      if (error) {
+      if (errorParam) {
         toast.error('Authentication error. Please sign in again.');
       }
       
-      // Clean URL by removing query parameters without reloading the page
       const url = new URL(window.location.href);
       url.searchParams.delete('authRequired');
       url.searchParams.delete('expired');
@@ -110,7 +127,6 @@ function PageContent() {
       window.history.replaceState({}, '', url);
     }
 
-    // Handle session format errors
     if (sessionError === 'true' || cookieError === 'true') {
       toast.error('Session issue detected', {
         description: 'Please sign in again to get a fresh session',
@@ -123,7 +139,6 @@ function PageContent() {
         }
       });
       
-      // Clean URL
       const url = new URL(window.location.href);
       url.searchParams.delete('session_error');
       url.searchParams.delete('cookie_error');
@@ -131,22 +146,21 @@ function PageContent() {
     }
   }, [searchParams, openAuthDialog]);
 
-  // Check for authRequired query param
   useEffect(() => {
     if (searchParams.get('authRequired') === 'true') {
       openAuthDialog();
     }
   }, [searchParams, openAuthDialog]);
 
-  // Load models and set initially selected model
   useEffect(() => {
-    // Load models from models.json and set initial model
     const groqModels = modelsData.models.filter(model => model.providerId === 'groq');
     const googleModels = modelsData.models.filter(model => model.providerId === 'google');
     const openRouterModels = modelsData.models.filter(model => model.providerId === 'openrouter');
     const cerebrasModels = modelsData.models.filter(model => model.providerId === 'cerebras');
     
-    // Start with just the Exa model and then add the others
+    const baseModels = modelsData.models.filter(model =>
+      model.providerId !== 'exa'
+    );
     setModels([
       {
         id: 'exa',
@@ -161,10 +175,9 @@ function PageContent() {
       ...cerebrasModels,
       ...openRouterModels,
       ...groqModels,
-      
+      ...baseModels
     ]);
     
-    // Get search params
     const searchParams = new URLSearchParams(window.location.search);
     const modelParam = searchParams.get('model');
     
@@ -173,7 +186,6 @@ function PageContent() {
     }
   }, []);
 
-  // Handle showing the auth dialog if opened via URL param
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('signIn') === 'true' || urlParams.get('auth') === 'true') {
@@ -181,378 +193,124 @@ function PageContent() {
     }
   }, [openAuthDialog]);
   
-  // Handle initial URL search parameters for search engine functionality
   useEffect(() => {
-    // Only run this once when the component mounts and there are no messages yet
     if (messages.length === 0 && !isLoading) {
       const urlParams = new URLSearchParams(window.location.search);
-      
-      // Check for different query parameter formats (q, q=$1, q=%s)
       let searchQuery = urlParams.get('q');
-      
-      // Handle placeholder formats: ?q=$1 or ?q=%s
       if (searchQuery && (searchQuery === '$1' || searchQuery === '%s')) {
         searchQuery = '';
       }
-      
+
       if (searchQuery !== null) {
-        // Set the input field with the search query
         const decodedQuery = decodeURIComponent(searchQuery);
-        setInput(decodedQuery);
-        
-        // Auto-select Exa Search model for search queries
+        handleInputChange({ target: { value: decodedQuery } } as any);
         setSelectedModel('exa');
-        
-        // Submit the query automatically after a short delay to ensure everything is loaded
+
         const timer = setTimeout(async () => {
           if (decodedQuery.trim()) {
-            // Instead of calling handleSubmit, replicate its logic here to avoid closure issues
-            const userMessage: Message = {
+            const userMessage: UIMessage = {
               id: crypto.randomUUID(),
               role: 'user',
               content: decodedQuery
             };
-
-            const assistantMessage: Message = {
+            const assistantMessage: UIMessage = {
               id: crypto.randomUUID(),
               role: 'assistant',
               content: ''
             };
 
-            setIsLoading(true);
             setMessages([userMessage, assistantMessage]);
 
             try {
               const controller = new AbortController();
               abortControllerRef.current = controller;
               
-              const { content, citations } = await fetchResponse(
-                decodedQuery,
-                [],
-                'exa', // Always use Exa for search queries
-                controller,
-                (updatedMessages: Message[]) => {
-                  setMessages(updatedMessages);
-                },
-                assistantMessage
-              );
+              // Use direct fetch for Exa search
+              const response = await fetch('/api/exaanswer', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ query: decodedQuery, messages: [] }), // Sending empty messages for initial search
+                  signal: controller.signal
+              });
+              if (!response.ok) {
+                  // Try to parse error from body
+                  let errorMsg = `Exa request failed with status ${response.status}`;
+                  try {
+                      const errorData = await response.json();
+                      errorMsg = errorData.error || errorData.message || errorMsg;
+                  } catch {}
+                   throw new Error(errorMsg);
+              }
+              
+              const data = await response.json(); 
+              // Ensure data has expected structure, provide defaults
+              const content = data?.answer || 'No answer found.'; 
+              const citations = data?.results?.map((r: any) => ({ url: r.url, title: r.title })) || [];
 
-              // Update messages with final response
-              const finalMessages = [userMessage, {
-                ...assistantMessage,
-                content,
-                citations,
-                completed: true
-              }];
+              // Update messages state using setMessages from useChat
+              setMessages(prevMessages => [
+                  ...prevMessages.slice(0, -1), // Keep all messages except the last placeholder
+                  {
+                      ...assistantMessage,
+                      content,
+                      // TODO: Handle citations appropriately with UIMessage
+                      // For now, maybe store in experimental_attachments or a custom field?
+                      experimental_attachments: citations.map((c: { url: string, title: string }) => ({ 
+                          contentType: 'exa/citation', 
+                          name: c.title,
+                          url: c.url 
+                        })),
+                     // completed: true // Not standard in UIMessage
+                  }
+              ]);
               
-              setMessages(finalMessages);
-              
-              // Don't create a thread for URL search queries
-              // This keeps browser search queries from being saved
-              
-              setIsLoading(false);
               abortControllerRef.current = null;
             } catch (error: any) {
-              console.error('Error performing search:', error);
-              setIsLoading(false);
-              
-              // Handle error display
-              const updatedMessages = [userMessage, {
-                ...assistantMessage,
-                content: `Error: ${error.message || 'Failed to perform search. Please try again.'}`,
-                completed: true
-              }];
-              
-              setMessages(updatedMessages);
+              console.error('Error performing Exa search:', error);
+              // Update the assistant message with the error
+              setMessages(prevMessages => [
+                  ...prevMessages.slice(0, -1), // Keep all messages except the last placeholder
+                  {
+                      ...assistantMessage,
+                      content: `Error: ${error.message || 'Failed to perform search.'}`, 
+                     // completed: true
+                  }
+              ]);
               abortControllerRef.current = null;
             }
           }
-        }, 800); // Increased delay for better reliability
-        
+        }, 800);
         return () => clearTimeout(timer);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount
+  }, [isLoading]); // Depend on isLoading from useChat to avoid running if already loading
 
-  // The form submit handler 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!input.trim() || isLoading) return;
-
-    // If not authenticated, show auth dialog and keep the message in the input
-    if (!isAuthenticated || !user) {
-      openAuthDialog();
-      return;
-    }
-
-    // Add the user message to the messages array
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: input
-    };
-
-    // Create placeholder for assistant response
-    const assistantMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: ''
-    };
-
-    // Clear the input field and update the messages state
-    setInput('');
-    setIsLoading(true);
-    setMessages(prev => [...prev, userMessage, assistantMessage]);
-
-    try {
-      // Use abort controller to cancel the request if needed
-      abortControllerRef.current = new AbortController();
-      
-      // Generate automatic chat thread title 
-      const isFirstMessage = messages.length === 0;
-      let threadTitle: string | undefined = undefined;
-      
-      if (isFirstMessage) {
-        // Use the first 50 chars of the message as the title
-        threadTitle = input.substring(0, 50) + (input.length > 50 ? '...' : '');
-      }
-
-      // Find the selected model object to check its capabilities
-      const modelObj = models.find(m => m.id === selectedModel);
-      const isImageGenerationModel = modelObj?.imageGenerationMode === true;
-
-      if (isImageGenerationModel) {
-        // Handle image generation model
-        const response = await fetch('/api/gemini', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            query: userMessage.content,
-            model: selectedModel,
-            messages: messages // Send all previous messages for context
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Response error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        // Debug the response
-        console.log('Image generation client response:', {
-          hasText: !!data.text,
-          textLength: data.text?.length || 0,
-          hasImages: !!data.images,
-          imagesCount: data.images?.length || 0
-        });
-
-        // Verify images array is valid
-        if (data.images && Array.isArray(data.images)) {
-          console.log(`Received ${data.images.length} images from API`);
-        } else {
-          console.error('No valid images array in response:', data);
-          data.images = []; // Ensure we have a valid array
-        }
-        
-        // Process images for storage - if we have URLs, we can optimize storage
-        const optimizedImages = data.images.map((img: { mimeType: string; data: string; url?: string | null }) => {
-          // If the image has a URL, we can store just the URL and mime type
-          if (img.url) {
-            return {
-              mimeType: img.mimeType,
-              data: img.url,  // Store the URL in the data field for backward compatibility
-              url: img.url    // Also keep the URL field
-            };
-          }
-          // Otherwise keep the original image data
-          return img;
-        });
-        
-        // Update the assistant message with text and images
-        const completedAssistantMessage: Message = {
-          ...assistantMessage,
-          content: data.text || 'Here is the generated image:',
-          images: optimizedImages || [],
-          completed: true
-        };
-        
-        // Debug the message being added
-        console.log('Adding assistant message with images:', {
-          messageId: completedAssistantMessage.id,
-          hasImages: !!completedAssistantMessage.images,
-          imagesCount: completedAssistantMessage.images?.length || 0,
-          hasUrls: completedAssistantMessage.images?.some(img => !!img.url) || false
-        });
-        
-        // Update messages with the new assistant message containing images
-        const finalMessages = [...messages, userMessage, completedAssistantMessage];
-        setMessages(finalMessages);
-        
-        // Create or update the thread with image data
-        if (isFirstMessage) {
-          // For first message, create a new thread with image data
-          const threadId = await createOrUpdateThread({
-            messages: finalMessages,
-            title: threadTitle
-          });
-          
-          if (threadId) {
-            setCurrentThreadId(threadId);
-            // Update the URL to the new thread without forcing a reload
-            window.history.pushState({}, '', `/chat/${threadId}`);
-          }
-        }
-        
-        // Reset loading state
-        setIsLoading(false);
-        abortControllerRef.current = null;
-        return; // Exit early, we're done with image generation
-      }
-
-      // Regular text response flow - only execute this if not an image generation model
-      const { content, citations } = await fetchResponse(
-        input,
-        messages,
-        selectedModel,
-        abortControllerRef.current,
-        (updatedMessages: Message[]) => {
-          // This callback updates messages as they stream in
-          setMessages(updatedMessages);
-        },
-        assistantMessage
-      );
-
-      // Update message with final response
-      const finalMessages = [...messages, userMessage, {
-        ...assistantMessage,
-        content,
-        citations,
-        completed: true
-      }];
-      
-      setMessages(finalMessages);
-
-      // Create or update the thread only after we have the complete response
-      if (isFirstMessage) {
-        // For first message, create a new thread
-        const threadId = await createOrUpdateThread({
-          messages: finalMessages,
-          title: threadTitle
-        });
-        
-        if (threadId) {
-          setCurrentThreadId(threadId);
-          // Update the URL to the new thread without forcing a reload
-          window.history.pushState({}, '', `/chat/${threadId}`);
-        }
-      } else if (currentThreadId) {
-        // For subsequent messages, update the existing thread
-        await createOrUpdateThread({
-          messages: finalMessages
-        });
-      } else {
-        // If we somehow don't have a thread ID, create a new thread
-        const threadId = await createOrUpdateThread({
-          messages: finalMessages,
-          title: threadTitle
-        });
-        
-        if (threadId) {
-          setCurrentThreadId(threadId);
-          // Update the URL to the new thread without forcing a reload
-          window.history.pushState({}, '', `/chat/${threadId}`);
-        }
-      }
-      
-      // Reset loading state after successful response
-      setIsLoading(false);
-      abortControllerRef.current = null;
-    } catch (error: any) {
-      console.error('Error fetching response:', error);
-      
-      // Add the error message to the assistant's message
-      const updatedMessages = [...messages];
-      const assistantMessageIndex = updatedMessages.length - 1;
-      
-      // Check if it's an auth error
-      if (
-        (error.message && error.message.toLowerCase().includes('unauthorized')) ||
-        (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
-      ) {
-        await handleRequestError(error);
-        
-        // Update the message with auth error info
-        updatedMessages[assistantMessageIndex] = {
-          ...updatedMessages[assistantMessageIndex],
-          content: 'I encountered an authentication error. Please try again after fixing your session.',
-          completed: true
-        };
-      } else {
-        // For other errors
-        updatedMessages[assistantMessageIndex] = {
-          ...updatedMessages[assistantMessageIndex],
-          content: `Error: ${error.message || 'Something went wrong. Please try again.'}`,
-          completed: true
-        };
-        
-        toast.error('Error generating response');
-      }
-      
-      setMessages(updatedMessages);
-      setIsLoading(false);
-      abortControllerRef.current = null;
-    }
-  };
-  
-  // Function to handle login button click
   const handleLoginClick = useCallback(() => {
     openAuthDialog();
   }, [openAuthDialog]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
-    setInput(e.target.value);
-  };
 
   const handleModelChange = (modelId: string) => {
     setSelectedModel(modelId as ModelType);
   };
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  // Handle successful auth
   const handleAuthSuccess = async () => {
-    // Refresh sidebar to show latest threads
     setRefreshSidebar(prev => prev + 1);
-    
-    // Process pending input if any
     if (input.trim()) {
       setTimeout(() => {
         const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-        handleSubmit(fakeEvent);
+        handleSubmitFromHook(fakeEvent);
       }, 300);
     }
   };
 
-  // Triggered when authentication state changes - load threads
   useEffect(() => {
     if (isAuthenticated) {
-      // Only trigger sidebar refresh on auth state change
       setRefreshSidebar(prev => prev + 1);
     }
   }, [isAuthenticated]);
 
-  // Error handler callback function
   const handleRequestError = async (error: Error) => {
-    // Check if the error is an authentication error
     if (
       error.message.includes('authentication') || 
       error.message.includes('Authentication') || 
@@ -561,20 +319,13 @@ function PageContent() {
       error.message.includes('401') ||
       error.message.includes('Unauthorized')
     ) {
-      // Handle authentication errors by showing the auth dialog
       openAuthDialog();
     } else if (error.message.includes('Rate limit')) {
-      // Handle rate limit errors
-      // This is a custom error with timeout info from the API service
-      // @ts-ignore - We're adding custom props to the error
-      const waitTime = error.waitTime || 30;
-      
       toast.error('RATE LIMIT', {
-        description: `Please wait ${waitTime} seconds before trying again`,
+        description: `Please wait a moment before trying again`,
         duration: 5000,
       });
     } else {
-      // Handle other errors - show a toast
       toast.error('Error Processing Request', {
         description: error.message || 'Please try again later',
         duration: 5000,
@@ -582,9 +333,8 @@ function PageContent() {
     }
   };
 
-  const createOrUpdateThread = async (threadContent: { messages: Message[], title?: string }) => {
+  const createOrUpdateThread = async (threadContent: { messages: UIMessage[], title?: string }) => {
     if (!isAuthenticated || !user) {
-      // Show auth dialog instead of redirecting
       openAuthDialog();
       return null;
     }
@@ -595,7 +345,6 @@ function PageContent() {
         ? `/api/chat/threads/${currentThreadId}` 
         : '/api/chat/threads';
       
-      // Add a timestamp to ensure we don't get a cached response
       const timestamp = Date.now();
       
       const response = await fetch(`${endpoint}?t=${timestamp}`, {
@@ -608,14 +357,14 @@ function PageContent() {
         },
         credentials: 'include',
         body: JSON.stringify({
-          ...threadContent,
+          messages: threadContent.messages,
+          title: threadContent.title,
           model: selectedModel
         })
       });
 
       if (!response.ok) {
         if (response.status === 401) {
-          // Auth error - show auth dialog
           openAuthDialog();
           return null;
         }
@@ -625,15 +374,12 @@ function PageContent() {
       const result = await response.json();
       
       if (result.success && result.thread) {
-        // Update thread ID if it's a new thread
         if (!currentThreadId) {
           setCurrentThreadId(result.thread.id);
           
-          // Update the URL to the new thread without forcing a reload
           window.history.pushState({}, '', `/chat/${result.thread.id}`);
         }
         
-        // Refresh the sidebar to show the new/updated thread
         setRefreshSidebar(prev => prev + 1);
         
         return result.thread.id;
@@ -643,7 +389,6 @@ function PageContent() {
     } catch (error: any) {
       console.error('Error saving thread:', error);
       
-      // Check if it's an auth error
       if (
         (error.message && error.message.toLowerCase().includes('unauthorized')) ||
         (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
@@ -657,25 +402,18 @@ function PageContent() {
     }
   };
 
-  // Derived variables
   const isExa = selectedModel === 'exa';
   const selectedModelObj = models.find(model => model.id === selectedModel);
   const hasMessages = messages.length > 0;
-
-  // Get the provider name for the selected model
   const providerName = selectedModelObj?.provider || 'AI';
 
   const handleNewChat = () => {
-    // Ensure we're at the top of the page
     window.scrollTo(0, 0);
-    
-    // Clear messages and reset state
     setMessages([]);
-    setInput('');
+    handleInputChange({ target: { value: '' } } as any);
     setCurrentThreadId(null);
-    
-    // Update router without full navigation for smoother transition
     window.history.pushState({}, '', '/');
+    stop();
   };
 
   const handleStartChat = () => {
@@ -694,16 +432,12 @@ function PageContent() {
     }
   };
 
-  // Add this near the top of your component
   useEffect(() => {
-    // Function to warm up API routes
     const warmupApiRoutes = async () => {
       console.log('Warming up API routes...');
       
-      // Preload API client modules first to reduce cold start
       prefetchAll();
       
-      // Define the API routes to warm up
       const apiRoutes = [
         '/api/groq',
         '/api/openrouter',
@@ -711,7 +445,6 @@ function PageContent() {
         '/api/exaanswer'
       ];
       
-      // Create minimal requests for each endpoint with proper structure
       const warmupRequests = apiRoutes.map(route => {
         return fetch(route, {
           method: 'POST',
@@ -721,28 +454,22 @@ function PageContent() {
           },
           body: JSON.stringify({ 
             warmup: true,
-            model: 'mistralai/mistral-small-3.1-24b-instruct:free' // Provide a valid model ID
+            model: 'mistralai/mistral-small-3.1-24b-instruct:free'
           }),
-          // Use a short timeout and don't wait for the response
           signal: AbortSignal.timeout(500)
         }).catch(() => {
           // Intentionally ignoring errors - we just want to trigger compilation
         });
       });
       
-      // Execute all warmup requests in parallel but don't wait for them to complete
-      // This prevents blocking the UI if any request is slow
       Promise.allSettled(warmupRequests);
     };
     
-    // Execute the warmup immediately after initial render
     warmupApiRoutes();
-  }, []);  // Empty dependency array ensures this runs once after initial render
+  }, []);
 
-  // Add global keyboard shortcut for focusing the chat input
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Skip if we're in an input field or textarea already
       if (
         e.target instanceof HTMLInputElement || 
         e.target instanceof HTMLTextAreaElement ||
@@ -752,10 +479,10 @@ function PageContent() {
         return;
       }
 
-      // Focus chat input when "/" is pressed
       if (e.key === '/' && !isLoading) {
         e.preventDefault();
-        chatInputRef.current?.focus();
+        // Focus prompt-kit input - might need a ref or specific method
+        // document.getElementById('prompt-input-id')?.focus(); // Example
       }
     };
 
@@ -763,13 +490,10 @@ function PageContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLoading]);
 
-  // Update prefetching effect
   useEffect(() => {
-    // Prefetch common routes
     router.prefetch('/chat');
     router.prefetch('/auth');
     
-    // If user is authenticated, prefetch their chat threads
     if (user) {
       const recentThreads = localStorage.getItem('recentThreads');
       if (recentThreads) {
@@ -780,77 +504,91 @@ function PageContent() {
     }
   }, [user, router]);
 
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   return (
     <main className="flex min-h-screen flex-col">
       
-      <Header toggleSidebar={toggleSidebar} />
+      <Header
+        toggleSidebar={toggleSidebar}
+      />
       <DynamicSidebar 
-        isOpen={isSidebarOpen} 
-        onClose={() => setIsSidebarOpen(false)} 
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
         onSignInClick={openAuthDialog}
         refreshTrigger={refreshSidebar}
       />
       
-      {!hasMessages ? (
-        <>
-          <MobileSearchUI 
-            input={input}
-            handleInputChange={handleInputChange}
-            handleSubmit={handleSubmit}
-            isLoading={isLoading}
-            selectedModel={selectedModel}
-            handleModelChange={handleModelChange}
-            models={models}
-            setInput={setInput}
-            messages={messages}
-            isExa={selectedModel.includes('exa')}
-            providerName={selectedModel.includes('exa') ? 'Exa' : 'Groq'}
-          />
-          <DesktopSearchUI 
-            input={input}
-            handleInputChange={handleInputChange}
-            handleSubmit={handleSubmit}
-            isLoading={isLoading}
-            selectedModel={selectedModel}
-            handleModelChange={handleModelChange}
-            models={models}
-            setInput={setInput}
-            isExa={selectedModel.includes('exa')}
-            providerName={selectedModel.includes('exa') ? 'Exa' : 'Groq'}
-            messages={messages}
-          />
-        </>
-      ) : (
-        <>
-          <ChatMessages 
-            messages={messages} 
-            isLoading={isLoading}
-            selectedModel={selectedModel}
-            selectedModelObj={selectedModelObj}
-            isExa={isExa}
-          />
-
-          {hasMessages && (
-            <DynamicChatInput 
-              ref={chatInputRef}
-              input={input}
-              handleInputChange={handleInputChange}
-              handleSubmit={handleSubmit}
-              isLoading={isLoading}
-              selectedModel={selectedModel}
-              handleModelChange={handleModelChange}
-              models={models}
-              isExa={isExa}
-              onNewChat={handleNewChat}
-            />
+      <ChatContainer ref={chatContainerRef} className="flex-1 flex flex-col py-4">
+        <div className="flex-1 overflow-y-auto px-4 space-y-4">
+          {messages.map(m => (
+            <Message
+              key={m.id}
+              role={m.role}
+            >
+              {m.content}
+            </Message>
+          ))}
+          {isLoading && (
+            <div className="flex justify-center items-center p-4">
+              <Loader />
+            </div>
           )}
-        </>
-      )}
+          <div ref={messagesEndRef} />
+        </div>
+        <ScrollButton scrollRef={messagesEndRef} containerRef={chatContainerRef} />
+        <div className="px-4 py-2 border-t">
+          <PromptInput
+            isLoading={isLoading}
+            value={input}
+            onValueChange={(newValue) => {
+              const event = { target: { value: newValue } } as React.ChangeEvent<HTMLTextAreaElement>;
+              handleInputChange(event);
+            }}
+            onSubmit={() => {
+              const currentValue = input;
+              if (!currentValue.trim() || isLoading) return;
+
+              if (!isAuthenticated || !user) {
+                openAuthDialog();
+                return;
+              }
+
+              // Create user message object
+              const userMessage: UIMessage = {
+                id: crypto.randomUUID(), // Generate client-side ID
+                role: 'user',
+                content: currentValue,
+              };
+
+              // Append the message to trigger API call
+              append(userMessage);
+
+              // Manually clear input after appending
+              // Note: useChat might clear input automatically on append/submit,
+              // but let's clear it explicitly for safety.
+              handleInputChange({ target: { value: '' } } as React.ChangeEvent<HTMLTextAreaElement>);
+
+              // TODO: Re-integrate Image Generation Logic if needed
+            }}
+          >
+            <PromptInputTextarea
+              placeholder="Type your message..."
+            />
+          </PromptInput>
+        </div>
+      </ChatContainer>
     </main>
   );
 }
 
-// Main Page component with Suspense boundary
 export default function Page() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
