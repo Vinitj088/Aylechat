@@ -582,7 +582,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         isLoading={isLoading} 
         selectedModel={selectedModel}
         selectedModelObj={selectedModelObj}
-        isExa={isExa}
+        isExa={selectedModel === 'exa'}
+        currentThreadId={threadId}
       />
 
       <ChatInput 

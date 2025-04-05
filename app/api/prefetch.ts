@@ -73,7 +73,8 @@ export async function prefetchAll() {
         'X-Warmup': 'true'
       },
       body: JSON.stringify({ warmup: true }),
-      signal: AbortSignal.timeout(1000)
+      signal: AbortSignal.timeout(1000),
+      cache: 'no-store'
     }).catch(() => {/* Ignore warmup errors */})
   );
 
@@ -81,6 +82,8 @@ export async function prefetchAll() {
   await Promise.allSettled([...apiPrefetchPromises, modelConfigPromise, ...warmupPromises]);
 }
 
+// Removed custom response caching logic as it's unsafe/redundant
+/*
 // Cache commonly used responses
 export const responseCache = new Map();
 
@@ -101,4 +104,5 @@ export function getCachedResponse(model: string, input: string) {
   }
   
   return null;
-} 
+}
+*/ 

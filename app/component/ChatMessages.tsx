@@ -3,7 +3,6 @@ import { Message, Model } from "../types";
 import MessageContent from './MessageContent';
 import Citation from './Citation';
 import ShareButton from './ShareButton';
-import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -14,10 +13,11 @@ interface ChatMessagesProps {
   selectedModel: string;
   selectedModelObj?: Model;
   isExa: boolean;
+  currentThreadId: string | null | undefined;
 }
 
 // Memoized message component to prevent unnecessary re-renders
-const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isUser: boolean, threadId?: string }) => {
+const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isUser: boolean, threadId?: string | null | undefined }) => {
   
   const [copySuccess, setCopySuccess] = useState(false);
   
@@ -40,20 +40,17 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
   return (
     <div className="w-full">
       <div
-        className={`flex ${
-          isUser ? 'justify-end' : 'justify-start'
-        }`}
+        className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
       >
         <div
-          className={`rounded-lg px-4 ${
-            isUser
-              ? 'bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base max-w-[75%] py-1'
-              : 'bg-white dark:bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] text-[var(--text-light-default)] text-base message-ai py-3 w-full'
+          className={`rounded-lg px-4 ${isUser
+            ? 'bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base max-w-[75%] py-1'
+            : 'bg-white dark:bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] text-[var(--text-light-default)] text-base message-ai py-3 w-full'
           }`}
         >
           <div className="whitespace-pre-wrap text-[15px]">
             <MessageContent 
-              content={message.content} 
+              content={message.content || ''} 
               role={message.role} 
               images={message.images}
               attachments={message.attachments}
@@ -62,13 +59,10 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
           {message.citations && message.citations.length > 0 && (
             <Citation citations={message.citations} />
           )}
-          {/* Show button container for AI messages with content */} 
           {!isUser && message.content && message.content.length > 0 && (
             <div className="mt-2 flex items-center justify-end gap-2 border-t pt-2 border-gray-100 dark:border-gray-700">
               <div className="flex items-center space-x-1 sm:space-x-2">
-                {/* Conditionally render ShareButton only if threadId exists */} 
-                {threadId && <ShareButton threadId={threadId} />}
-                {/* Render CopyButton unconditionally within this block */} 
+                <ShareButton threadId={threadId} />
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -124,12 +118,11 @@ const ChatMessages = memo(function ChatMessages({
   isLoading, 
   selectedModel,
   selectedModelObj,
-  isExa 
+  isExa, 
+  currentThreadId
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messageCount, setMessageCount] = useState(0);
-  const params = useParams();
-  const threadId = params?.threadId as string;
   
   // Track message count to only scroll when new messages are added
   useEffect(() => {
@@ -161,10 +154,10 @@ const ChatMessages = memo(function ChatMessages({
         key={message.id} 
         message={message} 
         isUser={message.role === 'user'} 
-        threadId={threadId}
+        threadId={currentThreadId}
       />
     );
-  }, [threadId]);
+  }, [currentThreadId]);
 
   return (
     <div className="pt-16 pb-32 w-full overflow-x-hidden">

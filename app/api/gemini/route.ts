@@ -2,8 +2,8 @@ import { NextRequest } from 'next/server';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { processImageData } from '@/lib/supabase';
 
-// Change to auto for optimization
-export const dynamic = 'auto';
+// Change to force-dynamic to ensure the route is never cached
+export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Maximum allowed for Vercel Hobby plan
 
 // Pre-define encoder outside the handler for better performance

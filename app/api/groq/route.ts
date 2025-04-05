@@ -115,7 +115,8 @@ export async function POST(req: NextRequest) {
         'Authorization': `Bearer ${API_KEY}`,
         'Accept': 'text/event-stream'
       },
-      body: JSON.stringify(params)
+      body: JSON.stringify(params),
+      cache: 'no-store'
     });
     
     if (!response.ok) {

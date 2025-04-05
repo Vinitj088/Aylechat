@@ -889,6 +889,7 @@ function PageContent() {
             selectedModel={selectedModel}
             selectedModelObj={selectedModelObj}
             isExa={isExa}
+            currentThreadId={currentThreadId}
           />
 
           {hasMessages && (
