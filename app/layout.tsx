@@ -3,6 +3,22 @@ import 'katex/dist/katex.min.css';
 import { Analytics } from '@vercel/analytics/next';
 import { Providers } from './providers';
 import Script from 'next/script';
+import { Instrument_Sans, Space_Grotesk } from 'next/font/google';
+
+// Configure fonts
+const instrumentSans = Instrument_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-instrument-sans',
+  weight: ['400', '500', '600', '700'],
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-space-grotesk',
+  weight: ['300', '400', '500', '600', '700'],
+});
 
 export const metadata = {
   title: 'ExaChat',
@@ -15,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={`${instrumentSans.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
       <head>
         <Script id="sw-register" strategy="beforeInteractive">
           {`
@@ -30,26 +46,8 @@ export default function RootLayout({
             }
           `}
         </Script>
-        <Script id="theme-switcher" strategy="beforeInteractive">
-          {`
-            (function() {
-              try {
-                const savedTheme = localStorage.getItem('theme');
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                
-                if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-                  document.documentElement.classList.add('dark');
-                } else {
-                  document.documentElement.classList.remove('dark');
-                }
-              } catch (e) {
-                // Fail gracefully if localStorage is not available
-              }
-            })();
-          `}
-        </Script>
       </head>
-      <body>
+      <body className={instrumentSans.className}>
         <Providers>
           <div className="w-full overflow-x-hidden">
             {children}

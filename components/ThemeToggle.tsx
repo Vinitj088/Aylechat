@@ -1,19 +1,31 @@
 'use client';
 
-import { useTheme } from '@/context/ThemeContext';
+import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Sun, Moon } from 'lucide-react';
 
 export function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div className="h-8 w-8 sm:w-[70px]" />;
+  }
+
+  const targetTheme = theme === 'dark' ? 'light' : 'dark';
 
   return (
     <Button
       variant="ghost"
       size="sm"
-      onClick={toggleTheme}
+      onClick={() => setTheme(targetTheme)}
       className="h-8 px-2 text-xs bg-transparent hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] border-none flex items-center gap-1 font-medium"
-      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={`Switch to ${targetTheme} mode`}
     >
       {theme === 'dark' ? (
         <>
