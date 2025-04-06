@@ -120,6 +120,7 @@ export default function SharedThreadPage({ params }: { params: Promise<{ shareId
           selectedModel={thread.model || 'exa'}
           selectedModelObj={selectedModelObj}
           isExa={thread.model === 'exa'}
+          currentThreadId={shareId}
         />
       </div>
     </main>
