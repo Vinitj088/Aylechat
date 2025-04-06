@@ -6,24 +6,23 @@ import { ThreadCacheProvider } from '@/context/ThreadCacheContext';
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import { AuthDialog } from '@/components/AuthDialog';
 import { Toaster } from '@/components/ui/sonner';
-import { PostHogProvider } from './posthog/provider';
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <PostHogProvider>
-      <AuthProvider>
-        <ThreadCacheProvider>
-          <NextThemesProvider 
-            attribute="class" 
-            defaultTheme="light"
-            enableSystem={false}
-          >
-            {children}
-            <AuthDialog />
-            <Toaster />
-          </NextThemesProvider>
-        </ThreadCacheProvider>
-      </AuthProvider>
-    </PostHogProvider>
+    <AuthProvider>
+      <ThreadCacheProvider>
+        <NextThemesProvider 
+          attribute="class" 
+          defaultTheme="light"
+          enableSystem={false}
+        >
+          {children}
+          <AuthDialog />
+          <Toaster />
+          <SpeedInsights />
+        </NextThemesProvider>
+      </ThreadCacheProvider>
+    </AuthProvider>
   );
 }
