@@ -6,7 +6,6 @@ import { ThreadCacheProvider } from '@/context/ThreadCacheContext';
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import { AuthDialog } from '@/components/AuthDialog';
 import { Toaster } from '@/components/ui/sonner';
-import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -20,7 +19,6 @@ export function Providers({ children }: { children: ReactNode }) {
           {children}
           <AuthDialog />
           <Toaster />
-          <SpeedInsights />
         </NextThemesProvider>
       </ThreadCacheProvider>
     </AuthProvider>

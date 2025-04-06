@@ -1,6 +1,7 @@
 import './globals.css';
 import 'katex/dist/katex.min.css';
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Providers } from './providers';
 import Script from 'next/script';
 import { Instrument_Sans, Space_Grotesk } from 'next/font/google';
@@ -54,6 +55,7 @@ export default function RootLayout({
           </div>
         </Providers>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
