@@ -33,6 +33,7 @@ interface AuthContextType {
   closeAuthDialog: () => void;
   isAuthDialogOpen: boolean;
   refreshSession: () => Promise<boolean>;
+  signInWithGoogle: () => Promise<{ error: AuthError | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -272,6 +273,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Add Google Sign-In function
+  const signInWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          // Optional: Specify where to redirect after successful sign-in
+          // redirectTo: `${window.location.origin}/auth/callback`,
+          // Optional: Add scopes if needed
+          // scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+        },
+      });
+      
+      if (error) {
+        console.error('Google Sign-In Error:', error);
+        toast.error(error.message || 'Failed to sign in with Google.');
+        return { error };
+      }
+      
+      // No need to return success here, the redirect handles it.
+      // The onAuthStateChange listener will pick up the session.
+      return { error: null };
+    } catch (error) {
+      console.error('Unexpected error during Google sign in:', error);
+      toast.error('An unexpected error occurred during Google sign-in.');
+      return { error: error as AuthError };
+    }
+  };
+
   const value = {
     session,
     user,
@@ -284,7 +314,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     openAuthDialog,
     closeAuthDialog,
     isAuthDialogOpen,
-    refreshSession
+    refreshSession,
+    signInWithGoogle,
   };
 
   return (

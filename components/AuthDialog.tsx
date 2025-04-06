@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { usePostHog } from 'posthog-js/react';
+import { FcGoogle } from 'react-icons/fc';
 
 // Update the component to accept props
 interface AuthDialogProps {
@@ -25,7 +26,14 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
   const router = useRouter();
   const posthog = usePostHog();
   
-  const { signIn, signUp, isAuthDialogOpen, closeAuthDialog, resetPassword } = useAuth();
+  const { 
+    signIn, 
+    signUp, 
+    isAuthDialogOpen, 
+    closeAuthDialog, 
+    resetPassword,
+    signInWithGoogle
+  } = useAuth();
 
   // Determine if dialog should be open based on prop or context
   const shouldBeOpen = isOpen !== undefined ? isOpen : isAuthDialogOpen;
@@ -256,6 +264,25 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
                   {isSignIn ? 'Need an account?' : 'Already have an account?'}
                 </button>
               </div>
+
+              {/* Google Sign-In Button and Divider */}
+              <div className="relative flex items-center my-6">
+                <div className="flex-grow border-t border-[var(--secondary-darkest)]"></div>
+                <span className="flex-shrink mx-4 text-xs text-[var(--text-light-muted)]">OR</span>
+                <div className="flex-grow border-t border-[var(--secondary-darkest)]"></div>
+              </div>
+
+              <button
+                type="button"
+                onClick={signInWithGoogle}
+                disabled={isLoading}
+                className={`w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-[var(--text-light-default)] bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
+                  isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                <FcGoogle className="mr-2 h-4 w-4" />
+                Sign in with Google
+              </button>
             </>
           )}
         </form>
