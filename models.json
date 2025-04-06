@@ -37,6 +37,15 @@
       "toolCallType": "openrouter"
     },
     {
+      "id": "meta-llama/llama-4-maverick:free",
+      "name": "LLaMA 4 Maverick",
+      "provider": "OpenRouter",
+      "providerId": "openrouter",
+      "avatarType": "meta",
+      "enabled": true,
+      "toolCallType": "openrouter"
+    },
+    {
       "id": "gemini-2.0-flash",
       "name": "Gemini 2.0 Flash",
       "provider": "Google Generative AI",
@@ -190,6 +199,15 @@
       "provider": "Groq",
       "providerId": "groq",
       "avatarType": "qwen",
+      "enabled": true,
+      "toolCallType": "manual"
+    },
+    {
+      "id": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "name": "LLaMA 4 Scout 17B",
+      "provider": "Groq",
+      "providerId": "groq",
+      "avatarType": "meta",
       "enabled": true,
       "toolCallType": "manual"
     },
