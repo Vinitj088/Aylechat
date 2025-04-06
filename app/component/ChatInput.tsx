@@ -273,9 +273,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
               variant="ghost"
               size="sm"
               onClick={onNewChat}
-              className="text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] group flex items-center gap-1 flex-shrink-0"
+              className="text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] group flex items-center gap-1 flex-shrink-0 transition-all duration-200 ease-in-out transform hover:scale-105 focus:scale-105"
             >
-              <Plus className="h-4 w-4 group-hover:text-[var(--brand-default)]" />
+              <Plus className="h-4 w-4 group-hover:text-[var(--brand-default)] transition-transform duration-200 ease-in-out group-hover:rotate-90" />
               <span className="font-medium">New chat</span>
             </Button>
           </div>
