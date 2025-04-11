@@ -71,6 +71,8 @@ function PageContent() {
   const searchParams = useSearchParams();
   const chatInputRef = useRef<ChatInputHandle>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
+  const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
 
   const isAuthenticated = !!user;
 
@@ -236,7 +238,10 @@ function PageContent() {
                 (updatedMessages: Message[]) => {
                   setMessages(updatedMessages);
                 },
-                assistantMessage
+                assistantMessage,
+                attachments,
+                activeChatFiles,
+                handleFileUploaded
               );
 
               // Update messages with final response
@@ -277,6 +282,23 @@ function PageContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
 
+  // Step 5: Callback to handle file uploaded event from backend
+  const handleFileUploaded = useCallback((fileInfo: { name: string; type: string; uri: string }) => {
+    console.log('Adding uploaded file to active session:', fileInfo);
+    setActiveChatFiles(prev => {
+      // Avoid adding duplicates based on URI
+      if (!prev.some(f => f.uri === fileInfo.uri)) {
+        return [...prev, fileInfo];
+      }
+      return prev;
+    });
+  }, []);
+
+  // Step 5: Function to remove an active file reference
+  const removeActiveFile = useCallback((uri: string) => {
+    setActiveChatFiles(prev => prev.filter(f => f.uri !== uri));
+  }, []);
+
   // The form submit handler 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,54 +319,12 @@ function PageContent() {
 
     // Process attachments if any and add them to the user message
     if (attachments.length > 0) {
-      try {
-        // Convert File objects to FileAttachment format
-        const fileAttachments: FileAttachment[] = await Promise.all(
-          attachments.map(async (file): Promise<FileAttachment> => {
-            return new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              
-              reader.onloadend = () => {
-                try {
-                  const base64data = reader.result as string;
-                  if (!base64data) {
-                    reject(new Error(`Failed to read file: ${file.name}`));
-                    return;
-                  }
-                  
-                  // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
-                  const base64Content = base64data.split(',')[1];
-                  
-                  resolve({
-                    name: file.name,
-                    type: file.type,
-                    data: base64Content,
-                    size: file.size
-                  });
-                } catch (error) {
-                  console.error(`Error processing file ${file.name}:`, error);
-                  reject(error);
-                }
-              };
-              
-              reader.onerror = (error) => {
-                console.error(`Error reading file ${file.name}:`, error);
-                reject(error);
-              };
-              
-              reader.readAsDataURL(file);
-            });
-          })
-        );
-        
-        // Add attachments to the user message object for display in the UI
-        userMessage.attachments = fileAttachments;
-      } catch (error) {
-        console.error('Error processing attachments:', error);
-        toast.error('Failed to process attachments. Please try again.');
-        setIsLoading(false);
-        return;
-      }
+      // Create simplified attachment info for display (no base64)
+      userMessage.attachments = attachments.map(file => ({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      }));
     }
 
     // Create placeholder for assistant response
@@ -389,7 +369,8 @@ function PageContent() {
             query: userMessage.content,
             model: selectedModel,
             messages: messages, // Send all previous messages for context
-            attachments: attachments
+            attachments: attachments,
+            activeChatFiles: activeChatFiles
           })
         });
 
@@ -481,7 +462,9 @@ function PageContent() {
           setMessages(updatedMessages);
         },
         assistantMessage,
-        attachments
+        attachments,
+        activeChatFiles,
+        handleFileUploaded
       );
 
       // Update message with final response
@@ -732,6 +715,7 @@ function PageContent() {
     setMessages([]);
     setInput('');
     setCurrentThreadId(null);
+    setActiveChatFiles([]);
     
     // Update router without full navigation for smoother transition
     window.history.pushState({}, '', '/');
@@ -839,6 +823,12 @@ function PageContent() {
     }
   }, [user, router]);
 
+  // Step 2: Callback for ChatInput to report its active files height
+  const handleActiveFilesHeightChange = useCallback((height: number) => {
+    // console.log('Reported active files height:', height); // Debug log
+    setChatInputHeightOffset(height > 0 ? height + 8 : 0); // Add some padding if height > 0
+  }, []);
+
   return (
     <main className="flex min-h-screen flex-col">
       
@@ -890,6 +880,7 @@ function PageContent() {
             selectedModelObj={selectedModelObj}
             isExa={isExa}
             currentThreadId={currentThreadId}
+            bottomPadding={chatInputHeightOffset}
           />
 
           {hasMessages && (
@@ -905,6 +896,9 @@ function PageContent() {
               isExa={isExa}
               onNewChat={handleNewChat}
               onAttachmentsChange={setAttachments}
+              activeChatFiles={activeChatFiles}
+              removeActiveFile={removeActiveFile}
+              onActiveFilesHeightChange={handleActiveFilesHeightChange}
             />
           )}
         </>

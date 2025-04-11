@@ -586,85 +586,27 @@ const FileAttachmentView = ({ attachments }: { attachments: FileAttachment[] }) 
       <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Attached Files</h4>
       <div className="flex flex-wrap gap-3">
         {attachments.map((attachment, index) => {
-          // Handle image attachments
-          if (attachment.type.startsWith('image/')) {
-            return (
-              <div key={`attachment-${index}`} className="relative rounded overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
-                <div className="w-36 h-36 relative group">
-                  <img 
-                    src={`data:${attachment.type};base64,${attachment.data}`}
-                    alt={attachment.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <a 
-                      href={`data:${attachment.type};base64,${attachment.data}`}
-                      download={attachment.name}
-                      className="text-white font-medium text-xs px-2 py-1 bg-gray-900 bg-opacity-70 rounded"
-                      aria-label="Download file"
-                    >
-                      Download
-                    </a>
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 py-1 px-2">
-                    <p className="text-white text-xs truncate">{attachment.name}</p>
-                  </div>
-                </div>
-              </div>
-            );
-          }
-          
-          // Handle PDF attachments
-          if (attachment.type === 'application/pdf') {
-            return (
-              <div key={`attachment-${index}`} className="flex items-center p-3 border border-gray-200 dark:border-gray-700 rounded-md w-full max-w-xs">
-                <div className="mr-3 text-red-500">
-                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {attachment.name}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {Math.round(attachment.size / 1024)} KB
-                  </p>
-                </div>
-                <a 
-                  href={`data:${attachment.type};base64,${attachment.data}`}
-                  download={attachment.name}
-                  className="ml-2 flex-shrink-0 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  Download
-                </a>
-              </div>
-            );
-          }
-          
-          // Generic file attachment for other types
+          // Generic file attachment for all types (using file icon)
           return (
-            <div key={`attachment-${index}`} className="flex items-center p-3 border border-gray-200 dark:border-gray-700 rounded-md w-full max-w-xs">
-              <div className="mr-3 text-gray-500">
-                <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+            <div key={`attachment-${index}`} className="flex items-center p-3 border border-gray-200 dark:border-gray-700 rounded-md w-full max-w-xs bg-white dark:bg-gray-800 shadow-sm">
+              {/* Generic File Icon */}
+              <div className="mr-3 text-gray-500 dark:text-gray-400 flex-shrink-0">
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 3a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm0 3a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm0 3a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1z" clipRule="evenodd" />
                 </svg>
               </div>
+              {/* File Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={attachment.name}>
                   {attachment.name}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {Math.round(attachment.size / 1024)} KB · {attachment.type.split('/')[1].toUpperCase()}
+                  {/* Display size if available */}
+                  {attachment.size ? `${Math.round(attachment.size / 1024)} KB` : ''}
+                  {/* Display type if available and different from name extension */}
+                  {attachment.size && attachment.type && !attachment.name.endsWith(attachment.type.split('/')[1]) ? ` · ${attachment.type.split('/')[1].toUpperCase()}` : ''} 
                 </p>
               </div>
-              <a 
-                href={`data:${attachment.type};base64,${attachment.data}`}
-                download={attachment.name}
-                className="ml-2 flex-shrink-0 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                Download
-              </a>
             </div>
           );
         })}

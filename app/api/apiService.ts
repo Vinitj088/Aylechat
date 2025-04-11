@@ -185,12 +185,16 @@ export const fetchResponse = async (
   abortController: AbortController,
   setMessages: MessageUpdater,
   assistantMessage: Message,
-  attachments?: File[]
+  attachments?: File[],
+  activeFiles?: Array<{ name: string; type: string; uri: string }>,
+  onFileUploaded?: (fileInfo: { name: string; type: string; uri: string }) => void
 ) => {
   // Prepare messages for conversation history, ensuring we respect context limits
   const truncatedMessages = truncateConversationHistory(messages, selectedModel);
   
   // Format previous messages into conversation history
+  // NOTE: For FormData requests, we send truncatedMessages as JSON string.
+  // For JSON requests, we send it as an object.
   const conversationHistory = truncatedMessages.map(msg => 
     `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
   ).join('\n');
@@ -205,6 +209,7 @@ export const fetchResponse = async (
   try {
     // Determine which API endpoint to use based on the selected model
     let apiEndpoint;
+    let useFormDataForGemini = false;
     
     // Find the model configuration
     const modelConfig = modelsConfig.models.find((m: Record<string, unknown>) => m.id === selectedModel);
@@ -215,6 +220,11 @@ export const fetchResponse = async (
       apiEndpoint = getAssetPath('/api/openrouter');
     } else if (selectedModel.includes('gemini')) {
       apiEndpoint = getAssetPath('/api/gemini');
+      // Determine if FormData should be used for Gemini
+      if ((attachments && attachments.length > 0) || (activeFiles && activeFiles.length > 0)) {
+        useFormDataForGemini = true;
+        console.log("Preparing FormData request for Gemini (new attachments or active files present).");
+      }
     } else if (modelConfig?.providerId === 'cerebras') {
       apiEndpoint = getAssetPath('/api/cerebras');
     } else {
@@ -223,10 +233,11 @@ export const fetchResponse = async (
 
     console.log(`Sending request to ${apiEndpoint} with model ${selectedModel}`);
     
-    // Common request options
-    const requestOptions = {
+    // Base request options (headers might be modified later)
+    const requestOptions: RequestInit = {
       method: 'POST',
       headers: {
+        // Default to JSON, remove later if using FormData
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache, no-store, must-revalidate'
       },
@@ -234,71 +245,58 @@ export const fetchResponse = async (
       credentials: 'include' as RequestCredentials, // Add credentials to include cookies
     };
     
-    // Process attachments if we have them
-    let processedAttachments: any[] = [];
-    if (attachments && attachments.length > 0 && selectedModel.includes('gemini')) {
-      console.log(`Processing ${attachments.length} attachments for API call`);
+    let requestBody: BodyInit;
+
+    if (useFormDataForGemini) {
+      // --- Create FormData for Gemini with Attachments ---
+      const formData = new FormData();
+      formData.append('query', input); // Send original input query
+      formData.append('model', selectedModel);
+      // Send history messages as a JSON string
+      formData.append('messages', JSON.stringify(truncatedMessages)); 
+
+      // Append each file
+      if (attachments && attachments.length > 0) {
+        attachments.forEach((file, index) => {
+          formData.append(`attachment_${index}`, file, file.name);
+          console.log(`Appended NEW file to FormData: ${file.name}`);
+        });
+      } else {
+        console.log("No new attachments to append for this request.");
+      }
+
+      // Step 4: Append activeFiles if present
+      if (activeFiles && activeFiles.length > 0) {
+        formData.append('activeFiles', JSON.stringify(activeFiles));
+        console.log(`Appended ${activeFiles.length} active file references to FormData.`);
+      }
+
+      requestBody = formData;
+      // Remove Content-Type header, let the browser set it for FormData
+      if (requestOptions.headers) {
+        delete (requestOptions.headers as Record<string, string>)['Content-Type'];
+      }
+      console.log("Using FormData body for the request.");
+      // --- End FormData Creation ---
+    } else {
+      // --- Use JSON Body for other requests or Gemini without Attachments ---
+      const jsonPayload = selectedModel === 'exa' 
+        ? { 
+          // For Exa, include the query and limited context for follow-up questions
+          query: input,
+          messages: truncatedMessages
+        } 
+        : {
+          // For Groq, Gemini (no attachments), and other LLMs
+          query: fullQuery, // Send combined history + query for others
+          model: selectedModel,
+          messages: truncatedMessages,
+          // No attachments key needed here as we handle it via FormData above
+        };
       
-      // Convert files to base64 data format for API transmission
-      processedAttachments = await Promise.all(
-        attachments.map(async (file): Promise<any> => {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            
-            reader.onloadend = () => {
-              try {
-                const base64data = reader.result as string;
-                if (!base64data) {
-                  reject(new Error(`Failed to read file: ${file.name}`));
-                  return;
-                }
-                
-                // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
-                const base64Content = base64data.split(',')[1];
-                
-                console.log(`Successfully processed file: ${file.name} (${file.type}), size: ${(file.size / 1024).toFixed(2)}KB`);
-                
-                resolve({
-                  name: file.name,
-                  type: file.type,
-                  data: base64Content,
-                  size: file.size
-                });
-              } catch (error) {
-                console.error(`Error processing file ${file.name}:`, error);
-                reject(error);
-              }
-            };
-            
-            reader.onerror = (error) => {
-              console.error(`Error reading file ${file.name}:`, error);
-              reject(error);
-            };
-            
-            reader.readAsDataURL(file);
-          });
-        })
-      );
-    }
-    
-    // Prepare request body based on the API
-    const requestBody = selectedModel === 'exa' 
-      ? { 
-        // For Exa, include the query and limited context for follow-up questions
-        query: input,
-        messages: truncatedMessages
-      } 
-      : {
-        // For Groq, Gemini, and other LLMs, include the full conversation history
-        query: fullQuery,
-        model: selectedModel,
-        messages: truncatedMessages,
-        ...(processedAttachments.length > 0 && { attachments: processedAttachments })
-      };
-    
-    // For debugging
-    if (processedAttachments.length > 0) {
-      console.log(`Sending request with ${processedAttachments.length} attachments`);
+      requestBody = JSON.stringify(jsonPayload);
+      console.log("Using JSON body for the request.");
+      // --- End JSON Body Creation ---
     }
     
     // Make the fetch request
@@ -306,7 +304,7 @@ export const fetchResponse = async (
       apiEndpoint, 
       {
         ...requestOptions,
-        body: JSON.stringify(requestBody),
+        body: requestBody, // Use the determined body (FormData or JSON string)
       }
     );
 
@@ -398,8 +396,19 @@ export const fetchResponse = async (
       for (const line of lines) {
         try {
           const data = JSON.parse(line);
-          // Process immediately without collecting in content variable
-          if (data.citations) {
+          // Step 3: Check for custom file_uploaded event
+          if (data.type === 'file_uploaded' && data.data && onFileUploaded) {
+            console.log('Received file_uploaded event from backend:', data.data);
+            // Handle potential single or multiple file uploads in the event
+            const uploadedFiles = Array.isArray(data.data) ? data.data : [data.data];
+            uploadedFiles.forEach((fileInfo: { name: string; type: string; uri: string }) => {
+              if (fileInfo.name && fileInfo.type && fileInfo.uri) {
+                onFileUploaded(fileInfo);
+              } else {
+                console.warn('Received incomplete file info in file_uploaded event', fileInfo);
+              }
+            });
+          } else if (data.citations) {
             citations = data.citations;
             // Update message with new citations immediately
             updateMessages(setMessages, (prev: Message[]) => 

@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback, forwardRef, useImperativeHandle,
 import { Model } from '../types';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Send, Plus, FileUp, X } from 'lucide-react';
+import { Send, Plus, FileUp, X, Paperclip } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ModelSelector from './ModelSelector';
 import QueryEnhancer from './QueryEnhancer';
@@ -65,6 +65,9 @@ interface ChatInputProps {
   isExa: boolean;
   onNewChat: () => void;
   onAttachmentsChange?: (files: File[]) => void;
+  activeChatFiles?: Array<{ name: string; type: string; uri: string }>;
+  removeActiveFile?: (uri: string) => void;
+  onActiveFilesHeightChange?: (height: number) => void;
 }
 
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
@@ -77,12 +80,16 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   models,
   isExa,
   onNewChat,
-  onAttachmentsChange
+  onAttachmentsChange,
+  activeChatFiles,
+  removeActiveFile,
+  onActiveFilesHeightChange
 }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastModelRef = useRef<string>(selectedModel);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const activeFilesContainerRef = useRef<HTMLDivElement>(null);
 
   // Check if current model is a Gemini model
   const isGeminiModel = selectedModel.includes('gemini');
@@ -253,6 +260,16 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
     }
   };
 
+  // Step 1: Effect to measure active files height
+  useEffect(() => {
+    let height = 0;
+    if (activeFilesContainerRef.current) {
+      height = activeFilesContainerRef.current.clientHeight;
+    }
+    // console.log('Active files container height:', height); // Debug log
+    onActiveFilesHeightChange?.(height);
+  }, [activeChatFiles, onActiveFilesHeightChange]);
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 md:max-w-4xl mx-auto">
       <div className="w-full bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] rounded-lg shadow-lg p-3 relative">
@@ -279,6 +296,34 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
               <span className="font-medium">New chat</span>
             </Button>
           </div>
+          
+          {/* Step 6: Display Active Files */}
+          {activeChatFiles && activeChatFiles.length > 0 && removeActiveFile && (
+            <div 
+              ref={activeFilesContainerRef}
+              className="mb-2 flex flex-wrap gap-2 items-center border-b border-[var(--secondary-darkest)] pb-2 pt-1"
+            >
+              <span className="text-xs font-medium text-[var(--text-light-muted)] mr-1">Active:</span>
+              {activeChatFiles.map((file) => (
+                <div 
+                  key={file.uri} 
+                  className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full"
+                  title={`${file.name} (${file.type}) - Referenced for follow-up questions`}
+                >
+                  <Paperclip className="h-3 w-3 flex-shrink-0" /> 
+                  <span className="truncate max-w-[150px]">{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeActiveFile(file.uri)}
+                    className="ml-1 p-0.5 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300"
+                    aria-label="Stop referencing this file"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           
           {/* Attachments Preview */}
           {attachments.length > 0 && (

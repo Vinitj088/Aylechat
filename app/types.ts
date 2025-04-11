@@ -17,7 +17,7 @@ export interface ImageData {
 export interface FileAttachment {
   name: string;
   type: string; // MIME type
-  data: string; // Base64 encoded data
+  data?: string; // Make data optional - might not exist for displayed user attachments
   url?: string; // Optional URL if stored remotely
   size: number; // File size in bytes
 }

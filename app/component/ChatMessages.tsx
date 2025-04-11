@@ -14,6 +14,7 @@ interface ChatMessagesProps {
   selectedModelObj?: Model;
   isExa: boolean;
   currentThreadId: string | null | undefined;
+  bottomPadding?: number;
 }
 
 // Memoized message component to prevent unnecessary re-renders
@@ -119,10 +120,13 @@ const ChatMessages = memo(function ChatMessages({
   selectedModel,
   selectedModelObj,
   isExa, 
-  currentThreadId
+  currentThreadId,
+  bottomPadding
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messageCount, setMessageCount] = useState(0);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   
   // Track message count to only scroll when new messages are added
   useEffect(() => {
@@ -160,7 +164,10 @@ const ChatMessages = memo(function ChatMessages({
   }, [currentThreadId]);
 
   return (
-    <div className="pt-16 pb-32 w-full overflow-x-hidden">
+    <div 
+      className="flex-1 overflow-y-auto p-4 pb-[120px] md:pb-[150px] scroll-smooth relative"
+      style={{ paddingBottom: `${(bottomPadding ?? 0) + 150}px` }}
+    >
       <div className="w-full max-w-full md:max-w-4xl mx-auto px-4 py-6 space-y-6">
         {messages.map(renderMessage)}
         

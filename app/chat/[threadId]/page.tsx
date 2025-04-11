@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, Suspense } from 'react';
+import { useState, useRef, useEffect, Suspense, useCallback } from 'react';
 import { Message, Model, ModelType, FileAttachment } from '../../types';
 import Header from '../../component/Header';
 import ChatMessages from '../../component/ChatMessages';
@@ -43,6 +43,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const threadId = React.use(params).threadId;
   const chatInputRef = useRef<ChatInputHandle>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
+  const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
 
   const isAuthenticated = !!user;
 
@@ -125,6 +127,29 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     }
   }, [threadId, thread]);
 
+  // Step 5: Callback to handle file uploaded event from backend
+  const handleFileUploaded = useCallback((fileInfo: { name: string; type: string; uri: string }) => {
+    console.log('Adding uploaded file to active session:', fileInfo);
+    setActiveChatFiles(prev => {
+      // Avoid adding duplicates based on URI
+      if (!prev.some(f => f.uri === fileInfo.uri)) {
+        return [...prev, fileInfo];
+      }
+      return prev;
+    });
+  }, []);
+
+  // Step 5: Function to remove an active file reference
+  const removeActiveFile = useCallback((uri: string) => {
+    setActiveChatFiles(prev => prev.filter(f => f.uri !== uri));
+  }, []);
+
+  // Step 2: Callback for ChatInput to report its active files height
+  const handleActiveFilesHeightChange = useCallback((height: number) => {
+    // console.log('Reported active files height:', height); // Debug log
+    setChatInputHeightOffset(height > 0 ? height + 8 : 0); // Add some padding if height > 0
+  }, []);
+
   // Add global keyboard shortcut for focusing the chat input
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -193,55 +218,14 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 
     // Process attachments if any
     if (files && files.length > 0) {
-      try {
-        const fileAttachments: FileAttachment[] = await Promise.all(
-          files.map(async (file): Promise<FileAttachment> => {
-            return new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              
-              reader.onloadend = () => {
-                try {
-                  const base64data = reader.result as string;
-                  if (!base64data) {
-                    reject(new Error(`Failed to read file: ${file.name}`));
-                    return;
-                  }
-                  
-                  // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
-                  const base64Content = base64data.split(',')[1];
-                  
-                  console.log(`Successfully processed file: ${file.name} (${file.type}), size: ${(file.size / 1024).toFixed(2)}KB`);
-                  
-                  resolve({
-                    name: file.name,
-                    type: file.type,
-                    data: base64Content,
-                    size: file.size
-                  });
-                } catch (error) {
-                  console.error(`Error processing file ${file.name}:`, error);
-                  reject(error);
-                }
-              };
-              
-              reader.onerror = (error) => {
-                console.error(`Error reading file ${file.name}:`, error);
-                reject(error);
-              };
-              
-              reader.readAsDataURL(file);
-            });
-          })
-        );
-        
-        // Add attachments to the message
-        userMessage.attachments = fileAttachments;
-        console.log(`Added ${fileAttachments.length} attachments to message`);
-      } catch (error) {
-        console.error('Error processing attachments:', error);
-        toast.error('Failed to process attachments. Please try again.');
-        return;
-      }
+      // Create simplified attachment info for display (no base64)
+      userMessage.attachments = files.map(file => ({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        // data: '' // Removed: data is now optional in FileAttachment type
+      }));
+      console.log(`Added info for ${files.length} attachments to user message`);
     }
 
     // Create placeholder for assistant response
@@ -397,7 +381,10 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           selectedModel,
           abortControllerRef.current,
           setMessages,
-          assistantMessage
+          assistantMessage,
+          files, // Pass the File[] array
+          activeChatFiles, // Step 5: Pass active files
+          handleFileUploaded // Step 5: Pass callback
         );
         
         content = response.content;
@@ -489,6 +476,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 
   const handleNewChat = () => {
     router.push('/');
+    // Step 5: Clear active files (will be handled by navigating to home/new chat)
+    setActiveChatFiles([]); 
   };
 
   // Determine if the selected model is Exa
@@ -584,6 +573,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         selectedModelObj={selectedModelObj}
         isExa={selectedModel === 'exa'}
         currentThreadId={threadId}
+        bottomPadding={chatInputHeightOffset}
       />
 
       <ChatInput 
@@ -598,6 +588,9 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         isExa={selectedModel === 'exa'}
         onNewChat={handleNewChat}
         onAttachmentsChange={setAttachments}
+        activeChatFiles={activeChatFiles}
+        removeActiveFile={removeActiveFile}
+        onActiveFilesHeightChange={handleActiveFilesHeightChange}
       />
 
       {/* Auth Dialog */}
