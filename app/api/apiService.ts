@@ -13,6 +13,9 @@ const MODEL_LIMITS = {
   default: 8000 // Fallback limit
 };
 
+// Phase 4: Define K for buffer memory (number of message PAIRS)
+const K_MESSAGE_PAIRS = 5; // Retain last 5 user/assistant pairs (10 messages total)
+
 // Function to truncate conversation history to fit within context window
 const truncateConversationHistory = (messages: Message[], modelId: string): Message[] => {
   // For Exa, include limited context (last few messages) to support follow-up questions
@@ -34,56 +37,17 @@ const truncateConversationHistory = (messages: Message[], modelId: string): Mess
     return recentMessages;
   }
   
-  // For LLMs like Groq and Gemini, retain conversation history
-  // Determine the character limit for the model
-  let charLimit = MODEL_LIMITS.default;
-  if (modelId.includes('groq') || modelId.startsWith('llama')) {
-    charLimit = MODEL_LIMITS.groq;
-  } else if (modelId.includes('gemini') || modelId.includes('gemma')) {
-    charLimit = MODEL_LIMITS.google;
-  }
-  
-  // If there are fewer than 2 messages or the history fits in the limit, return all messages
-  if (messages.length <= 2) {
+  // Phase 4: K-Window Buffer Memory for LLMs (Groq, Gemini, etc.)
+  const maxMessages = K_MESSAGE_PAIRS * 2;
+
+  // If the total number of messages is already within the limit, return them all
+  if (messages.length <= maxMessages) {
     return messages;
   }
   
-  // Calculate total character count in all messages
-  const totalChars = messages.reduce((sum, msg) => sum + msg.content.length, 0);
-  
-  // If all messages fit within limit, return them all
-  if (totalChars <= charLimit) {
-    return messages;
-  }
-  
-  // Always include the most recent message pairs (user question and assistant response)
-  // and work backward in pairs to maintain context
-  const result: Message[] = [];
-  let usedChars = 0;
-  
-  // Process messages in reverse order (newest first)
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const currentMsg = messages[i];
-    const msgLength = currentMsg.content.length;
-    
-    // Always include the most recent messages
-    if (i >= messages.length - 2) {
-      result.unshift(currentMsg);
-      usedChars += msgLength;
-      continue;
-    }
-    
-    // For older messages, check if we have room
-    if (usedChars + msgLength <= charLimit) {
-      result.unshift(currentMsg);
-      usedChars += msgLength;
-    } else {
-      // If we can't fit any more messages, stop
-      break;
-    }
-  }
-  
-  return result;
+  // Otherwise, return only the last `maxMessages` messages
+  console.log(`Truncating history from ${messages.length} to ${maxMessages} messages (K=${K_MESSAGE_PAIRS}).`);
+  return messages.slice(-maxMessages);
 };
 
 // Helper type for message updater function
