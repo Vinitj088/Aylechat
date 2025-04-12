@@ -165,7 +165,7 @@ const ChatMessages = memo(function ChatMessages({
 
   return (
     <div 
-      className="flex-1 overflow-y-auto p-4 pb-[120px] md:pb-[150px] scroll-smooth relative"
+      className="flex-1 overflow-y-auto pt-16 px-4 pb-[120px] md:pb-[150px] scroll-smooth relative"
       style={{ paddingBottom: `${(bottomPadding ?? 0) + 150}px` }}
     >
       <div className="w-full max-w-full md:max-w-4xl mx-auto px-4 py-6 space-y-6">
