@@ -301,9 +301,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           {activeChatFiles && activeChatFiles.length > 0 && removeActiveFile && (
             <div 
               ref={activeFilesContainerRef}
-              className="mb-2 flex flex-wrap gap-2 items-center border-b border-[var(--secondary-darkest)] pb-2 pt-1"
+              className="mb-2 flex gap-2 items-center border-b border-[var(--secondary-darkest)] pb-2 pt-1 overflow-x-auto whitespace-nowrap scrollbar-thin"
             >
-              <span className="text-xs font-medium text-[var(--text-light-muted)] mr-1">Active:</span>
+              <span className="text-xs font-medium text-[var(--text-light-muted)] mr-1 flex-shrink-0">Active:</span>
               {activeChatFiles.map((file) => (
                 <div 
                   key={file.uri} 
