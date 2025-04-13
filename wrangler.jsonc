@@ -2,13 +2,19 @@
 {
   "name": "exachat",
   "compatibility_date": "2025-04-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "worker.js",
   
-  // For Next.js static assets
-  "site": {
-    "bucket": ".next/static"
+  // Static assets configuration for Next.js
+  "assets": {
+    "directory": ".next/static"
   },
   
+  // Build configuration
   "build": {
     "command": "npm run build"
-  }
+  },
+  
+  // Enable source maps
+  "upload_source_maps": true
 } 
