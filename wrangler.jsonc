@@ -1,0 +1,14 @@
+// cloudflare worker file
+{
+  "name": "exachat",
+  "compatibility_date": "2025-04-13",
+  
+  // For Next.js static assets
+  "site": {
+    "bucket": ".next/static"
+  },
+  
+  "build": {
+    "command": "npm run build"
+  }
+} 
