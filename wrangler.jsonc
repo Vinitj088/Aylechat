@@ -1,6 +1,6 @@
 // cloudflare worker file
 {
-  "name": "exachat",
+  "name": "ayle",
   "compatibility_date": "2025-04-13",
   "compatibility_flags": ["nodejs_compat"],
   "main": "worker.js",
