@@ -37,3 +37,6 @@ yarn-error.log*
 next-env.d.ts
 FILES_API_REFACTOR.md
 TPS_Implementation_Plan.md
+
+# OpenNext build output
+.open-next

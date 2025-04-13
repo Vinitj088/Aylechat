@@ -1,20 +1,12 @@
-// cloudflare worker file
 {
-  "name": "ayle",
-  "compatibility_date": "2025-04-13",
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "exa-chat",
+  "compatibility_date": "2024-12-30",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "worker.js",
-  
-  // Static assets configuration for Next.js
   "assets": {
-    "directory": ".next/static"
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
   },
-  
-  // Build configuration
-  "build": {
-    "command": "npm run build"
-  },
-  
-  // Enable source maps
-  "upload_source_maps": true
-} 
+  "kv_namespaces": []
+}
