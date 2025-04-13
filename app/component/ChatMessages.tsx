@@ -6,6 +6,12 @@ import ShareButton from './ShareButton';
 import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface ChatMessagesProps {
   messages: Message[];
@@ -37,6 +43,18 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
       toast.error('Failed to copy message');
     }
   };
+  
+  // Debug log for message properties
+  if (!isUser) {
+    console.log(`ChatMessage (Assistant, ID: ${message.id}):`, {
+      contentLength: message.content?.length,
+      completed: message.completed,
+      startTime: message.startTime,
+      endTime: message.endTime,
+      tps: message.tps,
+      shouldDisplayTPS: message.completed && typeof message.tps === 'number' && message.tps > 0
+    });
+  }
   
   return (
     <div className="w-full">
@@ -87,6 +105,21 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
                     )}
                   </div>
                 </Button>
+                {/* TPS Display with Tooltip */}
+                {message.completed && typeof message.tps === 'number' && message.tps > 0 && (
+                  <TooltipProvider delayDuration={100}> 
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap cursor-help">
+                          {message.tps.toFixed(1)} tokens/s
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Frontend-perceived throughput. <br /> Includes network and processing time.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
             </div>
           )}

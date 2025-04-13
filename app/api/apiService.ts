@@ -348,6 +348,7 @@ export const fetchResponse = async (
 
     let content = '';
     let citations: Array<Record<string, unknown>> = [];
+    let startTime: number | null = null; // Initialize startTime
 
     while (true) {
       const { done, value } = await reader.read();
@@ -386,6 +387,11 @@ export const fetchResponse = async (
             const newContent = data.choices[0].delta.content;
             content += newContent;
             
+            // Record startTime on first content chunk
+            if (startTime === null && newContent.length > 0) {
+              startTime = Date.now();
+            }
+            
             // Check if this is the end of the stream
             const isEndOfStream = line.includes('"finish_reason"') || 
               line.includes('"done":true') ||
@@ -399,7 +405,9 @@ export const fetchResponse = async (
                       ...msg,
                       content: content,
                       // Mark message as completed if we detect we're at the end
-                      completed: isEndOfStream
+                      completed: isEndOfStream,
+                      // Update startTime if it was set
+                      startTime: startTime ?? undefined 
                     } 
                   : msg
               )
@@ -413,16 +421,40 @@ export const fetchResponse = async (
       }
     }
 
-    // After streaming completes, make one final update to ensure message is marked as completed
+    // After streaming completes, calculate TPS and make final update
+    const endTime = Date.now();
+    const estimatedTokens = content.length > 0 ? content.length / 4 : 0; // Simple estimation
+    const durationSeconds = startTime ? (endTime - startTime) / 1000 : 0;
+    const calculatedTps = durationSeconds > 0 ? estimatedTokens / durationSeconds : 0;
+
     updateMessages(setMessages, (prev: Message[]) => 
       prev.map((msg: Message) => 
         msg.id === assistantMessage.id 
-          ? { ...msg, content, citations, completed: true } 
+          ? { 
+              ...msg, 
+              content, 
+              citations, 
+              completed: true, 
+              startTime: startTime ?? undefined, // Include startTime if set
+              endTime, 
+              tps: calculatedTps 
+            } 
           : msg
       )
     );
 
-    return { content, citations };
+    // Construct the final message object to return
+    const finalAssistantMessage: Message = {
+      ...assistantMessage, // Use the initial placeholder as base
+      content,
+      citations,
+      completed: true,
+      startTime: startTime ?? undefined,
+      endTime,
+      tps: calculatedTps
+    };
+
+    return finalAssistantMessage; // Return the complete message object
   } catch (err) {
     console.error('Error in fetchResponse:', err);
     

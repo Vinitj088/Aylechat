@@ -230,27 +230,21 @@ function PageContent() {
               const controller = new AbortController();
               abortControllerRef.current = controller;
               
-              const { content, citations } = await fetchResponse(
+              // Call fetchResponse and capture the complete message object
+              const completedAssistantMessage = await fetchResponse(
                 decodedQuery,
                 [],
                 'exa', // Always use Exa for search queries
                 controller,
-                (updatedMessages: Message[]) => {
-                  setMessages(updatedMessages);
-                },
-                assistantMessage,
+                setMessages, // Pass setMessages for live updates
+                assistantMessage, // Pass the placeholder
                 attachments,
                 activeChatFiles,
                 handleFileUploaded
               );
 
-              // Update messages with final response
-              const finalMessages = [userMessage, {
-                ...assistantMessage,
-                content,
-                citations,
-                completed: true
-              }];
+              // Update messages with final response using the returned object
+              const finalMessages = [userMessage, completedAssistantMessage]; // Use the completed message directly
               
               setMessages(finalMessages);
               
@@ -452,36 +446,39 @@ function PageContent() {
       }
 
       // Regular text response flow - only execute this if not an image generation model
-      const { content, citations } = await fetchResponse(
+      // Capture the complete assistant message object from fetchResponse
+      const completedAssistantMessage = await fetchResponse(
         input,
-        messages,
+        messages, // Pass current messages state for context
         selectedModel,
         abortControllerRef.current,
         (updatedMessages: Message[]) => {
           // This callback updates messages as they stream in
           setMessages(updatedMessages);
         },
-        assistantMessage,
+        assistantMessage, // Pass the placeholder message
         attachments,
         activeChatFiles,
         handleFileUploaded
       );
 
-      // Update message with final response
-      const finalMessages = [...messages, userMessage, {
-        ...assistantMessage,
-        content,
-        citations,
-        completed: true
-      }];
-      
-      setMessages(finalMessages);
+      // Update messages state with the final, completed assistant message
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          msg.id === assistantMessage.id 
+            ? completedAssistantMessage // Replace placeholder with the complete message
+            : msg
+        )
+      );
+
+      // Construct the final message list for thread saving
+      const finalMessagesForThread = [...messages, userMessage, completedAssistantMessage];
 
       // Create or update the thread only after we have the complete response
       if (isFirstMessage) {
         // For first message, create a new thread
         const threadId = await createOrUpdateThread({
-          messages: finalMessages,
+          messages: finalMessagesForThread,
           title: threadTitle
         });
         
@@ -493,12 +490,12 @@ function PageContent() {
       } else if (currentThreadId) {
         // For subsequent messages, update the existing thread
         await createOrUpdateThread({
-          messages: finalMessages
+          messages: finalMessagesForThread
         });
       } else {
         // If we somehow don't have a thread ID, create a new thread
         const threadId = await createOrUpdateThread({
-          messages: finalMessages,
+          messages: finalMessagesForThread,
           title: threadTitle
         });
         

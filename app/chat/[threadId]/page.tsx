@@ -255,12 +255,12 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 
     try {
       // Check if it's a new thread or existing thread
-      const isNewThread = !threadId || threadId === 'new';
+      // const isNewThread = !threadId || threadId === 'new'; // We don't need this check here anymore
       
-      // First, let's update the thread on the server
-      if (user && isAuthenticated) {
-        await updateThread(updatedMessages);
-      }
+      // REMOVED: Update thread immediately - we now wait for the response
+      // if (user && isAuthenticated) {
+      //   await updateThread(updatedMessages); 
+      // }
 
       if (isImageGenerationModel) {
         // Handle image generation model
@@ -346,87 +346,50 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         // Update the thread again with the completed response
         if (user && isAuthenticated) {
           try {
-            // Create a complete array with all messages including the completed response
-            const finalMessages = [...messages]; // Start with previous messages
-            
-            // Find if user message is already in the array, add if not
-            const userMessageExists = finalMessages.some(msg => msg.id === userMessage.id);
-            if (!userMessageExists) {
-              finalMessages.push(userMessage);
-            }
-            
-            // Add or update the assistant message
-            const assistantIndex = finalMessages.findIndex(msg => msg.id === assistantMessage.id);
-            if (assistantIndex !== -1) {
-              finalMessages[assistantIndex] = completedAssistantMessage;
-            } else {
-              finalMessages.push(completedAssistantMessage);
-            }
-            
-            // Update thread with all messages
+            // Construct final messages using the completedAssistantMessage from image gen
+            const finalMessages = updatedMessages.map(msg => 
+              msg.id === assistantMessage.id 
+                ? completedAssistantMessage // Use the object with image data
+                : msg
+            );
             await updateThread(finalMessages);
           } catch (updateError) {
-            console.error('Error saving completed thread:', updateError);
+            console.error('Error saving completed thread (image gen):', updateError);
           }
         }
       } else {
         // Standard text model processing
-        let content = "";
-        let citations: any[] = [];
+        // REMOVED: let content = "";
+        // REMOVED: let citations: any[] = [];
         
-        // Fetch the model response
-        const response = await fetchResponse(
+        // Fetch the model response - it now returns the complete assistant message
+        const completedAssistantMessage = await fetchResponse(
           userMessage.content,
-          updatedMessages.slice(0, -1), // Exclude the empty assistant message
+          updatedMessages.slice(0, -1), // Pass messages before placeholder
           selectedModel,
           abortControllerRef.current,
-          setMessages,
-          assistantMessage,
-          files, // Pass the File[] array
-          activeChatFiles, // Step 5: Pass active files
-          handleFileUploaded // Step 5: Pass callback
+          setMessages, // Still needed for live UI updates during stream
+          assistantMessage, // Pass the placeholder ID/role
+          files, 
+          activeChatFiles, 
+          handleFileUploaded 
         );
         
-        content = response.content;
-        citations = response.citations || [];
+        // REMOVED: content = response.content;
+        // REMOVED: citations = response.citations || [];
 
         // Update the thread again with the completed response
         if (user && isAuthenticated) {
           try {
-            // Create a complete array with all messages including the completed response
-            const finalMessages = [...messages]; // Start with previous messages
-            
-            // Find if user message is already in the array, add if not
-            const userMessageExists = finalMessages.some(msg => msg.id === userMessage.id);
-            if (!userMessageExists) {
-              finalMessages.push(userMessage);
-            }
-            
-            // Find if assistant message exists, update it or add it
-            const assistantIndex = finalMessages.findIndex(msg => msg.id === assistantMessage.id);
-            if (assistantIndex !== -1) {
-              finalMessages[assistantIndex] = {
-                ...assistantMessage,
-                content,
-                citations,
-                completed: true
-              };
-            } else {
-              finalMessages.push({
-                ...assistantMessage,
-                content,
-                citations,
-                completed: true
-              });
-            }
-            
-            // Log message count for debugging
-            console.log(`Saving thread with ${finalMessages.length} messages`);
-            
-            // Update thread with all messages
+            // Construct final messages using the returned completedAssistantMessage
+            const finalMessages = updatedMessages.map(msg => 
+              msg.id === assistantMessage.id 
+                ? completedAssistantMessage // Use the object returned by fetchResponse
+                : msg
+            );
             await updateThread(finalMessages);
           } catch (updateError) {
-            console.error('Error saving completed thread:', updateError);
+            console.error('Error saving completed thread (text gen):', updateError);
           }
         }
       }

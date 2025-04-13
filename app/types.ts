@@ -6,6 +6,9 @@ export interface Message {
   completed?: boolean;
   images?: ImageData[];
   attachments?: FileAttachment[];
+  startTime?: number; // Timestamp when the first chunk arrived
+  endTime?: number; // Timestamp when the stream completed
+  tps?: number; // Calculated tokens per second
 }
 
 export interface ImageData {

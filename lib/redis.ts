@@ -23,6 +23,12 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   citations?: any[];
+  completed?: boolean;
+  images?: any[];
+  attachments?: any[];
+  startTime?: number;
+  endTime?: number;
+  tps?: number;
 }
 
 export interface ChatThread {
