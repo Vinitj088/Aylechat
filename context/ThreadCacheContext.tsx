@@ -23,6 +23,7 @@ interface ThreadCacheContextType {
   addThread: (thread: ChatThread) => void;
   updateThread: (threadId: string, updates: Partial<ChatThread>) => void;
   removeThread: (threadId: string) => void;
+  clearThreads: () => void;
   lastUpdated: number;
 }
 
@@ -33,6 +34,7 @@ export const ThreadCacheContext = createContext<ThreadCacheContextType>({
   addThread: () => {},
   updateThread: () => {},
   removeThread: () => {},
+  clearThreads: () => {},
   lastUpdated: 0
 });
 
@@ -211,6 +213,19 @@ export const ThreadCacheProvider: React.FC<ThreadCacheProviderProps> = ({ childr
     });
   }, [saveToCache]);
 
+  // Function to clear all threads from the local state and cache
+  const clearThreads = useCallback(() => {
+    setThreads([]);
+    // Also remove from localStorage cache
+    try {
+      localStorage.removeItem(CACHE_KEY);
+      setLastUpdated(Date.now()); // Update timestamp after clearing
+      console.log('Cleared thread cache and local state.');
+    } catch (e) {
+      console.error('Error removing thread cache from localStorage:', e);
+    }
+  }, []); // No dependencies needed as it just resets state/clears cache
+
   // Initial load from cache
   useEffect(() => {
     if (isAuthenticated) {
@@ -240,6 +255,7 @@ export const ThreadCacheProvider: React.FC<ThreadCacheProviderProps> = ({ childr
         addThread,
         updateThread,
         removeThread,
+        clearThreads,
         lastUpdated
       }}
     >

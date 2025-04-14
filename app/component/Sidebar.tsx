@@ -9,8 +9,18 @@ import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { getAssetPath } from '../utils';
-import { X, Trash2, LogOut, Clock, User } from 'lucide-react';
+import { X, Trash2, LogOut, Clock, User, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -22,12 +32,13 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger = 0 }: SidebarProps) {
   const [lastRefreshTrigger, setLastRefreshTrigger] = useState(0);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   
   const router = useRouter();
   const pathname = usePathname();
   const { user, signOut, refreshSession, openAuthDialog } = useAuth();
   // Use the thread cache context for thread data and operations
-  const { threads, isLoading, fetchThreads, removeThread, lastUpdated } = useThreadCache();
+  const { threads, isLoading, fetchThreads, removeThread, clearThreads, lastUpdated } = useThreadCache();
 
   const isAuthenticated = !!user;
 
@@ -106,6 +117,51 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       onClose();
     } catch (error) {
       console.error('Error signing out:', error);
+    }
+  };
+
+  const handleClearAllHistory = () => {
+    if (threads.length > 0) {
+      setIsClearConfirmOpen(true);
+    } else {
+      toast.info("No chat history to clear.");
+    }
+  };
+
+  const handleConfirmClearAll = async () => {
+    setIsClearConfirmOpen(false);
+    const toastId = toast.loading("Clearing all chat history...");
+
+    try {
+      const response = await fetch(getAssetPath('/api/chat/threads'), {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        }
+      });
+
+      if (response.ok) {
+        clearThreads();
+        toast.success("Chat history cleared successfully", { id: toastId });
+        if (pathname.startsWith('/chat/')) {
+          router.push('/');
+        }
+        onClose();
+      } else {
+        const errorData = await response.json();
+        toast.error("Failed to clear history", {
+          id: toastId,
+          description: errorData.message || 'Please try again later',
+        });
+      }
+    } catch (error) {
+      console.error('Error clearing all threads:', error);
+      toast.error("Failed to clear history", {
+        id: toastId,
+        description: 'An unexpected error occurred. Please check your connection and try again.',
+      });
     }
   };
 
@@ -217,9 +273,22 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                     </div>
                   </li>
                 ))}
-                <li className="text-center mt-4 pt-3 border-t border-dashed border-[var(--secondary-darker)]">
-                  <span className="text-xs text-[var(--text-light-muted)] italic">— End of history —</span>
-                </li>
+                {threads.length > 0 && (
+                  <li className="pt-3 border-t border-dashed border-[var(--secondary-darker)] mt-3">
+                    <button
+                      onClick={handleClearAllHistory}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-[var(--accent-red)] hover:bg-[var(--accent-maroon-light)] rounded-md transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Clear All History
+                    </button>
+                  </li>
+                )}
+                {threads.length === 0 && !isLoading && !fetchError && (
+                   <li className="text-center mt-4 pt-3 border-t border-dashed border-[var(--secondary-darker)]">
+                     <span className="text-xs text-[var(--text-light-muted)] italic">— History is empty —</span>
+                   </li>
+                )}
               </ul>
             )}
           </div>
@@ -247,6 +316,26 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
           )}
         </div>
       </div>
+
+      <AlertDialog open={isClearConfirmOpen} onOpenChange={setIsClearConfirmOpen}>
+        <AlertDialogContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Are you absolutely sure?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete all your chat threads and remove your data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmClearAll} className="bg-red-600 hover:bg-red-700 text-white">
+              Yes, delete all history
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 } 

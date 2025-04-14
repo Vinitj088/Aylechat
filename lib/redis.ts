@@ -282,4 +282,66 @@ export class RedisService {
       return false;
     }
   }
+
+  // Delete ALL chat threads for a user
+  static async deleteAllUserChatThreads(userId: string): Promise<number> {
+    const userThreadsKey = `user:${userId}:threads`;
+    let deletedCount = 0;
+
+    try {
+      // Get all thread summaries/references from the user's list
+      const threadSummaries = await redis.lrange(userThreadsKey, 0, -1);
+      
+      if (threadSummaries.length === 0) {
+        console.log(`No threads found to delete for user ${userId}.`);
+        return 0;
+      }
+
+      const keysToDelete: string[] = [userThreadsKey]; // Start with the list key itself
+
+      // Collect all individual thread keys
+      for (const summary of threadSummaries) {
+        try {
+          // Attempt to parse the summary to get the ID
+          let threadId: string | undefined;
+          if (typeof summary === 'object' && summary !== null && 'id' in summary) {
+             threadId = (summary as { id: string }).id;
+          } else if (typeof summary === 'string') {
+             const parsedSummary = JSON.parse(summary);
+             threadId = parsedSummary.id;
+          }
+          
+          if (threadId) {
+            keysToDelete.push(`thread:${userId}:${threadId}`);
+          } else {
+             console.warn(`Could not extract threadId from summary for user ${userId}:`, summary);
+          }
+        } catch (parseError) {
+          console.error(`Error parsing thread summary for user ${userId}:`, summary, parseError);
+          // Optionally, try to delete based on a pattern if parsing fails, but safer to skip
+        }
+      }
+
+      // Perform the deletion
+      if (keysToDelete.length > 1) { // More than just the list key
+        const delResult = await redis.del(...keysToDelete);
+        // The count returned by del is the total number of keys removed.
+        // We subtract 1 because one key is the list itself.
+        deletedCount = delResult - 1;
+        console.log(`Deleted ${deletedCount} threads and the list key for user ${userId}.`);
+      } else if (keysToDelete.length === 1) {
+         // Only the list key exists (potentially empty or corrupted summaries)
+         await redis.del(userThreadsKey);
+         console.log(`Deleted only the list key ${userThreadsKey} as no valid thread keys were found.`);
+      }
+
+      return deletedCount;
+
+    } catch (error) {
+      console.error(`Error deleting all chat threads for user ${userId}:`, error);
+      // Depending on the error, some keys might have been deleted.
+      // Returning 0 as a safe default, but might need more robust error handling.
+      return 0;
+    }
+  }
 } 

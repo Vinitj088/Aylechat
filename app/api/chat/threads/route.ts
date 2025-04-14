@@ -118,4 +118,58 @@ export async function POST(req: NextRequest) {
       error: error.message || 'Failed to create thread' 
     }, { status: 500 });
   }
+}
+
+// DELETE endpoint to clear all threads for a user
+export async function DELETE(req: NextRequest) {
+  try {
+    // Verify Redis connection first
+    const redisConnected = await verifyRedisConnection();
+    if (!redisConnected) {
+      console.error('Redis connection failed during clear all');
+      return NextResponse.json(
+        { error: 'Service unavailable', message: 'Database connection error' },
+        { status: 503 }
+      );
+    }
+
+    // Get user from Supabase auth
+    const supabase = createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    // Check if we have a valid user
+    if (error || !user) {
+      console.error('Auth error on DELETE /threads:', error?.message || 'No user found');
+      return NextResponse.json(
+        { 
+          error: 'Unauthorized', 
+          message: error?.message || 'Authentication required',
+          authRequired: true 
+        },
+        { status: 401 }
+      );
+    }
+    
+    const userId = user.id;
+    console.log(`Attempting to delete all threads for user: ${userId}`);
+    
+    // Call Redis service to delete all threads for the user
+    const deleteCount = await RedisService.deleteAllUserChatThreads(userId);
+    
+    console.log(`Deleted ${deleteCount} threads for user: ${userId}`);
+
+    return NextResponse.json({
+      success: true,
+      message: `Successfully deleted ${deleteCount} chat threads.`,
+      deletedCount: deleteCount
+    });
+    
+  } catch (error: any) {
+    console.error('Error deleting all threads:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Failed to delete threads', 
+      message: error.message || 'An internal server error occurred' 
+    }, { status: 500 });
+  }
 } 
