@@ -31,6 +31,16 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
       enabled: true,
       toolCallType: 'native',
       searchMode: true
+    },
+    {
+      id: 'exa-rag',
+      name: 'Exa RAG with Gemini',
+      provider: 'Exa + Google',
+      providerId: 'exa',
+      enabled: true,
+      toolCallType: 'native',
+      searchMode: true,
+      avatarType: 'exa'
     }
   ]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -54,18 +64,11 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     const googleModels = modelsData.models.filter(model => model.providerId === 'google');
     const openRouterModels = modelsData.models.filter(model => model.providerId === 'openrouter');
     const cerebrasModels = modelsData.models.filter(model => model.providerId === 'cerebras');
+    const exaModels = modelsData.models.filter(model => model.providerId === 'exa');
     
-    // Replace the model list instead of appending
+    // Replace the model list with all models
     setModels([
-      {
-        id: 'exa',
-        name: 'Exa Search',
-        provider: 'Exa',
-        providerId: 'exa',
-        enabled: true,
-        toolCallType: 'native',
-        searchMode: true
-      },
+      ...exaModels,
       ...googleModels,
       ...cerebrasModels,
       ...openRouterModels,

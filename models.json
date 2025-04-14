@@ -1,6 +1,25 @@
 {
   "models": [
     {
+      "id": "exa",
+      "name": "Exa Search",
+      "provider": "Exa",
+      "providerId": "exa",
+      "enabled": true,
+      "toolCallType": "native",
+      "searchMode": true
+    },
+    {
+      "id": "exa-rag",
+      "name": "Exa RAG with Gemini",
+      "provider": "Exa + Google",
+      "providerId": "exa",
+      "enabled": true,
+      "toolCallType": "native",
+      "searchMode": true,
+      "avatarType": "exa"
+    },
+    {
       "id": "mistralai/mistral-small-3.1-24b-instruct:free",
       "name": "Mistral Small 3.1 24B",
       "provider": "OpenRouter",

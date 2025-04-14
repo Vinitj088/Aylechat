@@ -60,6 +60,16 @@ function PageContent() {
       enabled: true,
       toolCallType: 'native',
       searchMode: true
+    },
+    {
+      id: 'exa-rag',
+      name: 'Exa RAG with Gemini',
+      provider: 'Exa + Google',
+      providerId: 'exa',
+      enabled: true,
+      toolCallType: 'native',
+      searchMode: true,
+      avatarType: 'exa'
     }
   ]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -149,23 +159,15 @@ function PageContent() {
     const googleModels = modelsData.models.filter(model => model.providerId === 'google');
     const openRouterModels = modelsData.models.filter(model => model.providerId === 'openrouter');
     const cerebrasModels = modelsData.models.filter(model => model.providerId === 'cerebras');
+    const exaModels = modelsData.models.filter(model => model.providerId === 'exa');
     
-    // Start with just the Exa model and then add the others
+    // Start with Exa models and then add the others
     setModels([
-      {
-        id: 'exa',
-        name: 'Exa Search',
-        provider: 'Exa',
-        providerId: 'exa',
-        enabled: true,
-        toolCallType: 'native',
-        searchMode: true
-      },
+      ...exaModels,
       ...googleModels,
       ...cerebrasModels,
       ...openRouterModels,
       ...groqModels,
-      
     ]);
     
     // Get search params

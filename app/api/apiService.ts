@@ -152,7 +152,7 @@ export const fetchResponse = async (
   attachments?: File[],
   activeFiles?: Array<{ name: string; type: string; uri: string }>,
   onFileUploaded?: (fileInfo: { name: string; type: string; uri: string }) => void
-) => {
+): Promise<Message> => {
   // Prepare messages for conversation history, ensuring we respect context limits
   const truncatedMessages = truncateConversationHistory(messages, selectedModel);
   
@@ -169,7 +169,10 @@ export const fetchResponse = async (
     : input;
 
   let response;
-  
+  const startTime = Date.now();
+  let content = '';
+  let citations: any[] = [];
+
   try {
     // Determine which API endpoint to use based on the selected model
     let apiEndpoint;
@@ -180,6 +183,8 @@ export const fetchResponse = async (
     
     if (selectedModel === 'exa') {
       apiEndpoint = getAssetPath('/api/exaanswer');
+    } else if (selectedModel === 'exa-rag') {
+      apiEndpoint = getAssetPath('/api/exacontents');
     } else if (modelConfig?.toolCallType === 'openrouter' || selectedModel === 'gemma3-27b') {
       apiEndpoint = getAssetPath('/api/openrouter');
     } else if (selectedModel.includes('gemini')) {
@@ -346,10 +351,6 @@ export const fetchResponse = async (
     const reader = response.body?.getReader();
     if (!reader) throw new Error('No reader available');
 
-    let content = '';
-    let citations: Array<Record<string, unknown>> = [];
-    let startTime: number | null = null; // Initialize startTime
-
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -387,11 +388,6 @@ export const fetchResponse = async (
             const newContent = data.choices[0].delta.content;
             content += newContent;
             
-            // Record startTime on first content chunk
-            if (startTime === null && newContent.length > 0) {
-              startTime = Date.now();
-            }
-            
             // Check if this is the end of the stream
             const isEndOfStream = line.includes('"finish_reason"') || 
               line.includes('"done":true') ||
@@ -406,8 +402,6 @@ export const fetchResponse = async (
                       content: content,
                       // Mark message as completed if we detect we're at the end
                       completed: isEndOfStream,
-                      // Update startTime if it was set
-                      startTime: startTime ?? undefined 
                     } 
                   : msg
               )
