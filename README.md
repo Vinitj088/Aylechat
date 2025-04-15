@@ -1,9 +1,9 @@
-# 💬 Exa Answer Chat App
+# 💬 AyleChat App
 ### Powered by [Exa](https://exa.ai) - The Web Search API
 
 An open-source chat app showcasing the power of Exa's Answer endpoint.
 
-![Screenshot](https://imgur.com/RfS8wxi.jpg)
+![Screenshot](https://ibb.co/xRP80kx)
 
 ### ✨ Try it yourself:
 
@@ -11,9 +11,9 @@ An open-source chat app showcasing the power of Exa's Answer endpoint.
 
 <br>
 
-## 🎯 What is Exa Answer Chat App?
+## 🎯 What is Ayle Answer Chat App?
 
-Exa Chat is a open-source custom-built AI chat application leveraging the power of Groq and Exa Search for unparalleled speed and providing immediate access to cutting-edge Large Language Models (LLMs).
+Ayle Chat is a open-source custom-built AI chat application leveraging the power of Groq and Exa Search for unparalleled speed and providing immediate access to cutting-edge Large Language Models (LLMs).
 
 
 
@@ -42,8 +42,8 @@ Exa Chat is a open-source custom-built AI chat application leveraging the power 
 
 1. Clone the repository
 ```bash
-git clone https://github.com/Vinitj088/ExaChat.git
-cd ExaChat
+git clone https://github.com/Vinitj088/AyleChat.git
+cd AyleChat
 ```
 
 2. Install dependencies
