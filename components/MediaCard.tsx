@@ -29,8 +29,8 @@ const slugify = (text: string): string => {
     .toString()
     .toLowerCase()
     .replace(/\s+/g, '-')           // Replace spaces with -
-    .replace(/[^\w\\-]+/g, '')      // Remove all non-word chars except -
-    .replace(/\\-\\-+/g, '-')       // Replace multiple - with single -
+    .replace(/[^\w\-]+/g, '')       // Remove all non-word chars except -
+    .replace(/\-\-+/g, '-')         // Replace multiple - with single -
     .replace(/^-+/, '')             // Trim - from start of text
     .replace(/-+$/, '');            // Trim - from end of text
 };
@@ -49,9 +49,10 @@ const MediaCard: React.FC<MediaCardProps> = ({ data }) => {
   const cast = data.cast || [];
   const runtimeString = formatRuntime(data.runtime);
   
-  // --- UPDATED: Construct detailsLink with slug ---
+  // --- UPDATED: Construct detailsLink based on mediaType --- 
   const titleSlug = slugify(title);
-  const detailsLink = `https://displayr-fc42c.web.app/movie/${data.id}-${titleSlug}`; 
+  const mediaPath = data.mediaType === 'tv' ? 'tv' : 'movie'; // Determine path segment
+  const detailsLink = `https://displayr-fc42c.web.app/${mediaPath}/${data.id}-${titleSlug}`; 
   // --- End Update ---
 
   return (
@@ -120,7 +121,7 @@ const MediaCard: React.FC<MediaCardProps> = ({ data }) => {
           </div>
           <div className="mt-auto text-right pt-2"> 
             <a
-              href={detailsLink} // This now uses the slugified URL
+              href={detailsLink} 
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-neutral-600 hover:bg-neutral-700 dark:bg-neutral-500 dark:text-gray-100 dark:hover:bg-neutral-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-neutral-500"
