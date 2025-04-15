@@ -52,7 +52,7 @@ const MediaCard: React.FC<MediaCardProps> = ({ data }) => {
   // --- UPDATED: Construct detailsLink based on mediaType --- 
   const titleSlug = slugify(title);
   const mediaPath = data.mediaType === 'tv' ? 'tv' : 'movie'; // Determine path segment
-  const detailsLink = `https://displayr-fc42c.web.app/${mediaPath}/${data.id}-${titleSlug}`; 
+  const detailsLink = `https://displayr.vercel.app/${mediaPath}/${data.id}-${titleSlug}`; 
   // --- End Update ---
 
   return (
