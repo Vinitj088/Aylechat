@@ -22,7 +22,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata = {
-  title: 'ExaChat',
+  title: 'Ayle Chat',
   description: 'Chat with AI using Exa for web search and real-time information',
 };
 

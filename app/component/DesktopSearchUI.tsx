@@ -44,8 +44,7 @@ interface DesktopSearchUIProps {
   handleModelChange: (modelId: string) => void;
   models: Model[];
   setInput: (input: string) => void;
-  isExa?: boolean;
-  providerName?: string;
+  description: string;
   messages: { id: string; role: string; content: string }[];
   onAttachmentsChange?: (files: File[]) => void;
 }
@@ -59,8 +58,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   handleModelChange,
   models,
   setInput,
-  isExa,
-  providerName,
+  description,
   messages,
   onAttachmentsChange
 }) => {
@@ -171,13 +169,8 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
             The web, <span className="text-[var(--brand-default)]" style={{ fontFamily: 'Space Grotesk' }}>organized</span>
           </h1>
           <p className="text-base text-[var(--text-light-muted)] mb-2">
-            {isExa ? 'Exa search uses embeddings to understand meaning.' : `${providerName} provides fast AI inference.`}
+            {description}
           </p>
-          {isExa && (
-            <p className="text-base text-[var(--text-light-muted)] underline">
-              Learn more
-            </p>
-          )}
         </div>
         
         {/* Search box */}

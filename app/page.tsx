@@ -27,6 +27,23 @@ import { Button } from "@/components/ui/button";
 import { prefetchAll } from './api/prefetch';
 import { FileUp, X } from 'lucide-react';
 
+// Helper function to get provider description
+const getProviderDescription = (providerName: string | undefined): string => {
+  switch (providerName?.toLowerCase()) {
+    case 'google':
+      return 'Google provides higher context limits up to 1M tokens.';
+    case 'openrouter':
+      return 'OpenRouter provides access to the latest AI models.';
+    case 'cerebras':
+      return 'Cerebras offers exceptionally fast AI inference.';
+    case 'groq':
+      return 'Groq delivers lightning-fast inference using LPUs.';
+    // Add more cases as needed
+    default:
+      return `${providerName || 'This provider'} offers fast AI inference.`; // Default message
+  }
+};
+
 // Lazy load heavy components
 const ChatMessages = dynamic(() => import('./component/ChatMessages'), {
   loading: () => (
@@ -704,6 +721,11 @@ function PageContent() {
   // Get the provider name for the selected model
   const providerName = selectedModelObj?.provider || 'AI';
 
+  // Calculate the description based on model
+  const description = isExa 
+    ? 'Exa search uses embeddings to understand meaning.' 
+    : getProviderDescription(providerName);
+
   const handleNewChat = () => {
     // Ensure we're at the top of the page
     window.scrollTo(0, 0);
@@ -849,8 +871,7 @@ function PageContent() {
             models={models}
             setInput={setInput}
             messages={messages}
-            isExa={selectedModel.includes('exa')}
-            providerName={selectedModel.includes('exa') ? 'Exa' : 'Groq'}
+            description={description}
             onAttachmentsChange={setAttachments}
           />
           <DesktopSearchUI 
@@ -862,8 +883,7 @@ function PageContent() {
             handleModelChange={handleModelChange}
             models={models}
             setInput={setInput}
-            isExa={selectedModel.includes('exa')}
-            providerName={selectedModel.includes('exa') ? 'Exa' : 'Groq'}
+            description={description}
             messages={messages}
             onAttachmentsChange={setAttachments}
           />

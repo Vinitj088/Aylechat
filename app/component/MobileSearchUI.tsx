@@ -45,8 +45,7 @@ interface MobileSearchUIProps {
   models: Model[];
   setInput: (input: string) => void;
   messages: { id: string; role: string; content: string }[];
-  isExa?: boolean;
-  providerName?: string;
+  description: string;
   onAttachmentsChange?: (files: File[]) => void;
 }
 
@@ -60,8 +59,7 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
   models,
   setInput,
   messages,
-  isExa = true,
-  providerName = '',
+  description,
   onAttachmentsChange
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -193,7 +191,7 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
             <span className="text-[var(--brand-default)]" style={{ fontFamily: 'Space Grotesk' }}>The Web, </span> Organised
           </h1>
           <p className="text-sm text-[var(--text-light-muted)] mb-2">
-            {isExa ? 'Exa search uses embeddings to understand meaning.' : `${providerName} provides fast AI inference.`}
+            {description}
           </p>
         </div>
         
