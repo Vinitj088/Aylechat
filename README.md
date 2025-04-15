@@ -3,7 +3,7 @@
 
 An open-source chat app showcasing the power of Exa's Answer endpoint.
 
-![Screenshot](https://ibb.co/xRP80kx)
+![Screenshot](\public\homepage.png)
 
 ### ✨ Try it yourself:
 
