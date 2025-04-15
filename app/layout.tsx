@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Providers } from './providers';
 import Script from 'next/script';
 import { Instrument_Sans, Space_Grotesk } from 'next/font/google';
+import { gebukRegular } from './fonts';
 
 // Configure fonts
 const instrumentSans = Instrument_Sans({
@@ -32,7 +33,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${instrumentSans.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${instrumentSans.variable} ${spaceGrotesk.variable} ${gebukRegular.variable}`} suppressHydrationWarning>
       <head>
         <Script id="sw-register" strategy="beforeInteractive">
           {`
