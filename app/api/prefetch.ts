@@ -62,24 +62,8 @@ export async function prefetchAll() {
   // Prefetch models config separately
   const modelConfigPromise = import('../../models.json');
 
-  // Warm up API endpoints with minimal payloads
-  const apiEndpoints = ['/api/groq', '/api/openrouter', '/api/gemini', '/api/exaanswer', '/api/cerebras'];
-  
-  const warmupPromises = apiEndpoints.map(endpoint => 
-    fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Warmup': 'true'
-      },
-      body: JSON.stringify({ warmup: true }),
-      signal: AbortSignal.timeout(1000),
-      cache: 'no-store'
-    }).catch(() => {/* Ignore warmup errors */})
-  );
-
-  // Execute all prefetch operations in parallel
-  await Promise.allSettled([...apiPrefetchPromises, modelConfigPromise, ...warmupPromises]);
+  // Execute all prefetch operations in parallel, excluding the warmup calls
+  await Promise.allSettled([...apiPrefetchPromises, modelConfigPromise]);
 }
 
 // Removed custom response caching logic as it's unsafe/redundant
