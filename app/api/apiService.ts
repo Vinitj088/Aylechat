@@ -153,333 +153,349 @@ export const fetchResponse = async (
   activeFiles?: Array<{ name: string; type: string; uri: string }>,
   onFileUploaded?: (fileInfo: { name: string; type: string; uri: string }) => void
 ) => {
+  const trimmedInput = input.trim();
+  let command: '/movies' | '/tv' | null = null;
+  let commandQuery: string | null = null;
+
+  if (trimmedInput.startsWith('/movies ')) {
+    command = '/movies';
+    commandQuery = trimmedInput.substring(8).trim(); // Get text after "/movies "
+  } else if (trimmedInput.startsWith('/tv ')) {
+    command = '/tv';
+    commandQuery = trimmedInput.substring(5).trim(); // Get text after "/tv "
+  }
+
   // Prepare messages for conversation history, ensuring we respect context limits
+  // Needed for both command handler fallback (potentially) and standard LLM calls
   const truncatedMessages = truncateConversationHistory(messages, selectedModel);
   
-  // Format previous messages into conversation history
-  // NOTE: For FormData requests, we send truncatedMessages as JSON string.
-  // For JSON requests, we send it as an object.
-  const conversationHistory = truncatedMessages.map(msg => 
-    `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
-  ).join('\n');
-  
-  // Combine history with new query
-  const fullQuery = conversationHistory 
-    ? `${conversationHistory}\nUser: ${input}`
-    : input;
-
   let response;
-  
+
   try {
-    // Determine which API endpoint to use based on the selected model
-    let apiEndpoint;
-    let useFormDataForGemini = false;
-    
-    // Find the model configuration
-    const modelConfig = modelsConfig.models.find((m: Record<string, unknown>) => m.id === selectedModel);
-    
-    if (selectedModel === 'exa') {
-      apiEndpoint = getAssetPath('/api/exaanswer');
-    } else if (modelConfig?.toolCallType === 'openrouter' || selectedModel === 'gemma3-27b') {
-      apiEndpoint = getAssetPath('/api/openrouter');
-    } else if (selectedModel.includes('gemini')) {
-      apiEndpoint = getAssetPath('/api/gemini');
-      // Determine if FormData should be used for Gemini
-      if ((attachments && attachments.length > 0) || (activeFiles && activeFiles.length > 0)) {
-        useFormDataForGemini = true;
-        console.log("Preparing FormData request for Gemini (new attachments or active files present).");
-      }
-    } else if (modelConfig?.providerId === 'cerebras') {
-      apiEndpoint = getAssetPath('/api/cerebras');
-    } else {
-      apiEndpoint = getAssetPath('/api/groq');
-    }
+    // --- Handle Slash Commands --- 
+    if (command && commandQuery) {
+      console.log(`Handling command: ${command} with query: ${commandQuery}`);
+      const commandApiEndpoint = getAssetPath('/api/command-handler');
+      
+      response = await fetch(commandApiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
+        signal: abortController.signal,
+        // credentials: 'include', // If your command handler needs auth
+        body: JSON.stringify({ command, query: commandQuery }),
+      });
 
-    console.log(`Sending request to ${apiEndpoint} with model ${selectedModel}`);
-    
-    // Base request options (headers might be modified later)
-    const requestOptions: RequestInit = {
-      method: 'POST',
-      headers: {
-        // Default to JSON, remove later if using FormData
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
-      },
-      signal: abortController.signal,
-      credentials: 'include' as RequestCredentials, // Add credentials to include cookies
-    };
-    
-    let requestBody: BodyInit;
-
-    if (useFormDataForGemini) {
-      // --- Create FormData for Gemini with Attachments ---
-      const formData = new FormData();
-      formData.append('query', input); // Send original input query
-      formData.append('model', selectedModel);
-      // Send history messages as a JSON string
-      formData.append('messages', JSON.stringify(truncatedMessages)); 
-
-      // Append each file
-      if (attachments && attachments.length > 0) {
-        attachments.forEach((file, index) => {
-          formData.append(`attachment_${index}`, file, file.name);
-          console.log(`Appended NEW file to FormData: ${file.name}`);
-        });
-      } else {
-        console.log("No new attachments to append for this request.");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Command handler API request failed: ${response.status}`, errorText);
+        throw new Error(`Command handler failed: ${response.statusText || errorText}`);
       }
 
-      // Step 4: Append activeFiles if present
-      if (activeFiles && activeFiles.length > 0) {
-        formData.append('activeFiles', JSON.stringify(activeFiles));
-        console.log(`Appended ${activeFiles.length} active file references to FormData.`);
-      }
+      // Command handler returns complete JSON, not a stream
+      const result = await response.json();
+      let finalAssistantMessage: Message;
 
-      requestBody = formData;
-      // Remove Content-Type header, let the browser set it for FormData
-      if (requestOptions.headers) {
-        delete (requestOptions.headers as Record<string, string>)['Content-Type'];
-      }
-      console.log("Using FormData body for the request.");
-      // --- End FormData Creation ---
-    } else {
-      // --- Use JSON Body for other requests or Gemini without Attachments ---
-      const jsonPayload = selectedModel === 'exa' 
-        ? { 
-          // For Exa, include the query and limited context for follow-up questions
-          query: input,
-          messages: truncatedMessages
-        } 
-        : {
-          // For Groq, Gemini (no attachments), and other LLMs
-          query: fullQuery, // Send combined history + query for others
-          model: selectedModel,
-          messages: truncatedMessages,
-          // No attachments key needed here as we handle it via FormData above
+      if (result.type === 'media_result') {
+        console.log('Received media_result:', result.data);
+        finalAssistantMessage = {
+          ...assistantMessage,
+          content: result.answer, // The text answer generated by LLM
+          mediaData: result.data, // The structured media data for the card
+          completed: true,
+          // Could set startTime/endTime based on this single request duration if desired
+          startTime: assistantMessage.startTime || Date.now(), // Or set more accurately
+          endTime: Date.now(),
+          tps: 0, // TPS not really applicable here
         };
-      
-      requestBody = JSON.stringify(jsonPayload);
-      console.log("Using JSON body for the request.");
-      // --- End JSON Body Creation ---
-    }
-    
-    // Make the fetch request
-    response = await fetch(
-      apiEndpoint, 
-      {
-        ...requestOptions,
-        body: requestBody, // Use the determined body (FormData or JSON string)
+      } else if (result.type === 'no_result' || result.type === 'error') {
+        console.log(`Command handler returned: ${result.type}`);
+        finalAssistantMessage = {
+          ...assistantMessage,
+          content: result.message, // Display the message from the handler
+          completed: true,
+          startTime: assistantMessage.startTime || Date.now(),
+          endTime: Date.now(),
+          tps: 0,
+        };
+      } else {
+        // Unexpected response type
+        throw new Error(`Unexpected response type from command handler: ${result.type}`);
       }
-    );
 
-    // Check if it's JSON and parse it for error info
-    if (!response.ok) {
-      console.error(`API request failed with status ${response.status}`);
+      // Update the UI with the final message state
+      updateMessages(setMessages, (prev: Message[]) =>
+        prev.map((msg: Message) =>
+          msg.id === assistantMessage.id ? finalAssistantMessage : msg
+        )
+      );
+
+      return finalAssistantMessage; // Return the completed message
+
+    } else {
+      // --- Existing Logic for Standard LLM Calls --- 
       
-      // Special handling for authentication errors
-      if (response.status === 401) {
-        toast.error('Authentication required', {
-          description: 'Please sign in to continue using this feature',
-          duration: 5000
-        });
-        
-        throw new Error('Authentication required. Please sign in and try again.');
+      // Format previous messages into conversation history
+      const conversationHistory = truncatedMessages.map(msg => 
+        `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+      ).join('\n');
+      
+      // Combine history with new query
+      const fullQuery = conversationHistory 
+        ? `${conversationHistory}\nUser: ${input}` // Use original input here
+        : input; // Use original input here
+
+      // Determine which API endpoint to use based on the selected model
+      let apiEndpoint;
+      let useFormDataForGemini = false;
+      const modelConfig = modelsConfig.models.find((m: Record<string, unknown>) => m.id === selectedModel);
+      
+      if (selectedModel === 'exa') {
+        apiEndpoint = getAssetPath('/api/exaanswer');
+      } else if (modelConfig?.toolCallType === 'openrouter' || selectedModel === 'gemma3-27b') {
+        apiEndpoint = getAssetPath('/api/openrouter');
+      } else if (selectedModel.includes('gemini')) {
+        apiEndpoint = getAssetPath('/api/gemini');
+        if ((attachments && attachments.length > 0) || (activeFiles && activeFiles.length > 0)) {
+          useFormDataForGemini = true;
+          console.log("Preparing FormData request for Gemini (new attachments or active files present).");
+        }
+      } else if (modelConfig?.providerId === 'cerebras') {
+        apiEndpoint = getAssetPath('/api/cerebras');
+      } else {
+        apiEndpoint = getAssetPath('/api/groq');
+      }
+
+      console.log(`Sending request to ${apiEndpoint} with model ${selectedModel}`);
+      
+      const requestOptions: RequestInit = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
+        signal: abortController.signal,
+        credentials: 'include' as RequestCredentials,
+      };
+      
+      let requestBody: BodyInit;
+
+      if (useFormDataForGemini) {
+        // --- Create FormData for Gemini with Attachments ---
+        const formData = new FormData();
+        formData.append('query', input); // Send original input query
+        formData.append('model', selectedModel);
+        formData.append('messages', JSON.stringify(truncatedMessages)); 
+        if (attachments && attachments.length > 0) {
+          attachments.forEach((file, index) => {
+            formData.append(`attachment_${index}`, file, file.name);
+            console.log(`Appended NEW file to FormData: ${file.name}`);
+          });
+        } else {
+          console.log("No new attachments to append for this request.");
+        }
+        if (activeFiles && activeFiles.length > 0) {
+          formData.append('activeFiles', JSON.stringify(activeFiles));
+          console.log(`Appended ${activeFiles.length} active file references to FormData.`);
+        }
+        requestBody = formData;
+        // Remove Content-Type header, let the browser set it for FormData
+        if (requestOptions.headers) {
+          delete (requestOptions.headers as Record<string, string>)['Content-Type'];
+        }
+        console.log("Using FormData body for the request.");
+        // --- End FormData Creation ---
+      } else {
+        // --- Use JSON Body for other requests or Gemini without Attachments ---
+        const jsonPayload = selectedModel === 'exa' 
+          ? { query: input, messages: truncatedMessages } 
+          : { query: fullQuery, model: selectedModel, messages: truncatedMessages };
+        requestBody = JSON.stringify(jsonPayload);
+        console.log("Using JSON body for the request.");
+        // --- End JSON Body Creation ---
       }
       
-      // Check content type to determine if it's JSON
-      const contentType = response.headers.get('content-type');
-      
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await response.json();
+      // Make the fetch request for standard LLM
+      response = await fetch(
+        apiEndpoint, 
+        {
+          ...requestOptions,
+          body: requestBody,
+        }
+      );
+
+      // Check if it's JSON and parse it for error info
+      if (!response.ok) {
+        console.error(`API request failed with status ${response.status}`);
         
-        if (response.status === 429) {
-          // Handle rate limit error
-          let waitTime = 30; // Default wait time in seconds
-          let message = 'Rate limit reached. Please try again later.';
-          
-          if (errorData.error && errorData.error.message) {
-            message = errorData.error.message;
-            
-            // Try to extract wait time if available
-            // Look for patterns like "try again in 539ms" or "try again in 30s"
-            const waitTimeMatch = message.match(/try again in (\d+\.?\d*)([ms]+)/);
-            if (waitTimeMatch) {
-              const timeValue = parseFloat(waitTimeMatch[1]);
-              const timeUnit = waitTimeMatch[2];
-              
-              // Convert to seconds if it's in milliseconds
-              if (timeUnit === 'ms') {
-                waitTime = Math.ceil(timeValue / 1000);
-              } else {
-                waitTime = Math.ceil(timeValue);
-              }
-            }
-          }
-          
-          // Display toast notification for rate limit
-          toast.error('RATE LIMIT REACHED', {
-            description: `Please wait ${waitTime} seconds before trying again.`,
-            duration: 8000,
-            action: {
-              label: 'DISMISS',
-              onClick: () => {}
-            }
+        // Special handling for authentication errors
+        if (response.status === 401) {
+          toast.error('Authentication required', {
+            description: 'Please sign in to continue using this feature',
+            duration: 5000
           });
           
-          // Create a custom error with rate limit info
-          const rateLimitError = new Error('Rate limit reached');
-          rateLimitError.name = 'RateLimitError';
-          // @ts-expect-error - adding custom properties
-          rateLimitError.waitTime = waitTime;
-          // @ts-expect-error - adding custom properties
-          rateLimitError.details = message;
-          
-          throw rateLimitError;
+          throw new Error('Authentication required. Please sign in and try again.');
         }
         
-        throw new Error(errorData.error?.message || errorData.message || 'API request failed');
-      }
-      
-      throw new Error(`Request failed with status ${response.status}`);
-    }
-    
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('No reader available');
-
-    let content = '';
-    let citations: Array<Record<string, unknown>> = [];
-    let startTime: number | null = null; // Initialize startTime
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      // Convert the chunk to text
-      const chunk = new TextDecoder().decode(value);
-      const lines = chunk.split('\n').filter(line => line.trim());
-
-      for (const line of lines) {
-        try {
-          const data = JSON.parse(line);
-          // Step 3: Check for custom file_uploaded event
-          if (data.type === 'file_uploaded' && data.data && onFileUploaded) {
-            console.log('Received file_uploaded event from backend:', data.data);
-            // Handle potential single or multiple file uploads in the event
-            const uploadedFiles = Array.isArray(data.data) ? data.data : [data.data];
-            uploadedFiles.forEach((fileInfo: { name: string; type: string; uri: string }) => {
-              if (fileInfo.name && fileInfo.type && fileInfo.uri) {
-                onFileUploaded(fileInfo);
-              } else {
-                console.warn('Received incomplete file info in file_uploaded event', fileInfo);
-              }
-            });
-          } else if (data.citations) {
-            citations = data.citations;
-            // Update message with new citations immediately
-            updateMessages(setMessages, (prev: Message[]) => 
-              prev.map((msg: Message) => 
-                msg.id === assistantMessage.id 
-                  ? { ...msg, citations: data.citations } 
-                  : msg
-              )
-            );
-          } else if (data.choices && data.choices[0]?.delta?.content) {
-            const newContent = data.choices[0].delta.content;
-            content += newContent;
+        // Check content type to determine if it's JSON
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          
+          if (response.status === 429) {
+            // Handle rate limit error
+            let waitTime = 30; // Default wait time in seconds
+            let message = 'Rate limit reached. Please try again later.';
             
-            // Record startTime on first content chunk
-            if (startTime === null && newContent.length > 0) {
-              startTime = Date.now();
+            if (errorData.error && errorData.error.message) {
+              message = errorData.error.message;
+              
+              // Try to extract wait time if available
+              // Look for patterns like "try again in 539ms" or "try again in 30s"
+              const waitTimeMatch = message.match(/try again in (\d+\.?\d*)([ms]+)/);
+              if (waitTimeMatch) {
+                const timeValue = parseFloat(waitTimeMatch[1]);
+                const timeUnit = waitTimeMatch[2];
+                
+                // Convert to seconds if it's in milliseconds
+                if (timeUnit === 'ms') {
+                  waitTime = Math.ceil(timeValue / 1000);
+                } else {
+                  waitTime = Math.ceil(timeValue);
+                }
+              }
             }
             
-            // Check if this is the end of the stream
-            const isEndOfStream = line.includes('"finish_reason"') || 
-              line.includes('"done":true') ||
-              data.choices[0]?.finish_reason;
+            // Display toast notification for rate limit
+            toast.error('RATE LIMIT REACHED', {
+              description: `Please wait ${waitTime} seconds before trying again.`,
+              duration: 8000,
+              action: {
+                label: 'DISMISS',
+                onClick: () => {}
+              }
+            });
             
-            // Update message immediately with each token
-            updateMessages(setMessages, (prev: Message[]) => 
-              prev.map((msg: Message) => 
-                msg.id === assistantMessage.id 
-                  ? { 
-                      ...msg,
-                      content: content,
-                      // Mark message as completed if we detect we're at the end
-                      completed: isEndOfStream,
-                      // Update startTime if it was set
-                      startTime: startTime ?? undefined 
-                    } 
-                  : msg
-              )
-            );
+            // Create a custom error with rate limit info
+            const rateLimitError = new Error('Rate limit reached');
+            rateLimitError.name = 'RateLimitError';
+            // @ts-expect-error - adding custom properties
+            rateLimitError.waitTime = waitTime;
+            // @ts-expect-error - adding custom properties
+            rateLimitError.details = message;
+            
+            throw rateLimitError;
           }
-        } catch {
-          // Silently ignore parsing errors and continue
-          // This can happen with incomplete JSON chunks
-          continue;
+          
+          console.error('API Error Data:', errorData);
+          throw new Error(errorData.message || errorData.error?.message || `API error: ${response.status}`);
+        }
+        
+        // Handle non-JSON errors
+        const errorText = await response.text();
+        console.error('API Error Text:', errorText);
+        throw new Error(errorText || `API request failed with status ${response.status}`);
+      }
+      
+      // --- Existing Stream Handling Logic --- 
+      if (!response.body) {
+        throw new Error('Response body is null');
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let content = '';
+      let citations: any[] | undefined = undefined; // Use any[] to match type def
+      let startTime: number | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim());
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            if (data.citations) {
+              citations = data.citations;
+              updateMessages(setMessages, (prev: Message[]) => 
+                prev.map((msg: Message) => 
+                  msg.id === assistantMessage.id 
+                    ? { ...msg, citations: data.citations } 
+                    : msg
+                )
+              );
+            }
+            // Handle file uploads from Gemini API
+            if (data.type === 'file_uploaded' && data.data && onFileUploaded) {
+              console.log("File uploaded event received:", data.data);
+              data.data.forEach((fileInfo: { name: string; type: string; uri: string }) => {
+                onFileUploaded(fileInfo);
+              });
+              continue; // Skip content update for this event
+            }
+            if (data.choices && data.choices[0]?.delta?.content) {
+              const newContent = data.choices[0].delta.content;
+              content += newContent;
+              if (startTime === null && newContent.length > 0) {
+                startTime = Date.now();
+              }
+              const isEndOfStream = line.includes('"finish_reason"') || line.includes('"done":true') || data.choices[0]?.finish_reason;
+              updateMessages(setMessages, (prev: Message[]) => 
+                prev.map((msg: Message) => 
+                  msg.id === assistantMessage.id 
+                    ? { ...msg, content: content, completed: isEndOfStream, startTime: startTime ?? undefined } 
+                    : msg
+                )
+              );
+            }
+          } catch { continue; }
         }
       }
+
+      // After streaming completes, calculate TPS and make final update
+      const endTime = Date.now();
+      const estimatedTokens = content.length > 0 ? content.length / 4 : 0;
+      const durationSeconds = startTime ? (endTime - startTime) / 1000 : 0;
+      const calculatedTps = durationSeconds > 0 ? estimatedTokens / durationSeconds : 0;
+
+      const finalAssistantMessage: Message = {
+        ...assistantMessage,
+        content,
+        citations,
+        completed: true,
+        startTime: startTime ?? undefined,
+        endTime,
+        tps: calculatedTps
+      };
+      updateMessages(setMessages, (prev: Message[]) => 
+        prev.map((msg: Message) => 
+          msg.id === assistantMessage.id ? finalAssistantMessage : msg
+        )
+      );
+      return finalAssistantMessage; // Return the complete message object
     }
 
-    // After streaming completes, calculate TPS and make final update
-    const endTime = Date.now();
-    const estimatedTokens = content.length > 0 ? content.length / 4 : 0; // Simple estimation
-    const durationSeconds = startTime ? (endTime - startTime) / 1000 : 0;
-    const calculatedTps = durationSeconds > 0 ? estimatedTokens / durationSeconds : 0;
-
-    updateMessages(setMessages, (prev: Message[]) => 
-      prev.map((msg: Message) => 
-        msg.id === assistantMessage.id 
-          ? { 
-              ...msg, 
-              content, 
-              citations, 
-              completed: true, 
-              startTime: startTime ?? undefined, // Include startTime if set
-              endTime, 
-              tps: calculatedTps 
-            } 
-          : msg
-      )
-    );
-
-    // Construct the final message object to return
-    const finalAssistantMessage: Message = {
-      ...assistantMessage, // Use the initial placeholder as base
-      content,
-      citations,
-      completed: true,
-      startTime: startTime ?? undefined,
-      endTime,
-      tps: calculatedTps
-    };
-
-    return finalAssistantMessage; // Return the complete message object
   } catch (err) {
     console.error('Error in fetchResponse:', err);
     
     if (err instanceof Error && err.message.includes('Authentication')) {
-      // This is an authentication error, show appropriate message
       throw err;
     }
     
-    // Make sure to show the toast one more time here in case it failed earlier
-    if (err instanceof Error && err.message.includes('Rate limit')) {
-      toast.error('RATE LIMIT REACHED', {
-        description: 'Please wait before trying again.',
-        duration: 5000,
-        action: {
-          label: 'DISMISS',
-          onClick: () => {}
-        }
-      });
-    } else {
-      // Generic error toast
-      toast.error('Error processing request', {
-        description: err instanceof Error ? err.message : 'Unknown error occurred',
-        duration: 5000
-      });
+    if (err instanceof Error && err.name === 'RateLimitError') {
+       // Toast already shown, just rethrow to stop processing
+       throw err;
     }
+    
+    // Generic error toast for other failures
+    toast.error('Error processing request', {
+      description: err instanceof Error ? err.message : 'Unknown error occurred',
+      duration: 5000
+    });
     
     throw err;
   }

@@ -1,14 +1,16 @@
 export interface Message {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
+  createdAt?: Date;
   citations?: any[];
   completed?: boolean;
-  images?: ImageData[];
-  attachments?: FileAttachment[];
   startTime?: number; // Timestamp when the first chunk arrived
   endTime?: number; // Timestamp when the stream completed
   tps?: number; // Calculated tokens per second
+  mediaData?: MediaData;
+  images?: ImageData[];
+  attachments?: FileAttachment[];
 }
 
 export interface ImageData {
@@ -38,4 +40,26 @@ export interface Model {
 }
 
 // Define model types
-export type ModelType = 'exa' | string; 
+export type ModelType = 'exa' | string;
+
+export interface UserPreferences {
+  theme?: string;
+  layout?: string;
+  // other user-specific preferences
+}
+
+// New type for Movie/TV Show data from TMDB
+export interface MediaData {
+  mediaType: 'movie' | 'tv';
+  id: number;
+  title: string;
+  overview: string | null;
+  posterPath: string | null;
+  releaseDate: string | null; // For movies (YYYY-MM-DD)
+  firstAirDate: string | null; // For TV shows (YYYY-MM-DD)
+  voteAverage: number | null;
+  // Add fields for genres and cast
+  genres?: Array<{ id: number; name: string }>;
+  cast?: Array<{ id: number; name: string; character: string }>;
+  runtime?: number | null; // Add runtime in minutes
+} 

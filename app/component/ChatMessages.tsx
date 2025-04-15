@@ -12,6 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import MediaCard from '@/components/MediaCard';
 
 interface ChatMessagesProps {
   messages: Message[];
@@ -52,7 +53,8 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
       startTime: message.startTime,
       endTime: message.endTime,
       tps: message.tps,
-      shouldDisplayTPS: message.completed && typeof message.tps === 'number' && message.tps > 0
+      shouldDisplayTPS: message.completed && typeof message.tps === 'number' && message.tps > 0,
+      hasMediaData: !!message.mediaData
     });
   }
   
@@ -67,6 +69,11 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
             : 'bg-white dark:bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] text-[var(--text-light-default)] text-base message-ai py-3 w-full'
           }`}
         >
+          {!isUser && message.mediaData && (
+            <div className="mb-3">
+              <MediaCard data={message.mediaData} />
+            </div>
+          )}
           <div className="whitespace-pre-wrap text-[15px]">
             <MessageContent 
               content={message.content || ''} 
@@ -105,7 +112,6 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
                     )}
                   </div>
                 </Button>
-                {/* TPS Display with Tooltip */}
                 {message.completed && typeof message.tps === 'number' && message.tps > 0 && (
                   <TooltipProvider delayDuration={100}> 
                     <Tooltip>
