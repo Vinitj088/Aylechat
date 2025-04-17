@@ -17,7 +17,8 @@ import {
   DeepSeek,
   Qwen,
   Mistral,
-  Gemma
+  Gemma,
+  Grok
 } from '@lobehub/icons';
 
 interface ModelSelectorProps {
@@ -86,6 +87,8 @@ const getProviderIconByAvatarType = (avatarType: string) => {
       return <DeepSeek.Avatar size={20} />;
     case 'groq':
       return <Groq.Avatar size={20} />;
+    case 'xai':
+      return <Grok.Avatar size={20} />;
     case 'openrouter':
       return <OpenRouter.Avatar size={20} />;
     case 'mistral':

@@ -54,7 +54,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     const googleModels = modelsData.models.filter(model => model.providerId === 'google');
     const openRouterModels = modelsData.models.filter(model => model.providerId === 'openrouter');
     const cerebrasModels = modelsData.models.filter(model => model.providerId === 'cerebras');
-    
+    const xaiModels = modelsData.models.filter(model => model.providerId === 'xai');
     // Replace the model list instead of appending
     setModels([
       {
@@ -66,10 +66,12 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         toolCallType: 'native',
         searchMode: true
       },
+      ...xaiModels,
       ...googleModels,
       ...cerebrasModels,
       ...openRouterModels,
       ...groqModels,
+      
     ]);
   }, []);
 

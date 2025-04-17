@@ -264,6 +264,9 @@ export const fetchResponse = async (
         }
       } else if (modelConfig?.providerId === 'cerebras') {
         apiEndpoint = getAssetPath('/api/cerebras');
+      } else if (modelConfig?.providerId === 'xai') {
+        // Route to the new xAI handler (needs implementation)
+        apiEndpoint = getAssetPath('/api/xai'); 
       } else {
         apiEndpoint = getAssetPath('/api/groq');
       }

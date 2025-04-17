@@ -248,6 +248,16 @@
       "avatarType": "meta",
       "enabled": true,
       "toolCallType": "manual"
+    },
+    
+    {
+      "id": "grok-3-mini-beta",
+      "name": "Grok 3 Mini",
+      "provider": "xAI",
+      "providerId": "xai",
+      "avatarType": "xai",
+      "enabled": true,
+      "toolCallType": "manual"
     }
   ]
 }

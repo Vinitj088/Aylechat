@@ -166,7 +166,7 @@ function PageContent() {
     const googleModels = modelsData.models.filter(model => model.providerId === 'google');
     const openRouterModels = modelsData.models.filter(model => model.providerId === 'openrouter');
     const cerebrasModels = modelsData.models.filter(model => model.providerId === 'cerebras');
-    
+    const xaiModels = modelsData.models.filter(model => model.providerId === 'xai');
     // Start with just the Exa model and then add the others
     setModels([
       {
@@ -178,6 +178,7 @@ function PageContent() {
         toolCallType: 'native',
         searchMode: true
       },
+      ...xaiModels,
       ...googleModels,
       ...cerebrasModels,
       ...openRouterModels,
