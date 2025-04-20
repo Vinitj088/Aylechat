@@ -15,6 +15,7 @@ import { ChatThread } from '@/lib/redis';
 import { toast } from 'sonner';
 import QueryEnhancer from '../../component/QueryEnhancer';
 import React from 'react';
+import ScrollToBottomButton from '../../component/ScrollToBottomButton';
 
 export default function ChatThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -598,6 +599,10 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           }
         }}
       />
+
+      {/* Render the ScrollToBottomButton */}
+      <ScrollToBottomButton />
+
     </main>
   );
 } 
