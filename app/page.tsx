@@ -26,7 +26,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { prefetchAll } from './api/prefetch';
 import { FileUp, X } from 'lucide-react';
-import ScrollToBottomButton from './component/ScrollToBottomButton';
 
 // Helper function to get provider description
 const getProviderDescription = (providerName: string | undefined): string => {
@@ -879,9 +878,6 @@ function PageContent() {
           )}
         </>
       )}
-
-      {/* Render the ScrollToBottomButton only when there are messages */}
-      {hasMessages && <ScrollToBottomButton />}
 
     </main>
   );
