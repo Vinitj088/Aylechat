@@ -145,7 +145,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       if (response.ok) {
         clearThreads();
         toast.success("Chat history cleared successfully", { id: toastId });
-        if (pathname.startsWith('/chat/')) {
+        if (pathname && pathname.startsWith('/chat/')) {
           router.push('/');
         }
         onClose();

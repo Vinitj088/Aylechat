@@ -37,13 +37,13 @@ const parseMessageContent = (content: string) => {
 
 interface MobileSearchUIProps {
   input: string;
-  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => void;
+  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement> | string) => void;
   handleSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
   selectedModel: string;
   handleModelChange: (modelId: string) => void;
   models: Model[];
-  setInput: (input: string) => void;
+  setInput: (value: string) => void;
   messages: { id: string; role: string; content: string }[];
   description: string;
   onAttachmentsChange?: (files: File[]) => void;

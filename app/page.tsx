@@ -104,6 +104,9 @@ function PageContent() {
 
   // Check URL parameters for auth dialog control
   useEffect(() => {
+    // Add null check for searchParams before accessing it
+    if (!searchParams) return;
+
     const authRequired = searchParams.get('authRequired');
     const expired = searchParams.get('expired');
     const error = searchParams.get('error');
@@ -111,17 +114,32 @@ function PageContent() {
     const cookieError = searchParams.get('cookie_error');
     
     // Show auth dialog if any of these params are present
-    if (authRequired === 'true' || expired === 'true' || error) {
-      openAuthDialog();
+    if (authRequired === 'true' || expired === 'true' || error || sessionError || cookieError) {
+      if (authRequired === 'true' || expired === 'true' || error) {
+          openAuthDialog();
+      }
       
       // Show toast message if session expired
       if (expired === 'true') {
         toast.error('Your session has expired. Please sign in again.');
       }
-      
       // Show toast message if there was an error
       if (error) {
         toast.error('Authentication error. Please sign in again.');
+      }
+      
+      // Handle session/cookie errors with toast + sign in action
+      if (sessionError === 'true' || cookieError === 'true') {
+          toast.error('Session issue detected', {
+            description: 'Please sign in again to get a fresh session',
+            duration: 6000,
+            action: {
+              label: 'Sign In',
+              onClick: () => {
+                openAuthDialog();
+              }
+            }
+          });
       }
       
       // Clean URL by removing query parameters without reloading the page
@@ -129,33 +147,15 @@ function PageContent() {
       url.searchParams.delete('authRequired');
       url.searchParams.delete('expired');
       url.searchParams.delete('error');
-      window.history.replaceState({}, '', url);
-    }
-
-    // Handle session format errors
-    if (sessionError === 'true' || cookieError === 'true') {
-      toast.error('Session issue detected', {
-        description: 'Please sign in again to get a fresh session',
-        duration: 6000,
-        action: {
-          label: 'Sign In',
-          onClick: () => {
-            openAuthDialog();
-          }
-        }
-      });
-      
-      // Clean URL
-      const url = new URL(window.location.href);
       url.searchParams.delete('session_error');
       url.searchParams.delete('cookie_error');
       window.history.replaceState({}, '', url);
     }
   }, [searchParams, openAuthDialog]);
 
-  // Check for authRequired query param
+  // Check for authRequired query param (redundant with above, can be simplified later if needed)
   useEffect(() => {
-    if (searchParams.get('authRequired') === 'true') {
+    if (searchParams && searchParams.get('authRequired') === 'true') {
       openAuthDialog();
     }
   }, [searchParams, openAuthDialog]);
@@ -574,8 +574,10 @@ function PageContent() {
     openAuthDialog();
   }, [openAuthDialog]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
-    setInput(e.target.value);
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement> | string) => {
+    // Check if e is a string or an event object
+    const value = typeof e === 'string' ? e : e.target.value;
+    setInput(value);
   };
 
   const handleModelChange = (modelId: string) => {
