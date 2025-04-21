@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback, forwardRef, useImperativeHandle,
 import { Model } from '../types';
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Send, Plus, FileUp, X, Paperclip } from 'lucide-react';
+import { Send, Plus, FileUp, X, Paperclip, Film, Tv } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ModelSelector from './ModelSelector';
 import QueryEnhancer from './QueryEnhancer';
@@ -56,7 +56,7 @@ interface Attachment {
 
 interface ChatInputProps {
   input: string;
-  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement> | string) => void;
   handleSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
   selectedModel: string;
@@ -69,6 +69,9 @@ interface ChatInputProps {
   removeActiveFile?: (uri: string) => void;
   onActiveFilesHeightChange?: (height: number) => void;
 }
+
+// Define command mode state type
+type CommandMode = 'none' | 'movies' | 'tv';
 
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   input,
@@ -90,6 +93,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   const lastModelRef = useRef<string>(selectedModel);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const activeFilesContainerRef = useRef<HTMLDivElement>(null);
+  // State for command mode
+  const [commandMode, setCommandMode] = useState<CommandMode>('none');
 
   // Check if current model is a Gemini model
   const isGeminiModel = selectedModel.includes('gemini');
@@ -169,6 +174,21 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
     });
   };
 
+  // --- Modify handleInputChange to detect commands --- 
+  const handleInputChangeWithCommandDetection = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    handleInputChange(e); // Call original handler
+
+    if (value.startsWith('/movies ')) {
+      setCommandMode('movies');
+    } else if (value.startsWith('/tv ')) {
+      setCommandMode('tv');
+    } else {
+      setCommandMode('none');
+    }
+  }, [handleInputChange]);
+  // --- End Modify --- 
+
   // Modified submit handler to include attachments
   const handleSubmitWithAttachments = (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,6 +211,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
       }
     });
     setAttachments([]);
+    // Reset command mode on submit
+    setCommandMode('none');
   };
 
   // Auto-resize textarea based on content
@@ -253,6 +275,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
       if (!isLoading && input.trim()) {
         e.preventDefault(); // Prevent newline on desktop
         handleSubmitWithAttachments(e as unknown as React.FormEvent); // Submit on desktop
+        // Reset command mode on submit via Enter key
+        setCommandMode('none');
       } else {
         // If input is empty or loading is true on desktop, prevent submission but also prevent newline
         e.preventDefault();
@@ -269,6 +293,17 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
     // console.log('Active files container height:', height); // Debug log
     onActiveFilesHeightChange?.(height);
   }, [activeChatFiles, onActiveFilesHeightChange]);
+
+  // --- Determine dynamic placeholder --- 
+  const getPlaceholder = () => {
+    if (isExa) return "Press / to search with Exa...";
+    switch (commandMode) {
+      case 'movies': return 'Search for movies...';
+      case 'tv': return 'Search for TV shows...';
+      default: return "Press / to ask a question...";
+    }
+  };
+  // --- End Determine --- 
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 md:max-w-4xl mx-auto">
@@ -367,29 +402,40 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           )}
           
           <div className="relative flex w-full">
+            {/* Conditionally render command icon */} 
+            {commandMode === 'movies' && (
+              <Film className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-light-muted)] pointer-events-none" />
+            )}
+            {commandMode === 'tv' && (
+              <Tv className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-light-muted)] pointer-events-none" />
+            )}
+            
             <Textarea
               ref={textareaRef}
               value={input}
-              onChange={handleInputChange}
+              onChange={handleInputChangeWithCommandDetection}
               onKeyDown={handleKeyDown}
               autoFocus
-              placeholder={isExa ? "Press / to search with Exa..." : "Press / to ask a question..."}
+              placeholder={getPlaceholder()}
               rows={1}
-              className="w-full p-3 pr-[70px] resize-none min-h-[50px] max-h-[120px]
-              bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] rounded-md
-              focus:outline-none focus:ring-1 focus:ring-[var(--brand-default)] focus:border-[var(--brand-default)]
-              placeholder:text-[var(--text-light-subtle)] text-[var(--text-light-default)] font-medium shadow-sm dark:focus:ring-0 dark:focus:outline-none"
+              className={cn(
+                "w-full p-3 pr-[110px] resize-none min-h-[50px] max-h-[120px]",
+                "bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] rounded-md",
+                "focus:outline-none focus:ring-1 focus:ring-[var(--brand-default)] focus:border-[var(--brand-default)]",
+                "placeholder:text-[var(--text-light-subtle)] text-[var(--text-light-default)] font-medium shadow-sm dark:focus:ring-0 dark:focus:outline-none",
+                commandMode !== 'none' && "pl-9",
+                "scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]"
+              )}
               disabled={isLoading}
             />
             
             <div className="absolute right-14 top-1/2 -translate-y-1/2 h-9 flex items-center">
-              {/* File upload button (only for Gemini models) */}
               {isGeminiModel && (
                 <button
                   type="button"
                   onClick={handleFileButtonClick}
                   disabled={isLoading}
-                  className="mr-2 p-2 text-[var(--text-light-muted)] hover:text-[var(--brand-default)] rounded-full hover:bg-[var(--secondary-faint)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mr-1 p-2 text-[var(--text-light-muted)] hover:text-[var(--brand-default)] rounded-full hover:bg-[var(--secondary-faint)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FileUp className="h-4 w-4" />
                   <input
