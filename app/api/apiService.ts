@@ -5,6 +5,11 @@ import { toast } from 'sonner';
 // Import models instead of using require()
 import modelsConfig from '../../models.json';
 
+// --- Add URL Regex ---
+// Basic regex to find potential URLs. Can be refined for more complex cases.
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+// --- End Add ---
+
 // Character limits for context windows
 const MODEL_LIMITS = {
   exa: 4000,    // Reduced limit for Exa to prevent timeouts
@@ -141,6 +146,105 @@ export const enhanceQuery = async (query: string): Promise<string> => {
   }
 };
 
+// --- Add function to call backend scraper ---
+// Updated to handle hybrid caching (Redis validity + localStorage content)
+const scrapeUrlContent = async (url: string, abortController: AbortController): Promise<string | null> => {
+  console.log(`[Scrape] Checking validity/content for URL: ${url}`);
+  const scrapeApiEndpoint = getAssetPath('/api/scrape');
+  const localStorageKey = `scrape_content:${url}`; // Key for storing markdown in localStorage
+
+  try {
+    // Call backend to check cache validity or trigger scrape
+    const response = await fetch(scrapeApiEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      },
+      signal: abortController.signal,
+      credentials: 'include',
+      body: JSON.stringify({ urlToScrape: url }),
+    });
+
+    // --- Handle Backend Response --- 
+
+    // Handle non-OK responses (e.g., 4xx, 5xx)
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Failed to parse scrape error response' }));
+      console.error(`[Scrape] Backend scrape request failed (${response.status}):`, errorData);
+      toast.warning('URL Scraping Failed', {
+        description: `Could not get content for the URL. Error: ${errorData.message || response.statusText}`,
+        duration: 5000,
+      });
+      // Clear potentially stale local storage on failure
+      localStorage.removeItem(localStorageKey);
+      return null;
+    }
+
+    // Handle OK responses (200)
+    const result = await response.json();
+
+    if (result.success) {
+      if (result.cacheStatus === 'valid') {
+        console.log('[Scrape] Backend confirms cache is valid. Checking localStorage...');
+        const localData = localStorage.getItem(localStorageKey);
+        if (localData) {
+          console.log('[Scrape] Found valid content in localStorage.');
+          toast.info('Using Cached URL Content', {
+             description: 'Using previously scraped content for this URL.',
+             duration: 2000,
+          });
+          return localData;
+        } else {
+          // This is an edge case: backend says valid, but client lost data.
+          // We could trigger a refresh, but for simplicity, we'll proceed without content.
+          console.warn('[Scrape] Backend confirmed cache validity, but no content found in localStorage. Proceeding without scraped data.');
+          toast.warning('URL Content Missing', {
+            description: 'Could not find cached content locally. You might need to resubmit.',
+            duration: 4000,
+          });
+          return null;
+        }
+      } else if (result.cacheStatus === 'refreshed' && result.markdownContent) {
+        console.log(`[Scrape] Received refreshed content. Length: ${result.markdownContent.length}. Storing in localStorage.`);
+        localStorage.setItem(localStorageKey, result.markdownContent);
+        toast.success('URL Content Scraped', {
+          description: 'Fresh content from the URL will be used.',
+          duration: 3000,
+        });
+        return result.markdownContent;
+      } else {
+        // Should not happen if success is true, but handle defensively
+        console.warn('[Scrape] Backend response format unexpected (success=true, but invalid cacheStatus or missing content).', result);
+        localStorage.removeItem(localStorageKey); // Clear potentially bad state
+        return null;
+      }
+    } else { // result.success === false
+      console.warn('[Scrape] Backend indicated scraping process failed or yielded no content.', result.message);
+      toast.warning('URL Scraping Issue', {
+        description: result.message || 'Scraping completed but no content was returned.',
+        duration: 5000,
+      });
+      localStorage.removeItem(localStorageKey);
+      return null;
+    }
+
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log('[Scrape] Request aborted.');
+      return null;
+    }
+    console.error('[Scrape] Error calling backend scrape endpoint:', error);
+    toast.error('Scraping Error', {
+      description: `An error occurred while trying to scrape the URL: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      duration: 5000,
+    });
+    localStorage.removeItem(localStorageKey); // Clear local storage on error
+    return null;
+  }
+};
+// --- End Add ---
+
 // Format previous messages to pass to API
 export const fetchResponse = async (
   input: string,
@@ -156,13 +260,54 @@ export const fetchResponse = async (
   const trimmedInput = input.trim();
   let command: '/movies' | '/tv' | null = null;
   let commandQuery: string | null = null;
+  let finalInput = trimmedInput; // Use a new variable for potentially modified input
 
-  if (trimmedInput.startsWith('/movies ')) {
+  // --- Modify URL Detection and Scraping Logic ---
+  const detectedUrls = trimmedInput.match(URL_REGEX);
+  let scrapedContent: string | null = null;
+
+  if (detectedUrls && detectedUrls.length > 0 && selectedModel !== 'exa') {
+    const urlToScrape = detectedUrls[0];
+    console.log(`[Fetch] URL detected: ${urlToScrape}. Checking/getting content...`);
+    
+    // Show an initial message indicating processing is happening
+    updateMessages(setMessages, (prev: Message[]) =>
+      prev.map((msg: Message) =>
+        msg.id === assistantMessage.id
+          ? { ...msg, content: 'Analyzing URL...' } // Temporary message
+          : msg
+      )
+    );
+
+    // Call the updated scrape function (handles backend call & localStorage)
+    scrapedContent = await scrapeUrlContent(urlToScrape, abortController);
+
+    // --- Update finalInput based on scrapedContent --- 
+    if (scrapedContent) {
+      finalInput = `USER QUESTION: "${trimmedInput}"\n\nADDITIONAL CONTEXT FROM SCRAPED URL (${urlToScrape}):\n---\n${scrapedContent}\n---\n\nBased on the user question and the scraped context above, please provide an answer.`;
+      console.log("[Fetch] Input augmented with scraped content.");
+    } else {
+      console.log("[Fetch] No valid scraped content available. Proceeding with original query.");
+      // finalInput remains trimmedInput
+    }
+    
+    // Update assistant message placeholder now that scraping attempt is done
+    updateMessages(setMessages, (prev: Message[]) =>
+      prev.map((msg: Message) =>
+        msg.id === assistantMessage.id
+          ? { ...msg, content: '...' } // Ready for LLM response
+          : msg
+      )
+    );
+  }
+  // --- End Modify ---
+
+  if (finalInput.startsWith('/movies ')) { // Check modified input for commands
     command = '/movies';
-    commandQuery = trimmedInput.substring(8).trim(); // Get text after "/movies "
-  } else if (trimmedInput.startsWith('/tv ')) {
+    commandQuery = finalInput.substring(8).trim(); // Get text after "/movies "
+  } else if (finalInput.startsWith('/tv ')) { // Check modified input for commands
     command = '/tv';
-    commandQuery = trimmedInput.substring(5).trim(); // Get text after "/tv "
+    commandQuery = finalInput.substring(5).trim(); // Get text after "/tv "
   }
 
   // Prepare messages for conversation history, ensuring we respect context limits
@@ -172,7 +317,7 @@ export const fetchResponse = async (
   let response;
 
   try {
-    // --- Handle Slash Commands --- 
+    // --- Handle Slash Commands ---
     if (command && commandQuery) {
       console.log(`Handling command: ${command} with query: ${commandQuery}`);
       const commandApiEndpoint = getAssetPath('/api/command-handler');
@@ -244,8 +389,8 @@ export const fetchResponse = async (
       
       // Combine history with new query
       const fullQuery = conversationHistory 
-        ? `${conversationHistory}\nUser: ${input}` // Use original input here
-        : input; // Use original input here
+        ? `${conversationHistory}\nUser: ${finalInput}` // Use potentially modified input
+        : finalInput; // Use potentially modified input
 
       // Determine which API endpoint to use based on the selected model
       let apiEndpoint;
@@ -288,7 +433,7 @@ export const fetchResponse = async (
       if (useFormDataForGemini) {
         // --- Create FormData for Gemini with Attachments ---
         const formData = new FormData();
-        formData.append('query', input); // Send original input query
+        formData.append('query', finalInput); // Send potentially modified input query
         formData.append('model', selectedModel);
         formData.append('messages', JSON.stringify(truncatedMessages)); 
         if (attachments && attachments.length > 0) {
@@ -313,7 +458,7 @@ export const fetchResponse = async (
       } else {
         // --- Use JSON Body for other requests or Gemini without Attachments ---
         const jsonPayload = selectedModel === 'exa' 
-          ? { query: input, messages: truncatedMessages } 
+          ? { query: finalInput, messages: truncatedMessages } 
           : { query: fullQuery, model: selectedModel, messages: truncatedMessages };
         requestBody = JSON.stringify(jsonPayload);
         console.log("Using JSON body for the request.");
