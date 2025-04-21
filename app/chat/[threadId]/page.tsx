@@ -177,8 +177,10 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLoading]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
-    setInput(e.target.value);
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement> | string) => {
+    // Check if e is a string or an event object
+    const value = typeof e === 'string' ? e : e.target.value;
+    setInput(value);
   };
 
   const handleModelChange = (modelId: string) => {

@@ -449,7 +449,11 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                 </button>
               )}
               
-              <QueryEnhancer input={input} setInput={(value) => handleInputChange({ target: { value } } as any)} isLoading={isLoading} />
+              <QueryEnhancer 
+                input={input} 
+                setInput={(value: string) => handleInputChange(value)} 
+                isLoading={isLoading} 
+              />
             </div>
             
             <Button
