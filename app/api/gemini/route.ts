@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { GoogleGenAI, HarmCategory, HarmBlockThreshold, Part } from '@google/genai';
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold, Part, Modality } from '@google/genai';
 import { processImageData } from '@/lib/supabase';
 import { Content } from '@google/genai';
 
@@ -79,7 +79,6 @@ export async function POST(req: NextRequest) {
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
-      console.log("Received FormData for Gemini request");
 
       query = formData.get('query') as string | null;
       model = formData.get('model') as string || '';
@@ -89,7 +88,6 @@ export async function POST(req: NextRequest) {
       // Extract files
       formData.forEach((value, key) => {
         if (value instanceof File) {
-          console.log(`Found file in FormData: ${key} (${value.name}, ${value.type})`);
           attachments.push(value);
         }
       });
@@ -102,7 +100,6 @@ export async function POST(req: NextRequest) {
     } else if (contentType.includes('application/json')) {
       // Fallback or specific handling for JSON if needed (e.g., warmup)
       const body = await req.json();
-      console.log("Received JSON for Gemini request (likely warmup or error)");
       
       // Handle warmup requests quickly
       if (body.warmup === true) {
@@ -131,7 +128,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Log minimal information
-    console.log(`Gemini request: ${model} [${messages?.length || 0} msgs] [${attachments?.length || 0} attachments]`);
     
     // Get Google API key from environment variable
     const API_KEY = process.env.GOOGLE_AI_API_KEY;
@@ -148,9 +144,18 @@ export async function POST(req: NextRequest) {
     
     // Check if this is an image generation request (remains unchanged for now)
     if (IMAGE_GENERATION_MODELS.includes(actualModelName)) {
-      // Note: Image generation currently uses JSON body, not FormData
-      const body = await req.json(); // Re-parse if needed for image gen
-      return handleImageGeneration(genAI, actualModelName, body.query, body.messages);
+      // NOTE: Removed redundant body parsing. Use existing variables.
+      // Ensure that the required data (query, messages) was extracted earlier
+      // based on the initial Content-Type check.
+      if (!query) {
+        // Handle cases where query might be missing if the initial request wasn't JSON
+        // or didn't contain the expected fields. This depends on your image generation logic.
+        // For now, let's assume image generation requests *always* send JSON with a query.
+        console.error("Image generation request missing query after initial body parsing.");
+        return new Response(JSON.stringify({ error: 'Query is required for image generation' }), { status: 400 });
+      }
+      // Assuming handleImageGeneration can use the parsed messages array
+      return handleImageGeneration(genAI, actualModelName, query, messages);
     }
     
     // @ts-ignore - Suppress error, assuming method exists based on docs
@@ -160,13 +165,11 @@ export async function POST(req: NextRequest) {
     const uploadedFileParts: Part[] = []; // Use Part type
     const uploadedFileMetadata: Array<{ name: string; type: string; uri: string }> = []; // For Step 1
     if (attachments.length > 0) {
-        console.log(`Uploading ${attachments.length} files using Files API...`);
         for (const file of attachments) {
             try {
                 // Convert File to ArrayBuffer, then to Blob
                 const arrayBuffer = await file.arrayBuffer();
                 const blob = new Blob([arrayBuffer], { type: file.type });
-                console.log(`Uploading file as Blob: ${file.name} (${file.type}, ${blob.size} bytes)`);
                 
                 // Use genAI.files.upload from the new SDK
                 // Pass Blob and rely on its type for mimeType inference
@@ -179,7 +182,6 @@ export async function POST(req: NextRequest) {
                   console.error(`Upload result missing URI or mimeType for ${file.name}:`, uploadResult);
                   throw new Error(`Failed to get URI/mimeType after uploading ${file.name}`);
                 }
-                console.log(`Successfully uploaded ${file.name}, URI: ${uploadResult.uri}`);
                 
                 // Add the file part for generateContent call
                 uploadedFileParts.push({
@@ -200,7 +202,6 @@ export async function POST(req: NextRequest) {
                 // For now, we'll just skip the file and continue
             }
         }
-        console.log(`Finished uploading files. ${uploadedFileParts.length} successful uploads.`);
     }
     // --- End File Upload Logic ---
     
@@ -240,7 +241,6 @@ export async function POST(req: NextRequest) {
             fileUri: activeFile.uri,
           }
         });
-        console.log(`Including active file reference: ${activeFile.name} (${activeFile.uri})`);
       }
     });
 
@@ -248,12 +248,9 @@ export async function POST(req: NextRequest) {
     currentUserParts.push(...Array.from(combinedFilePartsMap.values()));
 
     // Log history and current message parts for debugging
-    console.log('History messages count:', historyMessages.length);
-    console.log('Current user parts count:', currentUserParts.length);
     currentUserParts.forEach((part, index) => {
       if ('text' in part) console.log(`Part ${index}: Text`);
       if ('fileData' in part && part.fileData) {
-        console.log(`Part ${index}: File (${part.fileData.mimeType}, ${part.fileData.fileUri})`);
       }
     });
     
@@ -275,11 +272,9 @@ export async function POST(req: NextRequest) {
                 data: uploadedFileMetadata // Send array of all uploaded files info
               };
               controller.enqueue(encoder.encode(JSON.stringify(fileEvent) + '\n'));
-              console.log('Sent file_uploaded event to client', fileEvent);
             }
 
             // Send the message and get streaming response
-            console.log('Sending message stream to Gemini with parts:', currentUserParts.length);
             
             // Call generateContentStream directly on genAI.models
             const streamingResponse = await genAI.models.generateContentStream({
@@ -445,8 +440,9 @@ async function handleImageGeneration(
   prompt: string, 
   messages: any[]
 ) {
+  // --- START DEBUG LOGGING ---
+  // --- END DEBUG LOGGING ---
   try {
-    console.log(`Generating image with model: ${modelName}, prompt: "${prompt.substring(0, 50)}..."`);
     
     // @ts-ignore - Suppress TS error, prioritizing runtime fix based on logs.
     // Will call generateContent directly on genAI.models for image generation
@@ -455,13 +451,67 @@ async function handleImageGeneration(
     const generationResponse = await genAI.models.generateContent({
       model: modelName,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      // safetySettings, // Removed from direct parameters
-      // generationConfig might be needed here too depending on API requirements
+      // Pass safetySettings and responseModalities within the config object
+      config: {
+        responseModalities: [Modality.TEXT, Modality.IMAGE],
+        safetySettings: safetySettings 
+      }
     }); 
+
+
+    // Check for prompt feedback (overall safety assessment)
+    if (generationResponse.promptFeedback) {
+      console.warn('Prompt Feedback:', JSON.stringify(generationResponse.promptFeedback, null, 2));
+      if (generationResponse.promptFeedback.blockReason) {
+        // If the whole prompt was blocked, return an error early
+        return new Response(
+          JSON.stringify({
+            error: `Prompt blocked: ${generationResponse.promptFeedback.blockReason}`,
+            message: `Your request was blocked due to safety concerns (${generationResponse.promptFeedback.blockReason}). Please modify your prompt.`,
+            text: `Your request was blocked due to safety concerns (${generationResponse.promptFeedback.blockReason}). Please modify your prompt.`,
+            images: []
+          }),
+          { status: 400 } // Bad Request because the prompt was bad
+        );
+      }
+    }
+    // --- END DEBUG LOGGING ---
+
 
     // Process the response - adjust based on the new SDK's response structure
     // Access data directly from the response object
     const candidate = generationResponse.candidates?.[0]; 
+
+    // --- START DEBUG LOGGING ---
+    if (candidate) {
+        
+
+        // Check if the candidate was stopped due to safety
+        if (candidate.finishReason === 'SAFETY') {
+             return new Response(
+              JSON.stringify({
+                error: 'Content blocked due to safety settings',
+                message: 'The generated content was blocked due to safety settings. Please try a different prompt.',
+                text: 'The generated content was blocked due to safety settings. Please try a different prompt.',
+                images: []
+              }),
+              { status: 400 } // Bad Request due to generated content
+            );
+        }
+        if (candidate.finishReason === 'RECITATION') {
+             return new Response(
+              JSON.stringify({
+                error: 'Content blocked due to recitation',
+                message: 'The generated content was blocked due to potential recitation. Please try a different prompt.',
+                text: 'The generated content was blocked due to potential recitation. Please try a different prompt.',
+                images: []
+              }),
+              { status: 400 } 
+            );
+        }
+    }
+     // --- END DEBUG LOGGING ---
+
 
     if (!candidate || !candidate.content || !candidate.content.parts) {
         console.error('Unexpected image generation response structure:', generationResponse);
@@ -469,16 +519,7 @@ async function handleImageGeneration(
     }
 
     // Log the response structure to help debug (adjust based on new SDK)
-    console.log('Image generation response structure:', 
-      JSON.stringify({
-        // Adapt fields based on actual response object from @google/genai
-        hasResponse: !!generationResponse,
-        hasCandidates: !!generationResponse.candidates,
-        candidatesCount: generationResponse.candidates?.length || 0,
-        firstCandidatePartsCount: candidate?.content?.parts?.length || 0
-      }, null, 2)
-    );
-
+  
     // Format the response for the client
     interface ImageData {
       mimeType: string;
@@ -534,8 +575,6 @@ async function handleImageGeneration(
         }
     }
 
-    // Log image count for debugging
-    console.log(`Extracted ${imagesForProcessing.length} images and ${formattedResponse.text.length > 0 ? 'text content' : 'no text'}`);
     
     if (imagesForProcessing.length === 0 && formattedResponse.text.length === 0) {
         console.warn('No text or processable image data found in the Gemini response.');
@@ -548,7 +587,6 @@ async function handleImageGeneration(
     let processedImages: (ImageData | null)[] = [];
     if (imagesForProcessing.length > 0) {
         try {
-            console.log('Starting image processing with Supabase...');
             const uploadPromises = imagesForProcessing.map(img => processImageData(img));
             processedImages = await Promise.all(uploadPromises);
             console.log('Images processing complete:', processedImages.map(img => img ? !!img.url : null));
@@ -558,8 +596,6 @@ async function handleImageGeneration(
         
         // Add processed images to response, filtering out nulls
         formattedResponse.images = processedImages.filter(img => img !== null) as ImageData[];
-        console.log('Final images count after processing:', formattedResponse.images.length);
-        console.log('Images have URLs:', formattedResponse.images.map(img => !!img.url));
     }
     
     // If no images or text were found, provide fallback content
