@@ -19,12 +19,12 @@
 
   --secondary-accent: #9f9672;
   --secondary-accent2x: #89805d;
-  --secondary-dark: #f4f1e7;
-  --secondary-darker: #efebdc;
-  --secondary-darkest: #e5e0cd;
-  --secondary-default: #faf7ec;
-  --secondary-faint: #fffdf5;
-  --secondary-fainter: #fffefa;
+  --secondary-dark: #eeeeee;
+  --secondary-darker: #e0e0e0;
+  --secondary-darkest: #bdbdbd;
+  --secondary-default: #f5f5f5;
+  --secondary-faint: #fafafa;
+  --secondary-fainter: #fafaf9;
 
   --gray-50: #fafafa;
   --gray-100: #f5f5f5;
