@@ -1,27 +1,23 @@
 # 💬 AyleChat App
-### Powered by [Exa](https://exa.ai) - The Web Search API
 
-An open-source chat app showcasing the power of Exa's Answer endpoint.
+An open-source chat app showcasing powerful AI capabilities with multiple model integrations.
 
 ![capture](/public/homepage.png)
 
 ### ✨ Try it yourself:
 
-- [Live Demo](https://exa-chat.vercel.app/) - See the chat app in action
+- [Live Demo](https://ayle.chat/) - See the chat app in action
 
 <br>
 
-## 🎯 What is Ayle Answer Chat App?
+## 🎯 What is Ayle Chat?
 
-Ayle Chat is a open-source custom-built AI chat application leveraging the power of Groq and Exa Search for unparalleled speed and providing immediate access to cutting-edge Large Language Models (LLMs).
-
-
+AyleChat is an open-source custom-built AI chat application that integrates multiple AI providers including Groq, Google's Gemini, OpenRouter, Cerebras, and Exa Search for unparalleled speed and providing immediate access to cutting-edge Large Language Models (LLMs).
 
 <br>
 
 ## 💻 Tech Stack
-- **Backend**: [Exa API](https://exa.ai) - Answer endpoint
-- **Frontend**: [Next.js](https://nextjs.org/docs) with App Router
+- **Frontend**: [Next.js 15](https://nextjs.org/docs) with App Router and Turbopack
 - **Authentication**: [Supabase Auth](https://supabase.com/auth) for user management
 - **Database**: Supabase PostgreSQL for user data, [Upstash Redis](https://upstash.com/) for chat threads
 - **Styling**: [TailwindCSS](https://tailwindcss.com) with [shadcn/ui](https://ui.shadcn.com/)
@@ -34,7 +30,7 @@ Ayle Chat is a open-source custom-built AI chat application leveraging the power
 
 ### Prerequisites
 - Node.js 18+ installed
-- Exa API key ([Get it here](https://dashboard.exa.ai/api-keys))
+- API keys for your chosen model providers
 - Supabase account for authentication
 - Upstash Redis for chat history
 
@@ -56,21 +52,6 @@ npm install
 cp .env.example .env.local
 ```
 Then add your API keys and service URLs to `.env.local`:
-```
-# API Keys
-EXA_API_KEY=your-exa-api-key
-GROQ_API_KEY=your-groq-api-key
-GOOGLE_AI_API_KEY=your-google-ai-api-key  # Required for Gemini models
-CEREBRAS_API_KEY=your-cerebras-api-key  # Required for Cerebras models
-
-# Upstash Redis
-UPSTASH_REDIS_REST_URL=your_upstash_redis_url
-UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
-
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
 
 4. Run the development server
@@ -95,102 +76,56 @@ This application uses Supabase Auth as the primary authentication system:
 - Custom signup and profile management
 - Protected API routes and pages
 
+<br>
+
+## ⭐ Supported AI Models
+
+This application integrates with several AI model providers:
+
+### Google Gemini
+- Gemini 2.5 Pro
+- Gemini 2.5 Flash
+- Gemini 2.0 Pro
+- Gemini 2.0 Flash
+- Experimental image generation models
+
+### Groq
+- LLaMA 3.1, 3.2, and 3.3 series (various sizes)
+- Gemma 2 models
+- QWEN 2.5 models
+- DeepSeek models
+- Meta LLaMA 4 Scout
+
+### OpenRouter
+- Mistral Small 3.1 24B
+- DeepSeek models
+- Gemma 3 27B
+- Meta LLaMA 4 Maverick
+
+### Cerebras
+- LLaMA 3.1 and 3.3 models
+
+### Exa Search
+- Web search integration with AI answer processing
 
 <br>
 
-## ⭐ About [Exa](https://exa.ai)
+## 🛠️ Features
 
-This project showcases [Exa's](https://exa.ai) Answer endpoint, which provides:
-
-* Real-time streaming responses
-* High-quality answers with citations
-* Simple API integration (with OpenAI compatible API)
-
-<br>
-
-## Redis Integration
-
-This application uses Upstash Redis to store chat threads for authenticated users. Each user has their own private chat history that persists between sessions.
-
-### Setup Redis
-
-1. Create an account at [Upstash](https://upstash.com/)
-2. Create a new Redis database
-3. Copy your REST URL and REST Token
-4. Add them to your `.env` file:
-
-```
-UPSTASH_REDIS_REST_URL=your_upstash_redis_url
-UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
-```
-
-### Features
-
-- User-specific chat history
-- Persistent chat threads
-- Real-time updates
-- Privacy protection (each user can only access their own threads)
-
-<br>
-
-## Features
-
-- Multi-model support (Gemini, Groq, OpenRouter, Exa)
+- Multi-provider model support (Google, Groq, OpenRouter, Cerebras, Exa)
 - Real-time streaming responses
-- Conversation history
-- Authentication with Supabase
+- User-specific conversation history
+- Secure authentication with Supabase
 - Mobile-responsive design
 - Math formula support with KaTeX
 - Code syntax highlighting
 - Markdown rendering
-
-## Environment Variables
-
-The application requires these environment variables:
-
-```
-# API Keys
-EXA_API_KEY=your-exa-api-key
-GROQ_API_KEY=your-groq-api-key
-GOOGLE_AI_API_KEY=your-google-ai-api-key  # Required for Gemini models
-CEREBRAS_API_KEY=your-cerebras-api-key  # Required for Cerebras models
-
-# Upstash Redis
-UPSTASH_REDIS_REST_URL=your_upstash_redis_url
-UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
-
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-```
-
-## API Integrations
-
-### Google Gemini API
-Provides access to Google's Gemini models. Get an API key from [Google AI Studio](https://aistudio.google.com/).
-
-### Groq API
-Fast inference for various open-source models. Get an API key from [Groq Cloud](https://console.groq.com/).
-
-### Exa Search API
-Provides search capabilities with AI-powered answers. Get an API key from [Exa](https://exa.ai/).
-
-### OpenRouter API
-Provides access to a variety of models including Gemma 3 27B. Get an API key from [OpenRouter](https://openrouter.ai/).
-
-### Cerebras API
-High-performance inference for LLaMA 3 models. Get an API key from [Cerebras Inference](https://inference.cerebras.ai/).
-
-## Available Models
-
-The application includes support for:
-
-- Google Gemini models (2.5 Pro, 2.0 Flash etc.)
-- Groq-hosted models (LLaMA 3, Mistral, etc.)
-- OpenRouter models (including Gemma 3 27B, Mistral 3.1 24B)
-- Cerebras models (LLaMA 3.1 8B, LLaMA 3.3 70B)
-- Exa Search
+- Media card support with /movies and /tv commands
+- Tool calling capabilities (varies by model)
+- Web search integration
+- Prompt enhancing using QueryEnhancer
+- Live URL answers Support (pass Webpage URLs and chat with the LLM)
+- Attachments Support in Chat Input
 
 ## Deployment
 
@@ -203,4 +138,4 @@ This application can be deployed on Vercel:
 
 ---
 
-Built with ❤️ using [Exa](https://exa.ai)
+Built with ❤️ using [Next.js](https://nextjs.org), [Supabase](https://supabase.com), and various AI model providers
