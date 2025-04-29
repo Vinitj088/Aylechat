@@ -147,7 +147,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full sm:w-[200px] md:w-[240px] justify-between bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] hover:border-[var(--brand-default)] active:scale-[0.98] text-[var(--text-light-default)]"
+            className="w-full sm:w-[200px] md:w-[240px] justify-between bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] hover:border-[var(--brand-default)] active:scale-[0.98] text-[var(--text-light-default)] transition-none"
           >
             <div className="flex items-center gap-2 w-full min-w-0">
               <div className="flex-shrink-0">
@@ -165,7 +165,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-[85vw] sm:w-[200px] md:w-[240px] p-0 bg-white dark:bg-[var(--secondary-dark)] border border-[var(--secondary-darkest)] shadow-lg z-50"
+          className="w-[85vw] sm:w-[200px] md:w-[240px] p-0 bg-white dark:bg-[var(--secondary-dark)] border border-[var(--secondary-darkest)] shadow-lg z-50 transition-none"
           sideOffset={5}
           align="start"
         >

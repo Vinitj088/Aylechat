@@ -283,19 +283,19 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
           <div className="grid grid-cols-3 gap-3">
             <button 
               onClick={() => setInput("Can you explain how black holes work?")}
-              className="px-3 py-2 bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] rounded-md text-sm hover:border-[var(--brand-default)] transition-colors text-left text-[var(--text-light-default)]"
+              className="px-3 py-2 bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] rounded-md text-sm hover:border-[var(--brand-default)] transition-colors text-left text-[var(--text-light-default)] transition-none"
             >
               Can you explain how black holes work?
             </button>
             <button 
               onClick={() => setInput("Can you tell me a fascinating story from history?")}
-              className="px-3 py-2 bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] rounded-md text-sm hover:border-[var(--brand-default)] transition-colors text-left text-[var(--text-light-default)]"
+              className="px-3 py-2 bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] rounded-md text-sm hover:border-[var(--brand-default)] transition-colors text-left text-[var(--text-light-default)] transition-none"
             >
               Can you tell me a fascinating story from history?
             </button>
             <button 
               onClick={() => setInput("Write a program to implement a binary search in c++?")}
-              className="px-3 py-2 bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] rounded-md text-sm hover:border-[var(--brand-default)] transition-colors text-left text-[var(--text-light-default)]"
+              className="px-3 py-2 bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] rounded-md text-sm hover:border-[var(--brand-default)] transition-colors text-left text-[var(--text-light-default)] transition-none"
             >
               Write a program to implement a binary search in c++?
             </button>
