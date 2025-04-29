@@ -7,7 +7,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronDown, Info, Globe, FileText, Brain, Code, Eye, Clock } from 'lucide-react';
+import { Check, ChevronDown, Info, Globe, FileText, Brain, Code, Eye, Clock, Image as ImageIcon } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Google,
@@ -18,7 +18,9 @@ import {
   Qwen,
   Mistral,
   Gemma,
-  Grok
+  Grok,
+  Exa,
+  Flux
 } from '@lobehub/icons';
 
 interface ModelSelectorProps {
@@ -32,6 +34,7 @@ const modelCapabilities: Record<string, string[]> = {
   'mistralai/mistral-small-3.1-24b-instruct:free': ['docs'],
   'gemini-2.0-flash': ['vision', 'web', 'docs'],
   'gemini-2.0-flash-exp-image-generation': ['images', 'experimental'],
+  'black-forest-labs/FLUX.1-schnell-Free': ['images'],
   'gemma3-27b': ['docs'],
   'llama-3.3-70b-versatile': ['docs'],
   'deepseek-r1-distill-llama-70b': ['reasoning'],
@@ -57,19 +60,9 @@ const getCapabilityIcon = (capability: string) => {
     case 'quick responses':
       return <span title="Quick Response times" className="text-amber-600 dark:text-amber-400"><Clock size={16} /></span>;
     case 'images':
-      return <span title="Image generation capability" className="text-green-600 dark:text-green-400">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-          <circle cx="8.5" cy="8.5" r="1.5"/>
-          <polyline points="21 15 16 10 5 21"/>
-        </svg>
-      </span>;
+      return <span title="Image generation capability" className="text-pink-600 dark:text-pink-400"><ImageIcon size={16} /></span>;
     case 'experimental':
-      return <span title="Experimental feature" className="text-red-600 dark:text-red-400">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M10 2v6m4-6v6M4.18 10a9 9 0 1 0 15.64 0M2 10h20"></path>
-        </svg>
-      </span>;
+      return <span title="Experimental feature" className="text-red-600 dark:text-red-400">⚠️</span>;
     default:
       return null;
   }
@@ -95,18 +88,10 @@ const getProviderIconByAvatarType = (avatarType: string) => {
       return <Mistral.Avatar size={20} />;
     case 'qwen':
       return <Qwen.Avatar size={20} />;
+    case 'together':
+      return <Flux.Avatar size={20} />;
     case 'exa':
-      return (
-        <div className="h-5 w-5 flex items-center justify-center">
-          <Image
-            src="/exalogo.png"
-            alt="Exa"
-            width={18}
-            height={18}
-            className="object-contain"
-          />
-        </div>
-      );
+      return <Exa.Avatar size={20} />;
     default:
       return (
         <div className="h-5 w-5 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700">

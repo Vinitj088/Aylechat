@@ -268,6 +268,16 @@
       "avatarType": "xai",
       "enabled": true,
       "toolCallType": "manual"
+    },
+    {
+      "id": "black-forest-labs/FLUX.1-schnell-Free",
+      "name": "FLUX.1 Schnell",
+      "provider": "Together AI",
+      "providerId": "together",
+      "avatarType": "together",
+      "enabled": true,
+      "toolCallType": "native",
+      "imageGenerationMode": true
     }
   ]
 }

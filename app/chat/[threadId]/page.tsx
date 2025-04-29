@@ -55,6 +55,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     const openRouterModels = modelsData.models.filter(model => model.providerId === 'openrouter');
     const cerebrasModels = modelsData.models.filter(model => model.providerId === 'cerebras');
     const xaiModels = modelsData.models.filter(model => model.providerId === 'xai');
+    const togetherModels = modelsData.models.filter(model => model.providerId === 'together');
     // Replace the model list instead of appending
     setModels([
       {
@@ -71,7 +72,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
       ...cerebrasModels,
       ...openRouterModels,
       ...groqModels,
-      
+      ...togetherModels,
     ]);
   }, []);
 
@@ -236,7 +237,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     const assistantMessage: Message = {
       id: crypto.randomUUID(),
       role: 'assistant',
-      content: ''
+      content: '',
+      provider: selectedModelObj?.provider
     };
 
     // Update UI right away
@@ -267,8 +269,18 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
       // }
 
       if (isImageGenerationModel) {
+        console.log("Using image generation model:", modelObj?.name, "Provider:", modelObj?.providerId);
+        
+        // Determine the API endpoint based on the provider
+        let apiEndpoint = '/api/gemini'; // Default for Gemini models
+        
+        if (modelObj?.providerId === 'together') {
+          apiEndpoint = '/api/together';
+          console.log("Using Together AI endpoint for image generation");
+        }
+        
         // Handle image generation model
-        const response = await fetch('/api/gemini', {
+        const response = await fetch(apiEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -278,6 +290,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           body: JSON.stringify({
             query: userMessage.content,
             model: selectedModel,
+            prompt: userMessage.content, // Add prompt parameter for Together AI
             messages: updatedMessages.slice(0, -1) // Exclude the empty assistant message
           })
         });
@@ -323,7 +336,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           ...assistantMessage,
           content: data.text || 'Here is the generated image:',
           images: optimizedImages || [],
-          completed: true
+          completed: true,
+          provider: selectedModelObj?.provider
         };
         
         // Debug the message being added

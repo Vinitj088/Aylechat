@@ -38,6 +38,8 @@ const getProviderDescription = (providerName: string | undefined): string => {
       return 'Cerebras offers exceptionally fast AI inference.';
     case 'groq':
       return 'Groq delivers lightning-fast inference using LPUs.';
+    case 'together ai':
+      return 'Together AI provides cutting-edge image generation capabilities.';
     // Add more cases as needed
     default:
       return `${providerName || 'This provider'} offers fast AI inference.`; // Default message
@@ -167,6 +169,7 @@ function PageContent() {
     const openRouterModels = modelsData.models.filter(model => model.providerId === 'openrouter');
     const cerebrasModels = modelsData.models.filter(model => model.providerId === 'cerebras');
     const xaiModels = modelsData.models.filter(model => model.providerId === 'xai');
+    const togetherModels = modelsData.models.filter(model => model.providerId === 'together');
     // Start with just the Exa model and then add the others
     setModels([
       {
@@ -183,7 +186,7 @@ function PageContent() {
       ...cerebrasModels,
       ...openRouterModels,
       ...groqModels,
-      
+      ...togetherModels,
     ]);
     
     // Get search params
@@ -236,9 +239,10 @@ function PageContent() {
             };
 
             const assistantMessage: Message = {
-              id: crypto.randomUUID(),
+              id: `ai-${Date.now()}`,
               role: 'assistant',
-              content: ''
+              content: '...',
+              provider: selectedModelObj?.provider,
             };
 
             setIsLoading(true);
@@ -339,11 +343,12 @@ function PageContent() {
       }));
     }
 
-    // Create placeholder for assistant response
+    // Create an assistant message placeholder
     const assistantMessage: Message = {
-      id: crypto.randomUUID(),
+      id: `ai-${Date.now()}`,
       role: 'assistant',
-      content: ''
+      content: '...',
+      provider: selectedModelObj?.provider,
     };
 
     // Clear the input field and update the messages state
@@ -369,8 +374,18 @@ function PageContent() {
       const isImageGenerationModel = modelObj?.imageGenerationMode === true;
 
       if (isImageGenerationModel) {
+        console.log("Using image generation model:", modelObj?.name, "Provider:", modelObj?.providerId);
+        
+        // Determine the API endpoint based on the provider
+        let apiEndpoint = '/api/gemini'; // Default for Gemini models
+        
+        if (modelObj?.providerId === 'together') {
+          apiEndpoint = '/api/together';
+          console.log("Using Together AI endpoint for image generation");
+        }
+        
         // Handle image generation model
-        const response = await fetch('/api/gemini', {
+        const response = await fetch(apiEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -380,6 +395,7 @@ function PageContent() {
           body: JSON.stringify({
             query: userMessage.content,
             model: selectedModel,
+            prompt: userMessage.content, // Add prompt parameter for Together AI
             messages: messages, // Send all previous messages for context
             attachments: attachments,
             activeChatFiles: activeChatFiles

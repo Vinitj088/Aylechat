@@ -80,6 +80,7 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
               role={message.role} 
               images={message.images}
               attachments={message.attachments}
+              provider={message.provider}
             />
           </div>
           {message.citations && message.citations.length > 0 && (

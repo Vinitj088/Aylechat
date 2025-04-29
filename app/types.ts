@@ -11,6 +11,7 @@ export interface Message {
   mediaData?: MediaData;
   images?: ImageData[];
   attachments?: FileAttachment[];
+  provider?: string;
 }
 
 export interface ImageData {

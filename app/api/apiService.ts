@@ -401,6 +401,12 @@ export const fetchResponse = async (
         apiEndpoint = getAssetPath('/api/exaanswer');
       } else if (modelConfig?.toolCallType === 'openrouter' || selectedModel === 'gemma3-27b') {
         apiEndpoint = getAssetPath('/api/openrouter');
+      } else if (modelConfig?.providerId === 'together') {
+        // Route to the Together AI handler for image generation
+        apiEndpoint = getAssetPath('/api/together');
+        // Check if this model has imageGenerationMode flag
+        const isImageGeneration = !!modelConfig?.imageGenerationMode;
+        console.log(`Using Together AI endpoint for ${isImageGeneration ? 'image generation' : 'text generation'}`);
       } else if (selectedModel.includes('gemini')) {
         apiEndpoint = getAssetPath('/api/gemini');
         if ((attachments && attachments.length > 0) || (activeFiles && activeFiles.length > 0)) {
@@ -459,7 +465,9 @@ export const fetchResponse = async (
         // --- Use JSON Body for other requests or Gemini without Attachments ---
         const jsonPayload = selectedModel === 'exa' 
           ? { query: finalInput, messages: truncatedMessages } 
-          : { query: fullQuery, model: selectedModel, messages: truncatedMessages };
+          : modelConfig?.providerId === 'together' && modelConfig?.imageGenerationMode
+            ? { model: selectedModel, prompt: finalInput, dimensions: { width: 1024, height: 768 } }
+            : { query: fullQuery, model: selectedModel, messages: truncatedMessages };
         requestBody = JSON.stringify(jsonPayload);
         console.log("Using JSON body for the request.");
         // --- End JSON Body Creation ---
