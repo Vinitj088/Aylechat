@@ -10,7 +10,7 @@
     "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
-    "@google/genai": "^0.8.0",
+    "@google/genai": "^0.10.0",
     "@lobehub/icons": "^1.91.0",
     "@radix-ui/react-alert-dialog": "^1.1.7",
     "@radix-ui/react-dialog": "^1.1.6",
