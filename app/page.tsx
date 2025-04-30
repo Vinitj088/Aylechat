@@ -69,7 +69,7 @@ function PageContent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
+  const [selectedModel, setSelectedModel] = useState<ModelType>('grok-3-mini-beta');
   const [models, setModels] = useState<Model[]>([
     {
       id: 'exa',

@@ -21,7 +21,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isThreadLoading, setIsThreadLoading] = useState(true);
-  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
+  const [selectedModel, setSelectedModel] = useState<ModelType>('grok-3-mini-beta');
   const [models, setModels] = useState<Model[]>([
     {
       id: 'exa',

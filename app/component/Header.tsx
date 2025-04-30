@@ -80,7 +80,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
             <ThemeToggle />
 
             {/* Source Code Link */}
-            <a
+            {/* <a
               href="https://github.com/Vinitj088/AyleChat"
               target="_blank"
               rel="noopener noreferrer"
@@ -107,7 +107,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
                 </svg>
                 <span className="hidden sm:inline">Source</span>
               </Button>
-            </a>
+            </a> */}
 
             {/* Sidebar Toggle Button */}
             <button
