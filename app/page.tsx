@@ -902,7 +902,7 @@ function PageContent() {
 // Main Page component with Suspense boundary
 export default function Page() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={null}>
       <PageContent />
     </Suspense>
   );
