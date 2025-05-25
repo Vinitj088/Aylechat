@@ -212,7 +212,7 @@
       "toolCallType": "manual"
     },
     {
-      "id": "gemini-2.5-pro-exp-03-25",
+      "id": "gemini-2.5-pro-preview-05-06",
       "name": "Gemini 2.5 Pro",
       "provider": "Google Generative AI",
       "providerId": "google",
@@ -222,7 +222,7 @@
       "searchMode": true
     },
     {
-      "id": "gemini-2.5-flash-preview-04-17",
+      "id": "gemini-2.5-flash-preview-05-20",
       "name": "Gemini 2.5 Flash",
       "provider": "Google Generative AI",
       "providerId": "google",
