@@ -658,3 +658,24 @@ pre code {
   color: #ffa198;
   background-color: #67060c;
 }
+
+/* Target the scrollbar track */
+::-webkit-scrollbar {
+  width: 8px;  /* Set width for vertical scrollbars */
+  height: 8px; /* Set height for horizontal scrollbars */
+  }
+  
+  /* Target the scrollbar thumb (the draggable part) */
+  ::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2); /* Dark grey */
+  border-radius: 4px; /* Rounded corners */
+  }
+  
+  /* Target the scrollbar track when hovered */
+  ::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.05); /* Light grey */
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.4); /* Darker grey on hover */
+  }
