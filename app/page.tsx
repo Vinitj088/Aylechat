@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { prefetchAll } from './api/prefetch';
 import { FileUp, X } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 // Helper function to get provider description
 const getProviderDescription = (providerName: string | undefined): string => {
@@ -824,8 +825,33 @@ function PageContent() {
 
   return (
     <main className="flex min-h-screen flex-col">
-      
-      <Header toggleSidebar={toggleSidebar} />
+      {/* Header - Mobile only */}
+<div className="md:hidden">
+  <Header toggleSidebar={toggleSidebar} />
+</div>
+{/* Fixed Ayle Logo - Desktop only */}
+<Link
+  href="/"
+  className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
+  onClick={(e) => {
+    e.preventDefault();
+    window.location.href = '/';
+  }}
+>
+  <span 
+    className="text-3xl text-[var(--brand-default)]"
+    style={{ 
+      fontFamily: 'var(--font-gebuk-regular)',
+      letterSpacing: '0.05em',
+      fontWeight: 'normal',
+      position: 'relative',
+      padding: '0 4px'
+    }}
+  >
+    Ayle
+  </span>
+</Link>
+      {/* <Header toggleSidebar={toggleSidebar} /> */}
       <DynamicSidebar 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
@@ -894,7 +920,10 @@ function PageContent() {
           )}
         </>
       )}
-
+{/* Fixed Theme Toggle - Desktop only */}
+<div className="hidden md:block fixed bottom-4 left-4 z-50">
+  <ThemeToggle />
+</div>
     </main>
   );
 }

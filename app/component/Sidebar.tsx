@@ -1,16 +1,15 @@
-'use client';
+"use client"
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { ChatThread } from '@/lib/redis';
-import { useAuth } from '@/context/AuthContext';
-import { useThreadCache } from '@/context/ThreadCacheContext';
-import Link from 'next/link';
-import { formatDistanceToNow } from 'date-fns';
-import { toast } from 'sonner';
-import { getAssetPath } from '../utils';
-import { X, Trash2, LogOut, Clock, User, AlertTriangle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import type React from "react"
+import { useState, useEffect } from "react"
+import { useRouter, usePathname } from "next/navigation"
+import { useAuth } from "@/context/AuthContext"
+import { useThreadCache } from "@/context/ThreadCacheContext"
+import { formatDistanceToNow } from "date-fns"
+import { toast } from "sonner"
+import { getAssetPath } from "../utils"
+import { X, Trash2, LogOut, Clock, User, AlertTriangle } from "lucide-react"
+import { cn } from "@/lib/utils"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,168 +19,226 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog"
 
 interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSignInClick?: () => void;
-  refreshTrigger?: number;
+  isOpen: boolean
+  onClose: () => void
+  onSignInClick?: () => void
+  refreshTrigger?: number
 }
 
 export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger = 0 }: SidebarProps) {
-  const [lastRefreshTrigger, setLastRefreshTrigger] = useState(0);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
-  
-  const router = useRouter();
-  const pathname = usePathname();
-  const { user, signOut, refreshSession, openAuthDialog } = useAuth();
-  // Use the thread cache context for thread data and operations
-  const { threads, isLoading, fetchThreads, removeThread, clearThreads, lastUpdated } = useThreadCache();
+  const [lastRefreshTrigger, setLastRefreshTrigger] = useState(0)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
-  const isAuthenticated = !!user;
+  const router = useRouter()
+  const pathname = usePathname()
+  const { user, signOut, refreshSession, openAuthDialog } = useAuth()
+  const { threads, isLoading, fetchThreads, removeThread, clearThreads, lastUpdated } = useThreadCache()
+
+  const isAuthenticated = !!user
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
+
+  // For desktop: show sidebar when hovering near left edge
+  useEffect(() => {
+    if (isMobile) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const windowWidth = window.innerWidth
+      // Show sidebar when mouse is within 20px of right edge
+      if (e.clientX >= windowWidth - 20) {
+        setIsHovered(true)
+      }
+      // Hide sidebar when mouse moves away from sidebar area (beyond 280px from right)
+      else if (e.clientX < windowWidth - 280) {
+        setIsHovered(false)
+      }
+    }
+
+    const handleMouseLeave = () => {
+      setIsHovered(false)
+    }
+
+    document.addEventListener("mousemove", handleMouseMove)
+    document.addEventListener("mouseleave", handleMouseLeave)
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove)
+      document.removeEventListener("mouseleave", handleMouseLeave)
+    }
+  }, [isMobile])
+
+  // Determine if sidebar should be visible
+  const shouldShowSidebar = isMobile ? isOpen : isHovered
 
   // Fetch when refreshTrigger changes, this indicates thread operations (create/update/delete)
   useEffect(() => {
-    if (isAuthenticated && user && isOpen) {
+    if (isAuthenticated && user && shouldShowSidebar) {
       if (lastRefreshTrigger !== refreshTrigger) {
-        setLastRefreshTrigger(refreshTrigger);
-        // Force refresh on trigger change as it means data has changed
-        fetchThreads(true);
+        setLastRefreshTrigger(refreshTrigger)
+        fetchThreads(true)
       }
     }
-  }, [refreshTrigger, isAuthenticated, user, isOpen, lastRefreshTrigger, fetchThreads]);
+  }, [refreshTrigger, isAuthenticated, user, shouldShowSidebar, lastRefreshTrigger, fetchThreads])
 
   // When sidebar opens, check if we should refresh based on the last update time
   useEffect(() => {
-    if (isOpen && isAuthenticated && user) {
-      // Only fetch if we don't have any threads or if the last update was more than 5 minutes ago
-      const now = Date.now();
-      if (threads.length === 0 || (now - lastUpdated > 5 * 60 * 1000)) {
-        fetchThreads(false);
+    if (shouldShowSidebar && isAuthenticated && user) {
+      const now = Date.now()
+      if (threads.length === 0 || now - lastUpdated > 5 * 60 * 1000) {
+        fetchThreads(false)
       }
     }
-  }, [isOpen, isAuthenticated, user, fetchThreads, threads.length, lastUpdated]);
+  }, [shouldShowSidebar, isAuthenticated, user, fetchThreads, threads.length, lastUpdated])
 
   const handleThreadClick = (threadId: string) => {
-    router.push(`/chat/${threadId}`);
-    onClose();
-  };
+    router.push(`/chat/${threadId}`)
+    if (isMobile) {
+      onClose()
+    }
+  }
 
   const handleDeleteThread = async (threadId: string, event: React.MouseEvent) => {
-    event.stopPropagation();
-    
-    if (!confirm('Are you sure you want to delete this chat thread?')) {
-      return;
+    event.stopPropagation()
+
+    if (!confirm("Are you sure you want to delete this chat thread?")) {
+      return
     }
-    
+
     try {
       const response = await fetch(getAssetPath(`/api/chat/threads/${threadId}`), {
-        method: 'DELETE',
-        credentials: 'include',
+        method: "DELETE",
+        credentials: "include",
         headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-        }
-      });
-      
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+      })
+
       if (response.ok) {
-        // Use the context's removeThread function to update cache
-        removeThread(threadId);
-        
-        // If we're currently viewing this thread, redirect to home
+        removeThread(threadId)
+
         if (pathname === `/chat/${threadId}`) {
-          router.push('/');
+          router.push("/")
         }
-        
-        toast.success('Thread deleted successfully');
+
+        toast.success("Thread deleted successfully")
       } else {
-        const errorData = await response.json();
-        toast.error('Failed to delete thread', {
-          description: errorData.message || 'Please try again later',
-        });
+        const errorData = await response.json()
+        toast.error("Failed to delete thread", {
+          description: errorData.message || "Please try again later",
+        })
       }
     } catch (error) {
-      console.error('Error deleting thread:', error);
-      toast.error('Failed to delete thread', {
-        description: 'Please check your connection and try again',
-      });
+      console.error("Error deleting thread:", error)
+      toast.error("Failed to delete thread", {
+        description: "Please check your connection and try again",
+      })
     }
-  };
+  }
 
   const handleSignOut = async () => {
     try {
-      await signOut();
-      router.push('/');
-      onClose();
+      await signOut()
+      router.push("/")
+      if (isMobile) {
+        onClose()
+      }
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error("Error signing out:", error)
     }
-  };
+  }
 
   const handleClearAllHistory = () => {
     if (threads.length > 0) {
-      setIsClearConfirmOpen(true);
+      setIsClearConfirmOpen(true)
     } else {
-      toast.info("No chat history to clear.");
+      toast.info("No chat history to clear.")
     }
-  };
+  }
 
   const handleConfirmClearAll = async () => {
-    setIsClearConfirmOpen(false);
-    const toastId = toast.loading("Clearing all chat history...");
+    setIsClearConfirmOpen(false)
+    const toastId = toast.loading("Clearing all chat history...")
 
     try {
-      const response = await fetch(getAssetPath('/api/chat/threads'), {
-        method: 'DELETE',
-        credentials: 'include',
+      const response = await fetch(getAssetPath("/api/chat/threads"), {
+        method: "DELETE",
+        credentials: "include",
         headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-        }
-      });
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+      })
 
       if (response.ok) {
-        clearThreads();
-        toast.success("Chat history cleared successfully", { id: toastId });
-        if (pathname && pathname.startsWith('/chat/')) {
-          router.push('/');
+        clearThreads()
+        toast.success("Chat history cleared successfully", { id: toastId })
+        if (pathname && pathname.startsWith("/chat/")) {
+          router.push("/")
         }
-        onClose();
+        if (isMobile) {
+          onClose()
+        }
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json()
         toast.error("Failed to clear history", {
           id: toastId,
-          description: errorData.message || 'Please try again later',
-        });
+          description: errorData.message || "Please try again later",
+        })
       }
     } catch (error) {
-      console.error('Error clearing all threads:', error);
+      console.error("Error clearing all threads:", error)
       toast.error("Failed to clear history", {
         id: toastId,
-        description: 'An unexpected error occurred. Please check your connection and try again.',
-      });
+        description: "An unexpected error occurred. Please check your connection and try again.",
+      })
     }
-  };
+  }
 
   return (
     <>
-      {/* Overlay - only visible when sidebar is open */}
-      <div 
-        className={cn(
-          "fixed inset-0 bg-black/40 dark:bg-black/60 z-40 transition-opacity",
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}
-        onClick={onClose}
-      />
-      
+      {/* Overlay - only visible on mobile when sidebar is open */}
+      {isMobile && (
+        <div
+          className={cn(
+            "fixed inset-0 bg-black/40 dark:bg-black/60 z-40 transition-opacity",
+            isOpen ? "opacity-100" : "opacity-0 pointer-events-none",
+          )}
+          onClick={onClose}
+        />
+      )}
+
+      {/* Hover trigger area for desktop - invisible area at right edge */}
+      {!isMobile && (
+        <div
+          className="fixed right-0 top-0 w-5 h-full z-30 pointer-events-auto"
+          onMouseEnter={() => setIsHovered(true)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div 
+      <div
         className={cn(
           "fixed inset-y-0 right-0 z-50 w-64 bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-fainter)] border-l border-[var(--secondary-darkest)] shadow-lg transform transition-transform duration-300 ease-in-out",
-          isOpen ? "translate-x-0" : "translate-x-full"
+          shouldShowSidebar ? "translate-x-0" : "translate-x-full",
         )}
+        onMouseEnter={() => !isMobile && setIsHovered(true)}
+        onMouseLeave={() => !isMobile && setIsHovered(false)}
       >
         {/* Sidebar content */}
         <div className="flex flex-col h-full">
@@ -191,13 +248,16 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
               <Clock className="h-4 w-4 mr-2 text-[var(--brand-default)]" />
               Chat History
             </h2>
-            <button 
-              onClick={onClose}
-              className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
-              aria-label="Close sidebar"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            {/* Only show close button on mobile */}
+            {isMobile && (
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
+                aria-label="Close sidebar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           {/* Content */}
@@ -214,7 +274,6 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
               </div>
             ) : isLoading ? (
               <div className="flex justify-center items-center h-24">
-                {/* Pulsing dots loading indicator */}
                 <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 bg-[var(--brand-default)] animate-[bounce_1s_infinite]"></div>
                   <div className="w-2 h-2 bg-[var(--brand-default)] animate-[bounce_1s_infinite_200ms]"></div>
@@ -243,14 +302,14 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                     <div
                       className={cn(
                         "w-full text-left p-3 rounded-md border transition-all duration-200",
-                        pathname === `/chat/${thread.id}` 
-                          ? "bg-[var(--brand-fainter)] border-[var(--brand-muted)] shadow-[0_0_0_1px_var(--brand-faint)]" 
-                          : "border-[var(--secondary-darkest)] hover:bg-[var(--secondary-darker)] hover:border-[var(--secondary-darkest)]"
+                        pathname === `/chat/${thread.id}`
+                          ? "bg-[var(--brand-fainter)] border-[var(--brand-muted)] shadow-[0_0_0_1px_var(--brand-faint)]"
+                          : "border-[var(--secondary-darkest)] hover:bg-[var(--secondary-darker)] hover:border-[var(--secondary-darkest)]",
                       )}
                     >
                       <div className="flex justify-between items-start">
-                        <div 
-                          className="font-medium truncate pr-2 text-sm text-[var(--text-light-default)] cursor-pointer" 
+                        <div
+                          className="font-medium truncate pr-2 text-sm text-[var(--text-light-default)] cursor-pointer"
                           onClick={() => handleThreadClick(thread.id)}
                         >
                           {thread.title}
@@ -263,8 +322,8 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                      <div 
-                        className="text-xs text-[var(--text-light-muted)] mt-1.5 flex items-center cursor-pointer" 
+                      <div
+                        className="text-xs text-[var(--text-light-muted)] mt-1.5 flex items-center cursor-pointer"
                         onClick={() => handleThreadClick(thread.id)}
                       >
                         <Clock className="h-3 w-3 mr-1 inline-block text-[var(--brand-faint)]" />
@@ -285,14 +344,14 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                   </li>
                 )}
                 {threads.length === 0 && !isLoading && !fetchError && (
-                   <li className="text-center mt-4 pt-3 border-t border-dashed border-[var(--secondary-darker)]">
-                     <span className="text-xs text-[var(--text-light-muted)] italic">— History is empty —</span>
-                   </li>
+                  <li className="text-center mt-4 pt-3 border-t border-dashed border-[var(--secondary-darker)]">
+                    <span className="text-xs text-[var(--text-light-muted)] italic">— History is empty —</span>
+                  </li>
                 )}
               </ul>
             )}
           </div>
-          
+
           {/* Footer with user info and sign out */}
           {isAuthenticated && user && (
             <div className="p-3 border-t border-[var(--secondary-darkest)] bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-default)]">
@@ -325,7 +384,8 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
               Are you absolutely sure?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete all your chat threads and remove your data from our servers.
+              This action cannot be undone. This will permanently delete all your chat threads and remove your data from
+              our servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -337,5 +397,5 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
         </AlertDialogContent>
       </AlertDialog>
     </>
-  );
-} 
+  )
+}

@@ -15,6 +15,8 @@ import { ChatThread } from '@/lib/redis';
 import { toast } from 'sonner';
 import QueryEnhancer from '../../component/QueryEnhancer';
 import React from 'react';
+import Link from 'next/link';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function ChatThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -158,7 +160,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     const handleKeyDown = (e: KeyboardEvent) => {
       // Skip if we're in an input field or textarea already
       if (
-        e.target instanceof HTMLInputElement || 
+        e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
         e.target instanceof HTMLSelectElement ||
         (e.target as HTMLElement).isContentEditable
@@ -205,7 +207,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 
     // Debug log for attachments
     if (files && files.length > 0) {
-      console.log(`Processing ${files.length} attachment(s) for message:`, 
+      console.log(`Processing ${files.length} attachment(s) for message:`,
         files.map(file => ({
           name: file.name,
           type: file.type,
@@ -262,7 +264,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     try {
       // Check if it's a new thread or existing thread
       // const isNewThread = !threadId || threadId === 'new'; // We don't need this check here anymore
-      
+
       // REMOVED: Update thread immediately - we now wait for the response
       // if (user && isAuthenticated) {
       //   await updateThread(updatedMessages); 
@@ -270,15 +272,15 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 
       if (isImageGenerationModel) {
         console.log("Using image generation model:", modelObj?.name, "Provider:", modelObj?.providerId);
-        
+
         // Determine the API endpoint based on the provider
         let apiEndpoint = '/api/gemini'; // Default for Gemini models
-        
+
         if (modelObj?.providerId === 'together') {
           apiEndpoint = '/api/together';
           console.log("Using Together AI endpoint for image generation");
         }
-        
+
         // Handle image generation model
         const response = await fetch(apiEndpoint, {
           method: 'POST',
@@ -300,7 +302,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         }
 
         const data = await response.json();
-        
+
         // Debug the response
         console.log('Image generation client response:', {
           hasText: !!data.text,
@@ -316,7 +318,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           console.error('No valid images array in response:', data);
           data.images = []; // Ensure we have a valid array
         }
-        
+
         // Process images for storage - if we have URLs, we can optimize storage
         const optimizedImages = data.images.map((img: { mimeType: string; data: string; url?: string }) => {
           // If the image has a URL, we can store just the URL and mime type
@@ -330,7 +332,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           // Otherwise keep the original image data
           return img;
         });
-        
+
         // Update the assistant message with text and images
         const completedAssistantMessage: Message = {
           ...assistantMessage,
@@ -339,7 +341,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           completed: true,
           provider: selectedModelObj?.provider
         };
-        
+
         // Debug the message being added
         console.log('Adding assistant message with images:', {
           messageId: completedAssistantMessage.id,
@@ -350,12 +352,12 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 
         // Update messages state with completed response
         setMessages(prevMessages => {
-          const updatedMessages = prevMessages.map(msg => 
-            msg.id === assistantMessage.id 
+          const updatedMessages = prevMessages.map(msg =>
+            msg.id === assistantMessage.id
               ? completedAssistantMessage
               : msg
           );
-          
+
           // Log final message count
           console.log(`Updated messages array now has ${updatedMessages.length} messages`);
           return updatedMessages;
@@ -365,8 +367,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         if (user && isAuthenticated) {
           try {
             // Construct final messages using the completedAssistantMessage from image gen
-            const finalMessages = updatedMessages.map(msg => 
-              msg.id === assistantMessage.id 
+            const finalMessages = updatedMessages.map(msg =>
+              msg.id === assistantMessage.id
                 ? completedAssistantMessage // Use the object with image data
                 : msg
             );
@@ -379,7 +381,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         // Standard text model processing
         // REMOVED: let content = "";
         // REMOVED: let citations: any[] = [];
-        
+
         // Fetch the model response - it now returns the complete assistant message
         const completedAssistantMessage = await fetchResponse(
           userMessage.content,
@@ -388,11 +390,11 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           abortControllerRef.current,
           setMessages, // Still needed for live UI updates during stream
           assistantMessage, // Pass the placeholder ID/role
-          files, 
-          activeChatFiles, 
-          handleFileUploaded 
+          files,
+          activeChatFiles,
+          handleFileUploaded
         );
-        
+
         // REMOVED: content = response.content;
         // REMOVED: citations = response.citations || [];
 
@@ -400,8 +402,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         if (user && isAuthenticated) {
           try {
             // Construct final messages using the returned completedAssistantMessage
-            const finalMessages = updatedMessages.map(msg => 
-              msg.id === assistantMessage.id 
+            const finalMessages = updatedMessages.map(msg =>
+              msg.id === assistantMessage.id
                 ? completedAssistantMessage // Use the object returned by fetchResponse
                 : msg
             );
@@ -413,36 +415,36 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
       }
     } catch (error: any) {
       console.error("Error in submission:", error);
-      
+
       // Handle authentication errors
       if (error.message && (
-          error.message.includes('authentication') || 
-          error.message.includes('Authentication') || 
-          error.message.includes('Unauthorized') || 
-          error.message.includes('401') ||
-          error.message.includes('session')
-        )) {
+        error.message.includes('authentication') ||
+        error.message.includes('Authentication') ||
+        error.message.includes('Unauthorized') ||
+        error.message.includes('401') ||
+        error.message.includes('session')
+      )) {
         // Show the auth dialog first to let the user sign in
         setShowAuthDialog(true);
-        
+
         // Set the error message in the assistant message
-        setMessages(prevMessages => 
-          prevMessages.map(msg => 
-            msg.id === assistantMessage.id 
-              ? { ...msg, content: "I couldn't complete your request because your session expired. Please sign in again.", completed: true } 
+        setMessages(prevMessages =>
+          prevMessages.map(msg =>
+            msg.id === assistantMessage.id
+              ? { ...msg, content: "I couldn't complete your request because your session expired. Please sign in again.", completed: true }
               : msg
           )
         );
       } else {
         // Handle other errors
-        setMessages(prevMessages => 
-          prevMessages.map(msg => 
-            msg.id === assistantMessage.id 
-              ? { ...msg, content: "I'm sorry, there was an error processing your request. Please try again.", completed: true } 
+        setMessages(prevMessages =>
+          prevMessages.map(msg =>
+            msg.id === assistantMessage.id
+              ? { ...msg, content: "I'm sorry, there was an error processing your request. Please try again.", completed: true }
               : msg
           )
         );
-        
+
         // Show error toast
         toast.error(error.message || 'Error processing request');
       }
@@ -458,7 +460,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const handleNewChat = () => {
     router.push('/');
     // Step 5: Clear active files (will be handled by navigating to home/new chat)
-    setActiveChatFiles([]); 
+    setActiveChatFiles([]);
   };
 
   // Determine if the selected model is Exa
@@ -472,7 +474,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     if (!isAuthenticated || !user || !threadId) {
       return false;
     }
-    
+
     try {
       // Add timestamp to prevent caching
       const timestamp = Date.now();
@@ -489,7 +491,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           model: selectedModel
         })
       });
-      
+
       if (!response.ok) {
         if (response.status === 401) {
           // No need to refresh, just show auth dialog
@@ -499,14 +501,14 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
       if (result.success) {
         // Update sidebar to reflect changes
         setRefreshSidebar(prev => prev + 1);
         return true;
       }
-      
+
       return false;
     } catch (error) {
       console.error('Error updating thread:', error);
@@ -517,10 +519,35 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   if (isThreadLoading) {
     return (
       <main className="flex min-h-screen flex-col">
-        <Header toggleSidebar={toggleSidebar} />
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+           {/* Header - Mobile only */}
+<div className="md:hidden">
+  <Header toggleSidebar={toggleSidebar} />
+</div>
+{/* Fixed Ayle Logo - Desktop only */}
+<Link
+  href="/"
+  className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
+  onClick={(e) => {
+    e.preventDefault();
+    window.location.href = '/';
+  }}
+>
+  <span 
+    className="text-3xl text-[var(--brand-default)]"
+    style={{ 
+      fontFamily: 'var(--font-gebuk-regular)',
+      letterSpacing: '0.05em',
+      fontWeight: 'normal',
+      position: 'relative',
+      padding: '0 4px'
+    }}
+  >
+    Ayle
+  </span>
+</Link>
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
           onSignInClick={() => setShowAuthDialog(true)}
         />
         <div className="flex items-center justify-center h-screen">
@@ -533,23 +560,53 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
             <div className="text-gray-600 font-medium">Loading conversation...</div>
           </div>
         </div>
+        {/* Fixed Theme Toggle - Desktop only */}
+        <div className="hidden md:block fixed bottom-4 left-4 z-50">
+          <ThemeToggle />
+        </div>
       </main>
+
     );
   }
 
   return (
     <main className="flex min-h-screen flex-col">
-      <Header toggleSidebar={toggleSidebar} />
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        onClose={() => setIsSidebarOpen(false)} 
+         {/* Header - Mobile only */}
+<div className="md:hidden">
+  <Header toggleSidebar={toggleSidebar} />
+</div>
+{/* Fixed Ayle Logo - Desktop only */}
+<Link
+  href="/"
+  className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
+  onClick={(e) => {
+    e.preventDefault();
+    window.location.href = '/';
+  }}
+>
+  <span 
+    className="text-3xl text-[var(--brand-default)]"
+    style={{ 
+      fontFamily: 'var(--font-gebuk-regular)',
+      letterSpacing: '0.05em',
+      fontWeight: 'normal',
+      position: 'relative',
+      padding: '0 4px'
+    }}
+  >
+    Ayle
+  </span>
+</Link>
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
         onSignInClick={() => setShowAuthDialog(true)}
         refreshTrigger={refreshSidebar}
       />
-      
-      <ChatMessages 
-        messages={messages} 
-        isLoading={isLoading} 
+
+      <ChatMessages
+        messages={messages}
+        isLoading={isLoading}
         selectedModel={selectedModel}
         selectedModelObj={selectedModelObj}
         isExa={selectedModel === 'exa'}
@@ -557,7 +614,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         bottomPadding={chatInputHeightOffset}
       />
 
-      <ChatInput 
+      <ChatInput
         ref={chatInputRef}
         input={input}
         handleInputChange={handleInputChange}
@@ -575,8 +632,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
       />
 
       {/* Auth Dialog */}
-      <AuthDialog 
-        isOpen={showAuthDialog} 
+      <AuthDialog
+        isOpen={showAuthDialog}
         onClose={() => setShowAuthDialog(false)}
         onSuccess={() => {
           setRefreshSidebar(prev => prev + 1);
@@ -591,11 +648,11 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
                   cache: 'no-store',
                   credentials: 'include'
                 });
-                
+
                 if (!response.ok) {
                   throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 if (data.thread) {
                   setThread(data.thread);
@@ -609,12 +666,15 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
                 setIsThreadLoading(false);
               }
             };
-            
+
             fetchData();
           }
         }}
       />
-
+      {/* Fixed Theme Toggle - Desktop only */}
+      <div className="hidden md:block fixed bottom-4 left-4 z-50">
+        <ThemeToggle />
+      </div>
     </main>
   );
 } 
