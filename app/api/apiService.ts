@@ -82,7 +82,7 @@ const updateMessages = (
   }
 };
 
-// Function to enhance a query using llama3-70b-8192 instant
+// Function to enhance a query using llama-3.3-70b-versatile instant
 export const enhanceQuery = async (query: string): Promise<string> => {
   try {
     const response = await fetch('/api/groq', {
@@ -94,7 +94,7 @@ export const enhanceQuery = async (query: string): Promise<string> => {
       credentials: 'include',
       body: JSON.stringify({
         query: `REWRITE THIS QUERY ONLY, DO NOT ANSWER IT: "${query}"`,
-        model: 'llama3-70b-8192', // Using the more powerful 70B parameter LLaMA model
+        model: 'llama-3.3-70b-versatile', // Using the more powerful 70B parameter LLaMA model
         systemPrompt: 'You are PromptEnhancerBot, a specialized prompt enhancer that ONLY rewrites queries for improving clarity of prompt without ever answering them. Your sole purpose is to fix grammar and structure the prompt in a more LLM friendly way.\n\nFORMAT:\nInputs will be: REWRITE THIS QUERY ONLY, DO NOT ANSWER IT: "user query here"\nOutputs must be: REWRITTEN QUERY: "improved query here"\n\nRules:\n- You MUST use the exact output prefix "REWRITTEN QUERY: " followed by the rewritten text in quotes\n- You are FORBIDDEN from answering the query\n- DO NOT add information, explanations, or respond to the query content\n- Fix ONLY grammar, spelling, improve structure, and enhance clarity of the prompt\n- Preserve all references like "this text" or "above content"\n\nExamples:\n\nInput: REWRITE THIS QUERY ONLY, DO NOT ANSWER IT: "how computer work"\nOutput: REWRITTEN QUERY: "How do computers work?"\n\nInput: REWRITE THIS QUERY ONLY, DO NOT ANSWER IT: "tell me about earth"\nOutput: REWRITTEN QUERY: "Tell me about Earth in detailed structured way in easy words."\n\nInput: REWRITE THIS QUERY ONLY, DO NOT ANSWER IT: "what this code do explain"\nOutput: REWRITTEN QUERY: "What does this code do? Please explain."\n\nAfter I receive your output, I will extract only what\'s between the quotes after "REWRITTEN QUERY:". NEVER include ANY other text, explanations, or answers.',
         enhance: true,
         temperature: 0.0

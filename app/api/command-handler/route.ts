@@ -5,7 +5,7 @@ import { searchTmdb } from '@/lib/tmdb'; // Adjusted import path
 // Helper function to call Groq API for title extraction (Reverted)
 async function extractMediaTitle(query: string, commandType: 'movies' | 'tv', reqUrl: string): Promise<string | null> {
   const itemType = commandType === 'movies' ? 'movie' : 'TV show';
-  const model = 'llama3-8b-8192'; // Use Groq Llama3 8b for extraction
+  const model = 'llama-3.1-8b-instant'; // Use Groq Llama3 8b for extraction
 
   // Extraction prompt
   const systemPrompt = `You are an AI specialized in extracting ${itemType} titles from user queries. 

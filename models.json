@@ -157,24 +157,8 @@
       "toolCallType": "manual"
     },
     
-    {
-      "id": "llama3-70b-8192",
-      "name": "LLaMA 3 70B 8192",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "meta",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
-    {
-      "id": "llama3-8b-8192",
-      "name": "LLaMA 3 8B 8192",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "meta",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
+  
+    
     {
       "id": "qwen-2.5-32b",
       "name": "QWEN 2.5 32B",
