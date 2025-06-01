@@ -26,18 +26,74 @@ function getProviderModel(model: string) {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { model, messages, ...rest } = body;
-    if (!model || !messages) {
-      return new Response(JSON.stringify({ error: 'Missing model or messages' }), { status: 400 });
+    const requestBody = await req.json();
+    const {
+      messages, // This is the primary message history from useChat
+      chatId,   // Optional, from useChat's id parameter
+      selectedModel, // Custom parameter for model selection
+      attachments, // Custom parameter for attachments
+      activeChatFiles, // Custom parameter for active files
+      ...otherOptions // any other options passed in the body
+    } = requestBody;
+
+    const modelId = selectedModel; // Rename for clarity
+
+    if (!modelId || !messages) {
+      return new Response(JSON.stringify({ error: 'Missing modelId or messages' }), { status: 400 });
     }
-    const providerModel = getProviderModel(model);
-    // Optionally handle attachments, tool calls, etc. from rest
-    const result = streamText({
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return new Response(JSON.stringify({ error: 'Messages must be a non-empty array' }), { status: 400 });
+    }
+
+    let processedMessages = messages;
+
+    // Simplified Attachment Processing:
+    // Log a warning if custom 'attachments' are present, as full multi-modal processing
+    // for this custom structure is not implemented here.
+    // The Vercel AI SDK expects attachments to be part of the message content for some providers.
+    if (attachments && attachments.length > 0 && processedMessages.length > 0) {
+      const lastMessageIndex = processedMessages.length - 1;
+      if (processedMessages[lastMessageIndex].role === 'user') {
+        console.warn("/api/ai received 'attachments' in the request body. This custom 'attachments' field is not automatically processed into multi-modal messages by this generic handler. Ensure the client sends files appropriately formatted within the 'messages' array (e.g., for Gemini, as content parts with image data) if vision capabilities are expected from the model via this endpoint.");
+        // Example of what might be needed if 'attachments' contained image data:
+        // const lastUserMessage = processedMessages[lastMessageIndex];
+        // let contentParts = [];
+        // if (typeof lastUserMessage.content === 'string') {
+        //   contentParts.push({ type: 'text', text: lastUserMessage.content });
+        // } else if (Array.isArray(lastUserMessage.content)) {
+        //   contentParts = [...lastUserMessage.content];
+        // }
+        // attachments.forEach(att => {
+        //   if (att.type && att.type.startsWith('image/') && att.data) { // Assuming att.data would be base64
+        //     contentParts.push({ type: 'image', image: att.data, mimeType: att.type });
+        //   }
+        // });
+        // processedMessages[lastMessageIndex] = { ...lastUserMessage, content: contentParts };
+      }
+    }
+
+    const providerModel = getProviderModel(modelId);
+
+    // Filter 'otherOptions' to only include valid streamText parameters if necessary
+    // For now, we pass common ones if they exist, similar to the original spread of 'rest'
+    const streamTextOptions: any = {
       model: providerModel,
-      messages,
-      ...rest,
-    });
+      messages: processedMessages,
+    };
+
+    if (otherOptions.temperature !== undefined) {
+      streamTextOptions.temperature = otherOptions.temperature;
+    }
+    if (otherOptions.maxTokens !== undefined) {
+      streamTextOptions.maxTokens = otherOptions.maxTokens;
+    }
+    if (otherOptions.system !== undefined) {
+      streamTextOptions.system = otherOptions.system;
+    }
+    // Add other valid streamText options from otherOptions as needed
+
+    const result = streamText(streamTextOptions);
+
     return result.toDataStreamResponse({
       getErrorMessage: (error) => {
         if (!error) return 'unknown error';
