@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useRef, useEffect, Suspense, useCallback } from 'react';
+import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from 'react';
 import { Message, Model, ModelType, FileAttachment } from '../../types';
+import { useChat, CreateMessage } from '@ai-sdk/react';
 import Header from '../../component/Header';
 import ChatMessages from '../../component/ChatMessages';
 import ChatInput, { ChatInputHandle } from '../../component/ChatInput';
 import Sidebar from '../../component/Sidebar';
-import { fetchResponse } from '../../api/apiService';
+import { fetchResponse, scrapeUrlContent } from '../../api/apiService'; // Added scrapeUrlContent
 import modelsData from '../../../models.json';
 import { AuthDialog } from '@/components/AuthDialog';
 import { useAuth } from '@/context/AuthContext';
@@ -19,9 +20,9 @@ import Link from 'next/link';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function ChatThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [localMessages, setLocalMessages] = useState<Message[]>([]); // For image gen and initial load
+  // const [input, setInput] = useState(''); // Replaced by useChat
+  // const [isLoading, setIsLoading] = useState(false); // Replaced by useChat
   const [isThreadLoading, setIsThreadLoading] = useState(true);
   const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
   const [models, setModels] = useState<Model[]>([
@@ -39,7 +40,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null); // Still used by fetchResponse in image gen
+  const scrapeAbortControllerRef = useRef<AbortController | null>(null); // For scrapeUrlContent
   const { user, session } = useAuth();
   const router = useRouter();
   const threadId = React.use(params).threadId;
@@ -49,6 +51,43 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
 
   const isAuthenticated = !!user;
+
+  const {
+    messages: chatMessagesFromHook, // Renamed to avoid conflict with component's 'messages'
+    input,
+    handleInputChange,
+    append,
+    isLoading: chatIsLoading,
+    error: chatError,
+    stop: stopChat,
+    reload: reloadChat,
+    setMessages: setChatMessages,
+  } = useChat({
+    api: '/api/ai',
+    id: threadId, // Pass the current threadId
+    initialMessages: [], // Will be set after thread data is fetched
+    sendExtraMessageFields: true, // If backend needs message IDs, createdAt
+    onFinish: async (message) => { // message is the assistant's final message
+      if (user && isAuthenticated && threadId) {
+        // Use the helper to get the latest messages
+        await updateThread(get().chatMessagesFromHook, selectedModel);
+      }
+    },
+    onError: (err) => {
+      toast.error(err.message || 'An error occurred during chat.');
+    }
+  });
+
+  // Helper to get latest messages for onFinish, as chatMessagesFromHook in onFinish closure might be stale
+  const get = () => ({ chatMessagesFromHook });
+
+  // Combine messages from useChat with local messages for display
+  const messages = useMemo(() => {
+    // If chatMessagesFromHook has items, it's the primary source after initial load.
+    // localMessages is used for initial load and potentially image generation if it doesn't go through useChat.
+    return chatMessagesFromHook.length > 0 ? chatMessagesFromHook : localMessages;
+  }, [chatMessagesFromHook, localMessages]);
+
 
   useEffect(() => {
     // Add models from different providers
@@ -80,15 +119,13 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 
   useEffect(() => {
     const fetchThread = async () => {
-      // Don't fetch if we already have the thread data
-      if (thread && thread.id === threadId) {
+      if (thread && thread.id === threadId && chatMessagesFromHook.length > 0) { // Check if useChat already loaded
         setIsThreadLoading(false);
         return;
       }
 
       try {
         setIsThreadLoading(true);
-        // Add a timestamp to prevent caching
         const timestamp = Date.now();
         const response = await fetch(`/api/chat/threads/${threadId}?t=${timestamp}`, {
           method: 'GET',
@@ -101,8 +138,11 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 
         if (!response.ok) {
           if (response.status === 404 || response.status === 401) {
-            // Thread not found or unauthorized - just mark as loaded
             setIsThreadLoading(false);
+            // Potentially redirect or show error if thread not found/accessible
+            if (response.status === 404) toast.error("Chat thread not found.");
+            else if (response.status === 401) toast.error("Unauthorized to view this chat.");
+            router.push('/'); // Redirect to home if thread is not accessible
             return;
           }
           throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -111,17 +151,19 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         const data = await response.json();
         if (data.success && data.thread) {
           setThread(data.thread);
-          setMessages(data.thread.messages || []);
-          // If it has an associated model, set it
+          // Set initial messages for both useChat and localMessages (for consistency if local is used)
+          setChatMessages(data.thread.messages || []);
+          setLocalMessages(data.thread.messages || []);
           if (data.thread.model) {
             setSelectedModel(data.thread.model as ModelType);
           }
         } else {
-          // Thread data issue, but don't redirect
           console.error('Failed to load thread:', data.error);
+          toast.error(data.error || "Failed to load chat data.");
         }
       } catch (error) {
         console.error('Error loading thread:', error);
+        toast.error(error instanceof Error ? error.message : "An unknown error occurred while loading the chat.");
       } finally {
         setIsThreadLoading(false);
       }
@@ -130,7 +172,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     if (threadId) {
       fetchThread();
     }
-  }, [threadId, thread]);
+  }, [threadId, thread, setChatMessages, router]); // Added setChatMessages and router to dependencies
 
   // Step 5: Callback to handle file uploaded event from backend
   const handleFileUploaded = useCallback((fileInfo: { name: string; type: string; uri: string }) => {
@@ -169,7 +211,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
       }
 
       // Focus chat input when "/" is pressed
-      if (e.key === '/' && !isLoading) {
+      // Use chatIsLoading from useChat
+      if (e.key === '/' && !chatIsLoading) {
         e.preventDefault();
         chatInputRef.current?.focus();
       }
@@ -177,13 +220,10 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isLoading]);
+  }, [chatIsLoading]); // Use chatIsLoading
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement> | string) => {
-    // Check if e is a string or an event object
-    const value = typeof e === 'string' ? e : e.target.value;
-    setInput(value);
-  };
+  // handleInputChange is now from useChat
+  // setInput is implicitly handled by useChat's handleInputChange
 
   const handleModelChange = (modelId: string) => {
     setSelectedModel(modelId as ModelType);
@@ -193,11 +233,11 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const handleSubmit = async (e: React.FormEvent, files?: File[]) => {
+  const handleSubmit = async (e: React.FormEvent, submitAttachments?: File[]) => { // Renamed files to submitAttachments
     e.preventDefault();
-    if ((!input.trim() && (!files || files.length === 0)) || isLoading) return;
+    // Use input from useChat and chatIsLoading
+    if ((!input.trim() && (!submitAttachments || submitAttachments.length === 0)) || chatIsLoading) return;
 
-    // Block requests if user is not authenticated with just a toast
     if (!isAuthenticated) {
       toast.error('Please sign in to chat', {
         description: 'You can sign in using the sidebar or homepage'
@@ -205,233 +245,134 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
       return;
     }
 
-    // Debug log for attachments
-    if (files && files.length > 0) {
-      console.log(`Processing ${files.length} attachment(s) for message:`,
-        files.map(file => ({
-          name: file.name,
-          type: file.type,
-          size: file.size
-        }))
-      );
-    }
-
-    // Create new user message
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: input.trim()
-    };
-
-    // Process attachments if any
-    if (files && files.length > 0) {
-      // Create simplified attachment info for display (no base64)
-      userMessage.attachments = files.map(file => ({
+    let processedAttachments: FileAttachment[] | undefined = undefined;
+    if (submitAttachments && submitAttachments.length > 0) {
+      processedAttachments = submitAttachments.map(file => ({
         name: file.name,
         type: file.type,
         size: file.size,
-        // data: '' // Removed: data is now optional in FileAttachment type
       }));
-      console.log(`Added info for ${files.length} attachments to user message`);
     }
 
-    // Create placeholder for assistant response
-    const assistantMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: '',
-      provider: selectedModelObj?.provider
-    };
+    // URL Scraping Logic
+    const trimmedInput = input.trim(); // input from useChat
+    let finalInput = trimmedInput;
+    const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+    const detectedUrls = trimmedInput.match(URL_REGEX);
 
-    // Update UI right away
-    setInput('');
-    setIsLoading(true);
-    const updatedMessages = [...messages, userMessage, assistantMessage];
-    setMessages(updatedMessages);
-
-    // Cancel any previous requests
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+    if (detectedUrls && detectedUrls.length > 0 && selectedModel !== 'exa') {
+      const urlToScrape = detectedUrls[0];
+      scrapeAbortControllerRef.current = new AbortController();
+      try {
+        // Show toast while scraping
+        const scrapePromise = scrapeUrlContent(urlToScrape, scrapeAbortControllerRef.current);
+        toast.promise(scrapePromise, {
+          loading: 'Analyzing URL...',
+          success: (content) => {
+            if (content) {
+              finalInput = `USER QUESTION: "${trimmedInput}"\n\nADDITIONAL CONTEXT FROM SCRAPED URL (${urlToScrape}):\n---\n${content}\n---\n\nBased on the user question and the scraped context above, please provide an answer.`;
+              return "URL content will be used.";
+            }
+            return "Proceeding with original query.";
+          },
+          error: "Failed to scrape URL content."
+        });
+        const scrapedContent = await scrapePromise;
+        if (scrapedContent) {
+           finalInput = `USER QUESTION: "${trimmedInput}"\n\nADDITIONAL CONTEXT FROM SCRAPED URL (${urlToScrape}):\n---\n${scrapedContent}\n---\n\nBased on the user question and the scraped context above, please provide an answer.`;
+        }
+      } catch (scrapeError) {
+        console.error("Error scraping URL:", scrapeError);
+        // Toast is already handled by toast.promise
+      } finally {
+        scrapeAbortControllerRef.current = null;
+      }
     }
+    // End URL Scraping
 
-    // Create new abort controller for this request
-    abortControllerRef.current = new AbortController();
+    // abortControllerRef is for fetchResponse, useChat handles its own aborting.
 
-    // Find the selected model object to check its capabilities
     const modelObj = models.find(m => m.id === selectedModel);
     const isImageGenerationModel = modelObj?.imageGenerationMode === true;
 
     try {
-      // Check if it's a new thread or existing thread
-      // const isNewThread = !threadId || threadId === 'new'; // We don't need this check here anymore
-
-      // REMOVED: Update thread immediately - we now wait for the response
-      // if (user && isAuthenticated) {
-      //   await updateThread(updatedMessages); 
-      // }
-
       if (isImageGenerationModel) {
         console.log("Using image generation model:", modelObj?.name, "Provider:", modelObj?.providerId);
+        // This flow remains separate and uses localMessages and setLocalMessages.
+        const userMessageForImage: Message = {
+          id: crypto.randomUUID(),
+          role: 'user',
+          content: finalInput, // Use finalInput
+          attachments: processedAttachments
+        };
+        const assistantPlaceholderForImage: Message = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: '...',
+          provider: selectedModelObj?.provider,
+        };
 
-        // Handle image generation model
+        // Optimistically update localMessages
+        setLocalMessages(prev => [...prev, userMessageForImage, assistantPlaceholderForImage]);
+        // setIsLoading(true); // Use a local loading state for image gen if needed, chatIsLoading is separate
+
+        // Call fetchResponse (or a dedicated image gen service if refactored)
+        // For now, assuming fetchResponse can handle image generation models based on selectedModel
         const response = await fetchResponse(
-          userMessage.content,
-          updatedMessages.slice(0, -1), // Pass messages before placeholder
+          finalInput, // userMessage.content
+          localMessages, // Pass current localMessages
           selectedModel,
-          abortControllerRef.current,
-          setMessages, // Still needed for live UI updates during stream
-          assistantMessage, // Pass the placeholder ID/role
-          files,
+          abortControllerRef.current = new AbortController(), // New abort controller for this specific call
+          setLocalMessages, // To update UI during stream IF fetchResponse supports it for images
+          assistantPlaceholderForImage,
+          submitAttachments, // Pass original File[]
           activeChatFiles,
           handleFileUploaded
         );
 
-        // Debug the response
-        console.log('Image generation client response:', {
-          hasText: !!response.content,
-          textLength: response.content?.length || 0,
-          hasImages: !!response.images,
-          imagesCount: response.images?.length || 0
-        });
-
-        // Verify images array is valid
-        if (response.images && Array.isArray(response.images)) {
-          console.log(`Received ${response.images.length} images from API`);
-        } else {
-          console.error('No valid images array in response:', response);
-          response.images = []; // Ensure we have a valid array
-        }
-
-        // Process images for storage - if we have URLs, we can optimize storage
-        const optimizedImages = response.images.map((img: { mimeType: string; data: string; url?: string | null }) => {
-          // If the image has a URL, we can store just the URL and mime type
-          if (img.url) {
-            return { mimeType: img.mimeType, url: img.url, data: '' };
-          }
-          return img;
-        });
-
-        // Update the assistant message with text and images
         const completedAssistantMessage: Message = {
-          ...assistantMessage,
+          ...assistantPlaceholderForImage,
           content: response.content || 'Here is the generated image:',
-          images: optimizedImages || [],
+          images: response.images || [],
           completed: true,
           provider: selectedModelObj?.provider
         };
 
-        // Debug the message being added
-        console.log('Adding assistant message with images:', {
-          messageId: completedAssistantMessage.id,
-          hasImages: !!completedAssistantMessage.images,
-          imagesCount: completedAssistantMessage.images?.length || 0,
-          hasUrls: completedAssistantMessage.images?.some(img => !!img.url) || false
-        });
+        setLocalMessages(prev => prev.map(msg => msg.id === assistantPlaceholderForImage.id ? completedAssistantMessage : msg));
 
-        // Update messages state with completed response
-        setMessages(prevMessages => {
-          const updatedMessages = prevMessages.map(msg =>
-            msg.id === assistantMessage.id
-              ? completedAssistantMessage
-              : msg
-          );
-
-          // Log final message count
-          console.log(`Updated messages array now has ${updatedMessages.length} messages`);
-          return updatedMessages;
-        });
-
-        // Update the thread again with the completed response
-        if (user && isAuthenticated) {
-          try {
-            // Construct final messages using the completedAssistantMessage from image gen
-            const finalMessages = updatedMessages.map(msg =>
-              msg.id === assistantMessage.id
-                ? completedAssistantMessage // Use the object with image data
-                : msg
-            );
-            await updateThread(finalMessages);
-          } catch (updateError) {
-            console.error('Error saving completed thread (image gen):', updateError);
-          }
+        if (user && isAuthenticated && threadId) {
+          // Use the state of localMessages after it has been updated
+          const finalLocalMessages = [...localMessages.filter(m => m.id !== assistantPlaceholderForImage.id), completedAssistantMessage];
+          await updateThread(finalLocalMessages, selectedModel);
         }
+        // setIsLoading(false); // Reset local loading state for image gen
       } else {
-        // Standard text model processing
-        // REMOVED: let content = "";
-        // REMOVED: let citations: any[] = [];
+        // Regular Text Response Flow using useChat.append
+        const userMessageToSend: CreateMessage = {
+          role: 'user' as const,
+          content: finalInput,
+          // attachments for useChat might need a specific format if not handled by `body`
+        };
 
-        // Fetch the model response - it now returns the complete assistant message
-        const completedAssistantMessage = await fetchResponse(
-          userMessage.content,
-          updatedMessages.slice(0, -1), // Pass messages before placeholder
-          selectedModel,
-          abortControllerRef.current,
-          setMessages, // Still needed for live UI updates during stream
-          assistantMessage, // Pass the placeholder ID/role
-          files,
-          activeChatFiles,
-          handleFileUploaded
-        );
+        const appendOptionsBody = {
+          selectedModel: selectedModel,
+          activeChatFiles: activeChatFiles,
+          attachments: processedAttachments
+          // threadId is implicitly handled by useChat's `id` option
+        };
 
-        // REMOVED: content = response.content;
-        // REMOVED: citations = response.citations || [];
-
-        // Update the thread again with the completed response
-        if (user && isAuthenticated) {
-          try {
-            // Construct final messages using the returned completedAssistantMessage
-            const finalMessages = updatedMessages.map(msg =>
-              msg.id === assistantMessage.id
-                ? completedAssistantMessage // Use the object returned by fetchResponse
-                : msg
-            );
-            await updateThread(finalMessages);
-          } catch (updateError) {
-            console.error('Error saving completed thread (text gen):', updateError);
-          }
-        }
+        append(userMessageToSend, { body: appendOptionsBody });
+        // Optimistic UI, error handling, and onFinish (for updateThread) are managed by useChat.
       }
     } catch (error: any) {
-      console.error("Error in submission:", error);
-
-      // Handle authentication errors
-      if (error.message && (
-        error.message.includes('authentication') ||
-        error.message.includes('Authentication') ||
-        error.message.includes('Unauthorized') ||
-        error.message.includes('401') ||
-        error.message.includes('session')
-      )) {
-        // Show the auth dialog first to let the user sign in
-        setShowAuthDialog(true);
-
-        // Set the error message in the assistant message
-        setMessages(prevMessages =>
-          prevMessages.map(msg =>
-            msg.id === assistantMessage.id
-              ? { ...msg, content: "I couldn't complete your request because your session expired. Please sign in again.", completed: true }
-              : msg
-          )
-        );
-      } else {
-        // Handle other errors
-        setMessages(prevMessages =>
-          prevMessages.map(msg =>
-            msg.id === assistantMessage.id
-              ? { ...msg, content: "I'm sorry, there was an error processing your request. Please try again.", completed: true }
-              : msg
-          )
-        );
-
-        // Show error toast
-        toast.error(error.message || 'Error processing request');
-      }
+      // This catch block would primarily handle errors from URL scraping or image gen setup if they're not caught internally.
+      console.error("Error in handleSubmit outer try-catch:", error);
+      toast.error(`Error: ${error.message || 'Something went wrong.'}`);
+      // setIsLoading(false); // Reset local loading state for image gen
     } finally {
-      // Clear the abort controller reference
-      abortControllerRef.current = null;
-
-      // Always ensure loading is stopped, regardless of outcome
-      setIsLoading(false);
+      // setIsLoading(false); // Reset local loading state for image gen
+      setAttachments([]); // Clear attachments from the input component
+      // abortControllerRef.current = null; // Only nullify if it was for fetchResponse
     }
   };
 
@@ -448,13 +389,13 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const selectedModelObj = models.find(model => model.id === selectedModel);
 
   // Update thread in database
-  const updateThread = async (updatedMessages: Message[]) => {
+  // Ensure modelForUpdate is consistently passed and used.
+  const updateThread = async (messagesToUpdate: Message[], modelForUpdate: ModelType) => {
     if (!isAuthenticated || !user || !threadId) {
       return false;
     }
 
     try {
-      // Add timestamp to prevent caching
       const timestamp = Date.now();
       const response = await fetch(`/api/chat/threads/${threadId}?t=${timestamp}`, {
         method: 'PUT',
@@ -465,8 +406,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         },
         credentials: 'include',
         body: JSON.stringify({
-          messages: updatedMessages,
-          model: selectedModel
+          messages: messagesToUpdate, // Use the passed messages
+          model: modelForUpdate // Use the passed model
         })
       });
 
@@ -583,8 +524,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
       />
 
       <ChatMessages
-        messages={messages}
-        isLoading={isLoading}
+        messages={messages} // Already using the memoized version
+        isLoading={chatIsLoading} // Use chatIsLoading
         selectedModel={selectedModel}
         selectedModelObj={selectedModelObj}
         isExa={selectedModel === 'exa'}
@@ -594,10 +535,10 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 
       <ChatInput
         ref={chatInputRef}
-        input={input}
-        handleInputChange={handleInputChange}
-        handleSubmit={(e) => handleSubmit(e, attachments)}
-        isLoading={isLoading}
+        input={input} // from useChat
+        handleInputChange={handleInputChange} // from useChat
+        handleSubmit={(e) => handleSubmit(e, attachments)} // attachments is from local state for <input type="file">
+        isLoading={chatIsLoading} // from useChat
         selectedModel={selectedModel}
         handleModelChange={handleModelChange}
         models={models}

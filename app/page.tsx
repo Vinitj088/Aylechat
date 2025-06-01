@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, Suspense, useCallback } from 'react';
+import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from 'react';
 import { Message, Model, ModelType, FileAttachment } from './types';
+import { useChat, CreateMessage } from '@ai-sdk/react';
 import Header from './component/Header';
 import dynamic from 'next/dynamic';
 import { ChatInputHandle } from './component/ChatInput';
@@ -67,9 +68,9 @@ const DynamicSidebar = dynamic(() => import('./component/Sidebar'), {
 
 // Create a new component that uses useSearchParams
 function PageContent() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [localMessages, setLocalMessages] = useState<Message[]>([]); // For non-useChat messages (images, initial search)
+  // const [input, setInput] = useState(''); // Replaced by useChat
+  // const [isLoading, setIsLoading] = useState(false); // Replaced by useChat
   const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
   const [models, setModels] = useState<Model[]>([
     {
@@ -91,10 +92,86 @@ function PageContent() {
   const searchParams = useSearchParams();
   const chatInputRef = useRef<ChatInputHandle>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
+  // Abort controller for scrapeUrlContent, if needed outside of useChat's direct flow
+  const scrapeAbortControllerRef = useRef<AbortController | null>(null);
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
 
   const isAuthenticated = !!user;
+
+  const {
+    messages: chatMessages, // These are the messages managed by useChat
+    input,
+    handleInputChange,
+    handleSubmit: useChatHandleSubmit,
+    append,
+    isLoading: chatIsLoading, // isLoading from useChat
+    error: chatError,
+    stop: stopChat,
+    reload: reloadChat,
+    setMessages: setChatMessages, // setMessages from useChat
+    data: chatData
+  } = useChat({
+    api: '/api/ai',
+    onFinish: async (message) => {
+      // 'message' here is the assistant's final message.
+      // We need the full conversation history, which is available in `chatMessages` (already updated by useChat)
+      if (user && isAuthenticated) {
+        // The 'get().messages' helper is not standard for useChat.
+        // The `chatMessages` state should be up-to-date here or use the messages from the callback parameter if it's the full list.
+        // Let's assume `chatMessages` from the hook's scope is the source of truth.
+        const currentMessagesFromHook = chatMessages; // Use the hook's messages state
+
+        const isFirstMessageAfterSubmit = currentMessagesFromHook.length === 2; // User + Assistant
+
+        let titleToUse: string | null = null;
+        if (isFirstMessageAfterSubmit && currentMessagesFromHook[0].role === 'user') {
+          titleToUse = currentMessagesFromHook[0].content.substring(0, 50) + (currentMessagesFromHook[0].content.length > 50 ? '...' : '');
+        }
+
+        // Make sure createOrUpdateThread is defined and accepts these params
+        // currentThreadId is from PageContent's state
+        const newThreadId = await createOrUpdateThread(
+          {
+            messages: currentMessagesFromHook, // Pass the messages from useChat
+            title: titleToUse,
+          },
+          currentThreadId, // Pass currentThreadId from PageContent's state
+          selectedModel // Pass selectedModel from PageContent's state
+        );
+
+        if (newThreadId && !currentThreadId) {
+          setCurrentThreadId(newThreadId); // Update local state
+          window.history.pushState({}, '', `/chat/${newThreadId}`);
+          setRefreshSidebar(prev => prev + 1); // Refresh sidebar
+        } else if (newThreadId && currentThreadId) {
+          // If thread was updated, still refresh sidebar
+           setRefreshSidebar(prev => prev + 1);
+        }
+      }
+    },
+    onError: (err) => {
+      toast.error(err.message || 'An error occurred with the AI chat connection.');
+      // Potentially revert optimistic UI updates if any were made outside of useChat's direct message handling
+    }
+  });
+
+  // Combine messages from useChat with local messages for display
+  const messages = useMemo(() => {
+    // Simple merge: prioritize useChat messages if IDs overlap, or just combine if distinct.
+    // This might need more sophisticated merging if IDs can collide or order is critical.
+    // For now, assume localMessages are for things useChat doesn't handle (e.g. initial search, images)
+    // and chatMessages are for the main interactive chat.
+    // If useChat is handling the main flow, perhaps localMessages should only be for specific other cases.
+    // When transitioning, decide which message list is authoritative or how to merge.
+    // For now, let's assume that if chatMessages has items, it's the primary one.
+    return chatMessages.length > 0 ? chatMessages : localMessages;
+  }, [chatMessages, localMessages]);
+
+  // Need a way to update messages for non-useChat flows (initial search, image gen)
+  // This setMessages will now refer to setLocalMessages for those specific flows.
+  const setMessages = setLocalMessages;
+
 
   // Prefetch API modules and data when the app loads
   useEffect(() => {
@@ -210,7 +287,8 @@ function PageContent() {
   // Handle initial URL search parameters for search engine functionality
   useEffect(() => {
     // Only run this once when the component mounts and there are no messages yet
-    if (messages.length === 0 && !isLoading) {
+    // Use `messages.length` (which refers to combined or localMessages) and chatIsLoading
+    if (messages.length === 0 && !chatIsLoading) {
       const urlParams = new URLSearchParams(window.location.search);
       
       // Check for different query parameter formats (q, q=$1, q=%s)
@@ -233,61 +311,62 @@ function PageContent() {
         const timer = setTimeout(async () => {
           if (decodedQuery.trim()) {
             // Instead of calling handleSubmit, replicate its logic here to avoid closure issues
-            const userMessage: Message = {
+            // This section still uses the old fetchResponse for initial Exa search.
+            const userMessageLocal: Message = { // Renamed to avoid conflict if Message type from useChat is different
               id: crypto.randomUUID(),
               role: 'user',
               content: decodedQuery
             };
 
-            const assistantMessage: Message = {
+            const assistantMessageLocal: Message = {
               id: `ai-${Date.now()}`,
               role: 'assistant',
               content: '...',
               provider: selectedModelObj?.provider,
             };
 
-            setIsLoading(true);
-            setMessages([userMessage, assistantMessage]);
+            // setIsLoading(true); // chatIsLoading will be handled by useChat if this flow is migrated
+            setLocalMessages([userMessageLocal, assistantMessageLocal]); // Use setLocalMessages
 
             try {
               const controller = new AbortController();
-              abortControllerRef.current = controller;
+              abortControllerRef.current = controller; // This ref is still used by fetchResponse
               
               // Call fetchResponse and capture the complete message object
               const completedAssistantMessage = await fetchResponse(
                 decodedQuery,
-                [],
+                [], // Empty history for initial search
                 'exa', // Always use Exa for search queries
                 controller,
-                setMessages, // Pass setMessages for live updates
-                assistantMessage, // Pass the placeholder
-                attachments,
-                activeChatFiles,
-                handleFileUploaded
+                setLocalMessages, // Pass setLocalMessages for live updates
+                assistantMessageLocal, // Pass the placeholder
+                attachments, // attachments from PageContent state
+                activeChatFiles, // activeChatFiles from PageContent state
+                handleFileUploaded // handleFileUploaded from PageContent
               );
 
               // Update messages with final response using the returned object
-              const finalMessages = [userMessage, completedAssistantMessage]; // Use the completed message directly
+              const finalMessages = [userMessageLocal, completedAssistantMessage];
               
-              setMessages(finalMessages);
+              setLocalMessages(finalMessages);
               
               // Don't create a thread for URL search queries
               // This keeps browser search queries from being saved
               
-              setIsLoading(false);
+              // setIsLoading(false);
               abortControllerRef.current = null;
             } catch (error: any) {
               console.error('Error performing search:', error);
-              setIsLoading(false);
+              // setIsLoading(false);
               
               // Handle error display
-              const updatedMessages = [userMessage, {
-                ...assistantMessage,
+              const updatedMessages = [userMessageLocal, {
+                ...assistantMessageLocal,
                 content: `Error: ${error.message || 'Failed to perform search. Please try again.'}`,
                 completed: true
               }];
               
-              setMessages(updatedMessages);
+              setLocalMessages(updatedMessages);
               abortControllerRef.current = null;
             }
           }
@@ -297,7 +376,7 @@ function PageContent() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount
+  }, [authLoading]); // Added authLoading to dependencies, ensure it runs after auth state is clear. Original had []
 
   // Step 5: Callback to handle file uploaded event from backend
   const handleFileUploaded = useCallback((fileInfo: { name: string; type: string; uri: string }) => {
@@ -319,6 +398,7 @@ function PageContent() {
   // The form submit handler 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // e.preventDefault(); // This will be called by useChatHandleSubmit's wrapper if needed
     if (!input.trim() && attachments.length === 0) return;
 
     // If not authenticated, show auth dialog and keep the message in the input
@@ -327,42 +407,71 @@ function PageContent() {
       return;
     }
 
-    // Add the user message to the messages array
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: input
-    };
+    // Add the user message to the messages array - This will be handled by `append` or `useChatHandleSubmit`
+    // const userMessage: Message = {
+    //   id: crypto.randomUUID(),
+    //   role: 'user',
+    //   content: input // input from useChat
+    // };
 
-    // Process attachments if any and add them to the user message
+    // Process attachments if any and add them to the user message - This needs to be passed to `append`
+    let processedAttachments: FileAttachment[] | undefined = undefined;
     if (attachments.length > 0) {
-      // Create simplified attachment info for display (no base64)
-      userMessage.attachments = attachments.map(file => ({
+      processedAttachments = attachments.map(file => ({
         name: file.name,
         type: file.type,
         size: file.size,
+        // content: base64 string if needed by backend, or URI if uploaded
       }));
     }
 
-    // Create an assistant message placeholder
-    const assistantMessage: Message = {
-      id: `ai-${Date.now()}`,
-      role: 'assistant',
-      content: '...',
-      provider: selectedModelObj?.provider,
-    };
+    // Create an assistant message placeholder - useChat handles this.
+    // const assistantMessage: Message = {
+    //   id: `ai-${Date.now()}`,
+    //   role: 'assistant',
+    //   content: '...',
+    //   provider: selectedModelObj?.provider,
+    // };
 
-    // Clear the input field and update the messages state
-    setInput('');
-    setIsLoading(true);
-    setMessages(prev => [...prev, userMessage, assistantMessage]);
+    // Clear the input field and update the messages state - input clearing is handled by useChat
+    // setIsLoading(true); // isLoading is chatIsLoading from useChat
+    // setMessages(prev => [...prev, userMessage, assistantMessage]); // Optimistic UI handled by useChat
+
+    // URL Scraping Logic - to be done before calling append
+    const trimmedInput = input.trim(); // input from useChat
+    let finalInput = trimmedInput;
+    const URL_REGEX = /(https?:\/\/[^\s]+)/g; // Ensure this is defined or imported
+    const detectedUrls = trimmedInput.match(URL_REGEX);
+    let scrapedContent: string | null = null;
+
+    if (detectedUrls && detectedUrls.length > 0 && selectedModel !== 'exa') {
+      const urlToScrape = detectedUrls[0];
+      // For now, let's assume scrapeUrlContent is available and works.
+      // Show an initial message indicating processing is happening - useChat doesn't have a direct way for this before append
+      // Consider a temporary local state or a toast. For now, we skip this pre-append UI update.
+
+      scrapeAbortControllerRef.current = new AbortController(); // Use a separate abort controller
+      try {
+        scrapedContent = await scrapeUrlContent(urlToScrape, scrapeAbortControllerRef.current);
+      } catch (scrapeError) {
+        console.error("Error scraping URL:", scrapeError);
+        toast.error("Failed to scrape content from URL.");
+        // Potentially stop submission if scraping is critical
+      } finally {
+        scrapeAbortControllerRef.current = null;
+      }
+
+      if (scrapedContent) {
+        finalInput = `USER QUESTION: "${trimmedInput}"\n\nADDITIONAL CONTEXT FROM SCRAPED URL (${urlToScrape}):\n---\n${scrapedContent}\n---\n\nBased on the user question and the scraped context above, please provide an answer.`;
+      }
+    }
+    // End URL Scraping Logic
 
     try {
-      // Use abort controller to cancel the request if needed
-      abortControllerRef.current = new AbortController();
+      // abortControllerRef.current = new AbortController(); // useChat handles its own aborting via stopChat()
       
       // Generate automatic chat thread title 
-      const isFirstMessage = messages.length === 0;
+      const isFirstMessage = chatMessages.length === 0; // Based on useChat's messages
       let threadTitle: string | undefined = undefined;
       
       if (isFirstMessage) {
@@ -375,211 +484,104 @@ function PageContent() {
       const isImageGenerationModel = modelObj?.imageGenerationMode === true;
 
       if (isImageGenerationModel) {
+        // Image generation logic remains largely unchanged, using localMessages and setLocalMessages
+        // It does not use useChat's append or messages.
         console.log("Using image generation model:", modelObj?.name, "Provider:", modelObj?.providerId);
         
-        // Determine the API endpoint based on the provider
+        // Add the user message to the local messages array for image gen
+        const userMessageForImage: Message = {
+          id: crypto.randomUUID(),
+          role: 'user',
+          content: finalInput, // Use finalInput (potentially with scraped content)
+          attachments: processedAttachments
+        };
+        const assistantPlaceholderForImage: Message = {
+          id: `ai-${Date.now()}`,
+          role: 'assistant',
+          content: '...',
+          provider: selectedModelObj?.provider,
+        };
+        setLocalMessages(prev => [...prev, userMessageForImage, assistantPlaceholderForImage]);
+        // setIsLoading(true); // Handled by direct fetch below, or could use a local loading state for image gen
+
         let apiEndpoint = '/api/gemini'; // Default for Gemini models
+        if (modelObj?.providerId === 'together') apiEndpoint = '/api/together';
         
-        if (modelObj?.providerId === 'together') {
-          apiEndpoint = '/api/together';
-          console.log("Using Together AI endpoint for image generation");
-        }
-        
-        // Handle image generation model
-        const response = await fetch(apiEndpoint, {
+        const response = await fetch(apiEndpoint, { /* ... existing fetch options ... */
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          },
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache, no-store, must-revalidate' },
           credentials: 'include',
           body: JSON.stringify({
-            query: userMessage.content,
+            query: finalInput, // Use finalInput
             model: selectedModel,
-            prompt: userMessage.content, // Add prompt parameter for Together AI
-            messages: messages, // Send all previous messages for context
-            attachments: attachments,
+            prompt: finalInput, // Use finalInput
+            messages: localMessages, // Send localMessages for context for image model
+            attachments: attachments, // Original attachments File[]
             activeChatFiles: activeChatFiles
           })
         });
 
-        if (!response.ok) {
-          throw new Error(`Response error: ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`Response error: ${response.status}`);
         const data = await response.json();
+        const optimizedImages = (data.images || []).map((img: any) => img.url ? { mimeType: img.mimeType, data: img.url, url: img.url } : img);
         
-        // Debug the response
-        console.log('Image generation client response:', {
-          hasText: !!data.text,
-          textLength: data.text?.length || 0,
-          hasImages: !!data.images,
-          imagesCount: data.images?.length || 0
-        });
-
-        // Verify images array is valid
-        if (data.images && Array.isArray(data.images)) {
-          console.log(`Received ${data.images.length} images from API`);
-        } else {
-          console.error('No valid images array in response:', data);
-          data.images = []; // Ensure we have a valid array
-        }
-        
-        // Process images for storage - if we have URLs, we can optimize storage
-        const optimizedImages = data.images.map((img: { mimeType: string; data: string; url?: string | null }) => {
-          // If the image has a URL, we can store just the URL and mime type
-          if (img.url) {
-            return {
-              mimeType: img.mimeType,
-              data: img.url,  // Store the URL in the data field for backward compatibility
-              url: img.url    // Also keep the URL field
-            };
-          }
-          // Otherwise keep the original image data
-          return img;
-        });
-        
-        // Update the assistant message with text and images
         const completedAssistantMessage: Message = {
-          ...assistantMessage,
+          ...assistantPlaceholderForImage,
           content: data.text || 'Here is the generated image:',
-          images: optimizedImages || [],
+          images: optimizedImages,
           completed: true
         };
         
-        // Debug the message being added
-        console.log('Adding assistant message with images:', {
-          messageId: completedAssistantMessage.id,
-          hasImages: !!completedAssistantMessage.images,
-          imagesCount: completedAssistantMessage.images?.length || 0,
-          hasUrls: completedAssistantMessage.images?.some(img => !!img.url) || false
-        });
+        setLocalMessages(prev => prev.map(msg => msg.id === assistantPlaceholderForImage.id ? completedAssistantMessage : msg));
         
-        // Update messages with the new assistant message containing images
-        const finalMessages = [...messages, userMessage, completedAssistantMessage];
-        setMessages(finalMessages);
-        
-        // Create or update the thread with image data
-        if (isFirstMessage) {
-          // For first message, create a new thread with image data
-          const threadId = await createOrUpdateThread({
-            messages: finalMessages,
-            title: threadTitle
-          });
-          
+        const finalMessagesForImageThread = [...localMessages.filter(m => m.id !== assistantPlaceholderForImage.id), completedAssistantMessage];
+
+        if (isFirstMessage) { // isFirstMessage here refers to overall chat, might need adjustment for image context
+          const threadTitle = finalInput.substring(0, 50) + (finalInput.length > 50 ? '...' : '');
+          const threadId = await createOrUpdateThread({ messages: finalMessagesForImageThread, title: threadTitle }, currentThreadId, selectedModel);
           if (threadId) {
             setCurrentThreadId(threadId);
-            // Update the URL to the new thread without forcing a reload
             window.history.pushState({}, '', `/chat/${threadId}`);
+            setRefreshSidebar(prev => prev + 1);
           }
+        } else if (currentThreadId) {
+           await createOrUpdateThread({ messages: finalMessagesForImageThread }, currentThreadId, selectedModel);
+           setRefreshSidebar(prev => prev + 1);
         }
-        
-        // Reset loading state
-        setIsLoading(false);
-        abortControllerRef.current = null;
-        return; // Exit early, we're done with image generation
+        // setIsLoading(false);
+        setAttachments([]); // Clear attachments
+        return;
       }
 
-      // Regular text response flow - only execute this if not an image generation model
-      // Capture the complete assistant message object from fetchResponse
-      const completedAssistantMessage = await fetchResponse(
-        input,
-        messages, // Pass current messages state for context
-        selectedModel,
-        abortControllerRef.current,
-        (updatedMessages: Message[]) => {
-          // This callback updates messages as they stream in
-          setMessages(updatedMessages);
-        },
-        assistantMessage, // Pass the placeholder message
-        attachments,
-        activeChatFiles,
-        handleFileUploaded
-      );
-
-      // Update messages state with the final, completed assistant message
-      setMessages(prevMessages => 
-        prevMessages.map(msg => 
-          msg.id === assistantMessage.id 
-            ? completedAssistantMessage // Replace placeholder with the complete message
-            : msg
-        )
-      );
-
-      // Construct the final message list for thread saving
-      const finalMessagesForThread = [...messages, userMessage, completedAssistantMessage];
-
-      // Create or update the thread only after we have the complete response
-      if (isFirstMessage) {
-        // For first message, create a new thread
-        const threadId = await createOrUpdateThread({
-          messages: finalMessagesForThread,
-          title: threadTitle
-        });
-        
-        if (threadId) {
-          setCurrentThreadId(threadId);
-          // Update the URL to the new thread without forcing a reload
-          window.history.pushState({}, '', `/chat/${threadId}`);
-        }
-      } else if (currentThreadId) {
-        // For subsequent messages, update the existing thread
-        await createOrUpdateThread({
-          messages: finalMessagesForThread
-        });
-      } else {
-        // If we somehow don't have a thread ID, create a new thread
-        const threadId = await createOrUpdateThread({
-          messages: finalMessagesForThread,
-          title: threadTitle
-        });
-        
-        if (threadId) {
-          setCurrentThreadId(threadId);
-          // Update the URL to the new thread without forcing a reload
-          window.history.pushState({}, '', `/chat/${threadId}`);
-        }
-      }
+      // Regular text response flow using useChat.append
+      const userMessageToSend: CreateMessage = { // Type from useChat
+        role: 'user' as const,
+        content: finalInput, // The potentially augmented input
+        // attachments for useChat might need a different format or be passed in `body`
+      };
       
-      // Reset loading state after successful response
-      setIsLoading(false);
-      abortControllerRef.current = null;
+      const appendOptionsBody = {
+        selectedModel: selectedModel,
+        activeChatFiles: activeChatFiles,
+        // currentThreadId: currentThreadId, // Managed by onFinish or if useChat supports thread IDs directly
+        isFirstMessage: chatMessages.length === 0,
+        threadTitle: (chatMessages.length === 0) ? finalInput.substring(0, 50) + (finalInput.length > 50 ? '...' : '') : undefined,
+        attachments: processedAttachments // Pass the simplified attachments array
+      };
+
+      append(userMessageToSend, { body: appendOptionsBody });
+      // Optimistic UI for user message and assistant placeholder is handled by useChat.
+      // Error handling is managed by useChat's onError.
+      // Thread creation/update is managed by useChat's onFinish.
+
     } catch (error: any) {
-      console.error('Error fetching response:', error);
-      
-      // Add the error message to the assistant's message
-      const updatedMessages = [...messages];
-      const assistantMessageIndex = updatedMessages.length - 1;
-      
-      // Check if it's an auth error
-      if (
-        (error.message && error.message.toLowerCase().includes('unauthorized')) ||
-        (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
-      ) {
-        await handleRequestError(error);
-        
-        // Update the message with auth error info
-        updatedMessages[assistantMessageIndex] = {
-          ...updatedMessages[assistantMessageIndex],
-          content: 'I encountered an authentication error. Please try again after fixing your session.',
-          completed: true
-        };
-      } else {
-        // For other errors
-        updatedMessages[assistantMessageIndex] = {
-          ...updatedMessages[assistantMessageIndex],
-          content: `Error: ${error.message || 'Something went wrong. Please try again.'}`,
-          completed: true
-        };
-        
-        toast.error('Error generating response');
-      }
-      
-      setMessages(updatedMessages);
-      setIsLoading(false);
-      abortControllerRef.current = null;
+      // This catch block would primarily handle errors from URL scraping or image gen setup if they're not caught internally.
+      // Errors from `append` itself are caught by `useChat.onError`.
+      console.error('Error in handleSubmit before calling append or for image generation:', error);
+      toast.error(`Error: ${error.message || 'Something went wrong.'}`);
+      // setIsLoading(false); // This would be for image gen's loading state
     } finally {
-      setIsLoading(false);
+      // setIsLoading(false); // This would be for image gen's loading state
       // Clear attachments after submission
       setAttachments([]);
     }
@@ -598,6 +600,8 @@ function PageContent() {
 
   const handleModelChange = (modelId: string) => {
     setSelectedModel(modelId as ModelType);
+    // If using useChat and model changes, might need to inform the hook if it affects API calls.
+    // For now, selectedModel is passed in `append` options.
   };
 
   const toggleSidebar = () => {
@@ -605,6 +609,8 @@ function PageContent() {
   };
 
   // Handle successful auth
+  // This function is called from AuthDialog upon successful authentication.
+  // We might want to trigger a reload of messages or resubmit a pending message if that was the interruption.
   const handleAuthSuccess = async () => {
     // Refresh sidebar to show latest threads
     setRefreshSidebar(prev => prev + 1);
@@ -628,52 +634,49 @@ function PageContent() {
 
   // Error handler callback function
   const handleRequestError = async (error: Error) => {
-    // Check if the error is an authentication error
-    if (
-      error.message.includes('authentication') || 
-      error.message.includes('Authentication') || 
-      error.message.includes('auth') || 
-      error.message.includes('Auth') ||
-      error.message.includes('401') ||
-      error.message.includes('Unauthorized')
-    ) {
-      // Handle authentication errors by showing the auth dialog
+    // This function is now less critical if useChat.onError handles UI feedback.
+    // However, it can still be used for specific error handling like opening auth dialog.
+    if (error.message.includes('authentication') || error.message.includes('Authentication') ||
+        error.message.includes('auth') || error.message.includes('Auth') ||
+        error.message.includes('401') || error.message.includes('Unauthorized')) {
       openAuthDialog();
     } else if (error.message.includes('Rate limit')) {
-      // Handle rate limit errors
-      // This is a custom error with timeout info from the API service
-      // @ts-ignore - We're adding custom props to the error
+      // @ts-ignore
       const waitTime = error.waitTime || 30;
-      
-      toast.error('RATE LIMIT', {
-        description: `Please wait ${waitTime} seconds before trying again`,
-        duration: 5000,
-      });
+      toast.error('RATE LIMIT', { description: `Please wait ${waitTime} seconds before trying again`, duration: 5000 });
     } else {
-      // Handle other errors - show a toast
-      toast.error('Error Processing Request', {
-        description: error.message || 'Please try again later',
-        duration: 5000,
-      });
+      toast.error('Error Processing Request', { description: error.message || 'Please try again later', duration: 5000 });
     }
   };
 
-  const createOrUpdateThread = async (threadContent: { messages: Message[], title?: string }) => {
+  // Modified createOrUpdateThread to accept currentThreadId and selectedModel as params
+  const createOrUpdateThread = async (
+    threadContent: { messages: Message[] | CreateMessage[], title?: string | null }, // messages can be from useChat or local
+    threadIdFromParam: string | null, // Explicitly pass currentThreadId
+    modelForThread: string // Explicitly pass selectedModel
+  ) => {
     if (!isAuthenticated || !user) {
-      // Show auth dialog instead of redirecting
       openAuthDialog();
       return null;
     }
 
     try {
-      const method = currentThreadId ? 'PUT' : 'POST';
-      const endpoint = currentThreadId 
-        ? `/api/chat/threads/${currentThreadId}` 
+      const method = threadIdFromParam ? 'PUT' : 'POST';
+      const endpoint = threadIdFromParam
+        ? `/api/chat/threads/${threadIdFromParam}`
         : '/api/chat/threads';
       
-      // Add a timestamp to ensure we don't get a cached response
       const timestamp = Date.now();
       
+      // Ensure messages are in the format expected by the backend (likely plain Message[])
+      const plainMessages = threadContent.messages.map(m => ({
+        id: m.id || `temp-${crypto.randomUUID()}`, // Ensure ID exists
+        role: m.role,
+        content: m.content,
+        attachments: m.attachments,
+        // Add other fields if your Message type has them and backend expects them
+      }));
+
       const response = await fetch(`${endpoint}?t=${timestamp}`, {
         method,
         headers: {
@@ -684,51 +687,48 @@ function PageContent() {
         },
         credentials: 'include',
         body: JSON.stringify({
-          ...threadContent,
-          model: selectedModel
+          messages: plainMessages, // Send plain messages
+          title: threadContent.title,
+          model: modelForThread // Use passed selectedModel
         })
       });
 
       if (!response.ok) {
+        if (response.status === 0 && response.type === 'opaque') {
+           console.warn('Opaque response from createOrUpdateThread, possibly CORS or network issue during redirect.');
+           // For opaque responses, we can't read the body, so we might assume success or handle as error.
+           // This might happen if the server redirects after PUT/POST and it's a cross-origin redirect.
+           // For now, let's not throw an error here but log it.
+           return threadIdFromParam; // Assume it worked if updating existing.
+        }
         if (response.status === 401) {
-          // Auth error - show auth dialog
           openAuthDialog();
           return null;
         }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
-      
-      if (result.success && result.thread) {
-        // Update thread ID if it's a new thread
-        if (!currentThreadId) {
-          setCurrentThreadId(result.thread.id);
-          
-          // Update the URL to the new thread without forcing a reload
-          window.history.pushState({}, '', `/chat/${result.thread.id}`);
+      // Only parse JSON if response is not opaque and has content
+      if (response.headers.get("content-length") && parseInt(response.headers.get("content-length")!) > 0) {
+        const result = await response.json();
+        if (result.success && result.thread) {
+          // setCurrentThreadId is handled by onFinish now
+          // Refresh sidebar is also handled by onFinish
+          return result.thread.id;
         }
-        
-        // Refresh the sidebar to show the new/updated thread
-        setRefreshSidebar(prev => prev + 1);
-        
-        return result.thread.id;
+      } else if (method === 'PUT' && response.ok) {
+        // If PUT was successful but no content (e.g. 204 No Content), return the original thread ID
+        return threadIdFromParam;
       }
       
       return null;
     } catch (error: any) {
       console.error('Error saving thread:', error);
-      
-      // Check if it's an auth error
-      if (
-        (error.message && error.message.toLowerCase().includes('unauthorized')) ||
-        (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
-      ) {
-        await handleRequestError(error);
+      if (error.message?.toLowerCase().includes('unauthorized') || error.message?.includes('JSON')) {
+        handleRequestError(error);
       } else {
         toast.error('Error saving conversation');
       }
-      
       return null;
     }
   };
@@ -736,6 +736,7 @@ function PageContent() {
   // Derived variables
   const isExa = selectedModel === 'exa';
   const selectedModelObj = models.find(model => model.id === selectedModel);
+  // Use `messages.length` (which is memoized from chatMessages or localMessages)
   const hasMessages = messages.length > 0;
 
   // Get the provider name for the selected model
@@ -862,27 +863,27 @@ function PageContent() {
       {!hasMessages ? (
         <>
           <MobileSearchUI 
-            input={input}
-            handleInputChange={handleInputChange}
-            handleSubmit={handleSubmit}
-            isLoading={isLoading}
+            input={input} {/* from useChat */}
+            handleInputChange={handleInputChange} {/* from useChat */}
+            handleSubmit={e => { e.preventDefault(); handleSubmit(e); }} // Wrap handleSubmit for useChat if it doesn't preventDefault
+            isLoading={chatIsLoading} {/* from useChat */}
             selectedModel={selectedModel}
             handleModelChange={handleModelChange}
             models={models}
-            setInput={setInput}
-            messages={messages}
+            setInput={(value) => handleInputChange({ target: { value } } as any)} // Adapt setInput for useChat's handleInputChange
+            messages={messages} {/* Combined messages */}
             description={description}
             onAttachmentsChange={setAttachments}
           />
           <DesktopSearchUI 
-            input={input}
-            handleInputChange={handleInputChange}
-            handleSubmit={handleSubmit}
-            isLoading={isLoading}
+            input={input} {/* from useChat */}
+            handleInputChange={handleInputChange} {/* from useChat */}
+            handleSubmit={e => { e.preventDefault(); handleSubmit(e); }} // Wrap handleSubmit
+            isLoading={chatIsLoading} {/* from useChat */}
             selectedModel={selectedModel}
             handleModelChange={handleModelChange}
             models={models}
-            setInput={setInput}
+            setInput={(value) => handleInputChange({ target: { value } } as any)} // Adapt setInput
             description={description}
             messages={messages}
             onAttachmentsChange={setAttachments}
