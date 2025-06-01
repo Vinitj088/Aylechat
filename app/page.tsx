@@ -94,6 +94,9 @@ function PageContent() {
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
 
+  const isCreatingThreadRef = useRef(false);
+  const pendingMessagesRef = useRef<CreateMessage[]>([]);
+
   const isAuthenticated = !!user;
 
   const {
@@ -101,8 +104,8 @@ function PageContent() {
     input,
     setInput,
     handleInputChange,
-    handleSubmit: useChatHandleSubmit,
-    append,
+    handleSubmit: originalUseChatHandleSubmit, // Renamed
+    append, // Ensure append is destructured
     isLoading: chatIsLoading, // isLoading from useChat
     error: chatError,
     stop: stopChat,
@@ -111,46 +114,80 @@ function PageContent() {
     data: chatData
   } = useChat({
     api: '/api/ai',
-    onFinish: async (message) => {
-      // 'message' here is the assistant's final message.
-      // We need the full conversation history, which is available in `chatMessages` (already updated by useChat)
-      if (user && isAuthenticated) {
-        // The 'get().messages' helper is not standard for useChat.
-        // The `chatMessages` state should be up-to-date here or use the messages from the callback parameter if it's the full list.
-        // Let's assume `chatMessages` from the hook's scope is the source of truth.
-        const currentMessagesFromHook = chatMessages; // Use the hook's messages state
+    onFinish: async (message) => { // message is assistant's final message.
+      const localCurrentThreadId = currentThreadId;
 
-        const isFirstMessageAfterSubmit = currentMessagesFromHook.length === 2; // User + Assistant
+      // chatMessages from useChat hook is already updated with the latest user and assistant messages
+      const currentMessagesFromHook = chatMessages;
 
-        let titleToUse: string | null = null;
-        if (isFirstMessageAfterSubmit && currentMessagesFromHook[0].role === 'user') {
-          titleToUse = currentMessagesFromHook[0].content.substring(0, 50) + (currentMessagesFromHook[0].content.length > 50 ? '...' : '');
-        }
+      let titleToUse: string | null = null;
+      // Check if this is the first successful exchange in a new chat
+      if (!localCurrentThreadId && currentMessagesFromHook.length >= 2 && currentMessagesFromHook[currentMessagesFromHook.length - 2].role === 'user') {
+          const lastUserMessageContent = currentMessagesFromHook[currentMessagesFromHook.length - 2].content;
+          titleToUse = lastUserMessageContent.substring(0, 50) + (lastUserMessageContent.length > 50 ? '...' : '');
+      }
 
-        // Make sure createOrUpdateThread is defined and accepts these params
-        // currentThreadId is from PageContent's state
-        const newThreadId = await createOrUpdateThread(
-          {
-            messages: currentMessagesFromHook, // Pass the messages from useChat
-            title: titleToUse,
-          },
-          currentThreadId, // Pass currentThreadId from PageContent's state
-          selectedModel // Pass selectedModel from PageContent's state
-        );
+      const newThreadId = await createOrUpdateThread(
+        {
+          messages: currentMessagesFromHook,
+          title: titleToUse,
+        },
+        localCurrentThreadId,
+        selectedModel
+      );
 
-        if (newThreadId && !currentThreadId) {
-          setCurrentThreadId(newThreadId); // Update local state
+      if (newThreadId) {
+        if (!localCurrentThreadId) { // This onFinish call was responsible for CREATING the thread
+          setCurrentThreadId(newThreadId);
           window.history.pushState({}, '', `/chat/${newThreadId}`);
-          setRefreshSidebar(prev => prev + 1); // Refresh sidebar
-        } else if (newThreadId && currentThreadId) {
-          // If thread was updated, still refresh sidebar
-           setRefreshSidebar(prev => prev + 1);
+          setRefreshSidebar(prev => prev + 1);
+
+          isCreatingThreadRef.current = false;
+          const messagesToProcess = [...pendingMessagesRef.current];
+          pendingMessagesRef.current = [];
+
+          if (messagesToProcess.length > 0) {
+            toast.info(`Processing ${messagesToProcess.length} queued message(s)...`);
+            for (const pendingMsg of messagesToProcess) {
+              append(pendingMsg, { // append is from useChat
+                body: {
+                  selectedModel: selectedModel,
+                  activeChatFiles: activeChatFiles,
+                }
+              });
+            }
+          }
+        } else if (localCurrentThreadId && newThreadId === localCurrentThreadId) {
+            // This was an update to an existing thread
+            setRefreshSidebar(prev => prev + 1);
+            // Defensive reset if isCreatingThreadRef was somehow still true
+            if (isCreatingThreadRef.current) {
+                isCreatingThreadRef.current = false;
+            }
+        }
+        // Case where newThreadId is different from a non-null localCurrentThreadId is not explicitly handled,
+        // but implies something unexpected happened server-side.
+      } else { // newThreadId is null, meaning createOrUpdateThread failed
+        if (!localCurrentThreadId && isCreatingThreadRef.current) {
+          // Creation attempt failed
+          isCreatingThreadRef.current = false;
+          toast.error('Failed to create conversation. Queued messages cleared.');
+          pendingMessagesRef.current = [];
+        }
+        // If update failed (localCurrentThreadId was not null), just toast or log, no queue to manage.
+        else if (localCurrentThreadId) {
+           toast.error('Failed to save conversation update.');
         }
       }
     },
     onError: (err) => {
       toast.error(err.message || 'An error occurred with the AI chat connection.');
-      // Potentially revert optimistic UI updates if any were made outside of useChat's direct message handling
+      // Check if this error is related to the initial message that was trying to create a thread
+      if (isCreatingThreadRef.current && currentThreadId === null) {
+          isCreatingThreadRef.current = false;
+          toast.error('Queued messages cleared due to error during conversation creation.');
+          pendingMessagesRef.current = [];
+      }
     }
   });
 
@@ -396,27 +433,48 @@ function PageContent() {
   // The form submit handler 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() && attachments.length === 0) return;
+    const currentInputContent = input.trim();
+    if (!currentInputContent && attachments.length === 0) return;
+
     if (!isAuthenticated || !user) {
       openAuthDialog();
       return;
     }
-    // Convert File[] to FileList for experimental_attachments
+
+    const messageToSubmit: CreateMessage = {
+      role: 'user',
+      content: currentInputContent,
+    };
+
     const fileList = (() => {
       if (attachments.length === 0) return undefined;
       const dt = new DataTransfer();
       attachments.forEach(file => dt.items.add(file));
       return dt.files;
     })();
-    useChatHandleSubmit(e, {
+
+    if (currentThreadId === null) { // Potentially the first message for a new thread
+      if (isCreatingThreadRef.current) {
+        pendingMessagesRef.current.push(messageToSubmit);
+        toast.info(`Message queued as conversation is being created... (${pendingMessagesRef.current.length})`);
+        setInput('');
+        setAttachments([]);
+        return;
+      } else {
+        // This is the first message, and no creation is in progress
+        isCreatingThreadRef.current = true;
+      }
+    }
+
+    originalUseChatHandleSubmit(e, {
       body: {
         selectedModel: selectedModel,
         activeChatFiles: activeChatFiles,
-        isFirstMessage: chatMessages.length === 0,
-        threadTitle: (chatMessages.length === 0) ? input.substring(0, 50) + (input.length > 50 ? '...' : '') : undefined,
       },
       experimental_attachments: fileList,
     });
+
+    // Clear attachments if the message was submitted directly (not queued).
     setAttachments([]);
   };
   
