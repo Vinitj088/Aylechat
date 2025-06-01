@@ -312,7 +312,13 @@ export const fetchResponse = async (
 
   // Prepare messages for conversation history, ensuring we respect context limits
   // Needed for both command handler fallback (potentially) and standard LLM calls
-  const truncatedMessages = truncateConversationHistory(messages, selectedModel);
+  const currentUserMessage: Message = {
+    id: `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, // Simple unique ID
+    role: 'user',
+    content: finalInput, // Use finalInput which includes scraped content if available
+  };
+  const updatedMessagesWithCurrentInput = [...messages, currentUserMessage];
+  const truncatedMessages = truncateConversationHistory(updatedMessagesWithCurrentInput, selectedModel);
   
   let response;
 
