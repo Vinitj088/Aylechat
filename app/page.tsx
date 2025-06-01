@@ -69,8 +69,6 @@ const DynamicSidebar = dynamic(() => import('./component/Sidebar'), {
 // Create a new component that uses useSearchParams
 function PageContent() {
   const [localMessages, setLocalMessages] = useState<Message[]>([]); // For non-useChat messages (images, initial search)
-  // const [input, setInput] = useState(''); // Replaced by useChat
-  // const [isLoading, setIsLoading] = useState(false); // Replaced by useChat
   const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
   const [models, setModels] = useState<Model[]>([
     {
@@ -92,7 +90,6 @@ function PageContent() {
   const searchParams = useSearchParams();
   const chatInputRef = useRef<ChatInputHandle>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
-  // Abort controller for scrapeUrlContent, if needed outside of useChat's direct flow
   const scrapeAbortControllerRef = useRef<AbortController | null>(null);
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
@@ -102,6 +99,7 @@ function PageContent() {
   const {
     messages: chatMessages, // These are the messages managed by useChat
     input,
+    setInput,
     handleInputChange,
     handleSubmit: useChatHandleSubmit,
     append,
@@ -398,205 +396,34 @@ function PageContent() {
   // The form submit handler 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // e.preventDefault(); // This will be called by useChatHandleSubmit's wrapper if needed
     if (!input.trim() && attachments.length === 0) return;
-
-    // If not authenticated, show auth dialog and keep the message in the input
     if (!isAuthenticated || !user) {
       openAuthDialog();
       return;
     }
-
-    // Add the user message to the messages array - This will be handled by `append` or `useChatHandleSubmit`
-    // const userMessage: Message = {
-    //   id: crypto.randomUUID(),
-    //   role: 'user',
-    //   content: input // input from useChat
-    // };
-
-    // Process attachments if any and add them to the user message - This needs to be passed to `append`
-    let processedAttachments: FileAttachment[] | undefined = undefined;
-    if (attachments.length > 0) {
-      processedAttachments = attachments.map(file => ({
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        // content: base64 string if needed by backend, or URI if uploaded
-      }));
-    }
-
-    // Create an assistant message placeholder - useChat handles this.
-    // const assistantMessage: Message = {
-    //   id: `ai-${Date.now()}`,
-    //   role: 'assistant',
-    //   content: '...',
-    //   provider: selectedModelObj?.provider,
-    // };
-
-    // Clear the input field and update the messages state - input clearing is handled by useChat
-    // setIsLoading(true); // isLoading is chatIsLoading from useChat
-    // setMessages(prev => [...prev, userMessage, assistantMessage]); // Optimistic UI handled by useChat
-
-    // URL Scraping Logic - to be done before calling append
-    const trimmedInput = input.trim(); // input from useChat
-    let finalInput = trimmedInput;
-    const URL_REGEX = /(https?:\/\/[^\s]+)/g; // Ensure this is defined or imported
-    const detectedUrls = trimmedInput.match(URL_REGEX);
-    let scrapedContent: string | null = null;
-
-    if (detectedUrls && detectedUrls.length > 0 && selectedModel !== 'exa') {
-      const urlToScrape = detectedUrls[0];
-      // For now, let's assume scrapeUrlContent is available and works.
-      // Show an initial message indicating processing is happening - useChat doesn't have a direct way for this before append
-      // Consider a temporary local state or a toast. For now, we skip this pre-append UI update.
-
-      scrapeAbortControllerRef.current = new AbortController(); // Use a separate abort controller
-      try {
-        scrapedContent = await scrapeUrlContent(urlToScrape, scrapeAbortControllerRef.current);
-      } catch (scrapeError) {
-        console.error("Error scraping URL:", scrapeError);
-        toast.error("Failed to scrape content from URL.");
-        // Potentially stop submission if scraping is critical
-      } finally {
-        scrapeAbortControllerRef.current = null;
-      }
-
-      if (scrapedContent) {
-        finalInput = `USER QUESTION: "${trimmedInput}"\n\nADDITIONAL CONTEXT FROM SCRAPED URL (${urlToScrape}):\n---\n${scrapedContent}\n---\n\nBased on the user question and the scraped context above, please provide an answer.`;
-      }
-    }
-    // End URL Scraping Logic
-
-    try {
-      // abortControllerRef.current = new AbortController(); // useChat handles its own aborting via stopChat()
-      
-      // Generate automatic chat thread title 
-      const isFirstMessage = chatMessages.length === 0; // Based on useChat's messages
-      let threadTitle: string | undefined = undefined;
-      
-      if (isFirstMessage) {
-        // Use the first 50 chars of the message as the title
-        threadTitle = input.substring(0, 50) + (input.length > 50 ? '...' : '');
-      }
-
-      // Find the selected model object to check its capabilities
-      const modelObj = models.find(m => m.id === selectedModel);
-      const isImageGenerationModel = modelObj?.imageGenerationMode === true;
-
-      if (isImageGenerationModel) {
-        // Image generation logic remains largely unchanged, using localMessages and setLocalMessages
-        // It does not use useChat's append or messages.
-        console.log("Using image generation model:", modelObj?.name, "Provider:", modelObj?.providerId);
-        
-        // Add the user message to the local messages array for image gen
-        const userMessageForImage: Message = {
-          id: crypto.randomUUID(),
-          role: 'user',
-          content: finalInput, // Use finalInput (potentially with scraped content)
-          attachments: processedAttachments
-        };
-        const assistantPlaceholderForImage: Message = {
-          id: `ai-${Date.now()}`,
-          role: 'assistant',
-          content: '...',
-          provider: selectedModelObj?.provider,
-        };
-        setLocalMessages(prev => [...prev, userMessageForImage, assistantPlaceholderForImage]);
-        // setIsLoading(true); // Handled by direct fetch below, or could use a local loading state for image gen
-
-        let apiEndpoint = '/api/gemini'; // Default for Gemini models
-        if (modelObj?.providerId === 'together') apiEndpoint = '/api/together';
-        
-        const response = await fetch(apiEndpoint, { /* ... existing fetch options ... */
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache, no-store, must-revalidate' },
-          credentials: 'include',
-          body: JSON.stringify({
-            query: finalInput, // Use finalInput
-            model: selectedModel,
-            prompt: finalInput, // Use finalInput
-            messages: localMessages, // Send localMessages for context for image model
-            attachments: attachments, // Original attachments File[]
-            activeChatFiles: activeChatFiles
-          })
-        });
-
-        if (!response.ok) throw new Error(`Response error: ${response.status}`);
-        const data = await response.json();
-        const optimizedImages = (data.images || []).map((img: any) => img.url ? { mimeType: img.mimeType, data: img.url, url: img.url } : img);
-        
-        const completedAssistantMessage: Message = {
-          ...assistantPlaceholderForImage,
-          content: data.text || 'Here is the generated image:',
-          images: optimizedImages,
-          completed: true
-        };
-        
-        setLocalMessages(prev => prev.map(msg => msg.id === assistantPlaceholderForImage.id ? completedAssistantMessage : msg));
-        
-        const finalMessagesForImageThread = [...localMessages.filter(m => m.id !== assistantPlaceholderForImage.id), completedAssistantMessage];
-
-        if (isFirstMessage) { // isFirstMessage here refers to overall chat, might need adjustment for image context
-          const threadTitle = finalInput.substring(0, 50) + (finalInput.length > 50 ? '...' : '');
-          const threadId = await createOrUpdateThread({ messages: finalMessagesForImageThread, title: threadTitle }, currentThreadId, selectedModel);
-          if (threadId) {
-            setCurrentThreadId(threadId);
-            window.history.pushState({}, '', `/chat/${threadId}`);
-            setRefreshSidebar(prev => prev + 1);
-          }
-        } else if (currentThreadId) {
-           await createOrUpdateThread({ messages: finalMessagesForImageThread }, currentThreadId, selectedModel);
-           setRefreshSidebar(prev => prev + 1);
-        }
-        // setIsLoading(false);
-        setAttachments([]); // Clear attachments
-        return;
-      }
-
-      // Regular text response flow using useChat.append
-      const userMessageToSend: CreateMessage = { // Type from useChat
-        role: 'user' as const,
-        content: finalInput, // The potentially augmented input
-        // attachments for useChat might need a different format or be passed in `body`
-      };
-      
-      const appendOptionsBody = {
+    // Convert File[] to FileList for experimental_attachments
+    const fileList = (() => {
+      if (attachments.length === 0) return undefined;
+      const dt = new DataTransfer();
+      attachments.forEach(file => dt.items.add(file));
+      return dt.files;
+    })();
+    useChatHandleSubmit(e, {
+      body: {
         selectedModel: selectedModel,
         activeChatFiles: activeChatFiles,
-        // currentThreadId: currentThreadId, // Managed by onFinish or if useChat supports thread IDs directly
         isFirstMessage: chatMessages.length === 0,
-        threadTitle: (chatMessages.length === 0) ? finalInput.substring(0, 50) + (finalInput.length > 50 ? '...' : '') : undefined,
-        attachments: processedAttachments // Pass the simplified attachments array
-      };
-
-      append(userMessageToSend, { body: appendOptionsBody });
-      // Optimistic UI for user message and assistant placeholder is handled by useChat.
-      // Error handling is managed by useChat's onError.
-      // Thread creation/update is managed by useChat's onFinish.
-
-    } catch (error: any) {
-      // This catch block would primarily handle errors from URL scraping or image gen setup if they're not caught internally.
-      // Errors from `append` itself are caught by `useChat.onError`.
-      console.error('Error in handleSubmit before calling append or for image generation:', error);
-      toast.error(`Error: ${error.message || 'Something went wrong.'}`);
-      // setIsLoading(false); // This would be for image gen's loading state
-    } finally {
-      // setIsLoading(false); // This would be for image gen's loading state
-      // Clear attachments after submission
-      setAttachments([]);
-    }
+        threadTitle: (chatMessages.length === 0) ? input.substring(0, 50) + (input.length > 50 ? '...' : '') : undefined,
+      },
+      experimental_attachments: fileList,
+    });
+    setAttachments([]);
   };
   
   // Function to handle login button click
   const handleLoginClick = useCallback(() => {
     openAuthDialog();
   }, [openAuthDialog]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement> | string) => {
-    // Check if e is a string or an event object
-    const value = typeof e === 'string' ? e : e.target.value;
-    setInput(value);
-  };
 
   const handleModelChange = (modelId: string) => {
     setSelectedModel(modelId as ModelType);
@@ -673,8 +500,7 @@ function PageContent() {
         id: m.id || `temp-${crypto.randomUUID()}`, // Ensure ID exists
         role: m.role,
         content: m.content,
-        attachments: m.attachments,
-        // Add other fields if your Message type has them and backend expects them
+        ...(m as any).attachments ? { attachments: (m as any).attachments } : {}
       }));
 
       const response = await fetch(`${endpoint}?t=${timestamp}`, {
@@ -748,16 +574,11 @@ function PageContent() {
     : getProviderDescription(providerName);
 
   const handleNewChat = () => {
-    // Ensure we're at the top of the page
     window.scrollTo(0, 0);
-    
-    // Clear messages and reset state
     setMessages([]);
     setInput('');
     setCurrentThreadId(null);
     setActiveChatFiles([]);
-    
-    // Update router without full navigation for smoother transition
     window.history.pushState({}, '', '/');
   };
 
@@ -780,7 +601,6 @@ function PageContent() {
   // Add global keyboard shortcut for focusing the chat input
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Skip if we're in an input field or textarea already
       if (
         e.target instanceof HTMLInputElement || 
         e.target instanceof HTMLTextAreaElement ||
@@ -789,17 +609,14 @@ function PageContent() {
       ) {
         return;
       }
-
-      // Focus chat input when "/" is pressed
-      if (e.key === '/' && !isLoading) {
+      if (e.key === '/' && !chatIsLoading) {
         e.preventDefault();
         chatInputRef.current?.focus();
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isLoading]);
+  }, [chatIsLoading]);
 
   // Update prefetching effect
   useEffect(() => {
@@ -863,27 +680,27 @@ function PageContent() {
       {!hasMessages ? (
         <>
           <MobileSearchUI 
-            input={input} {/* from useChat */}
-            handleInputChange={handleInputChange} {/* from useChat */}
-            handleSubmit={e => { e.preventDefault(); handleSubmit(e); }} // Wrap handleSubmit for useChat if it doesn't preventDefault
-            isLoading={chatIsLoading} {/* from useChat */}
+            input={input}
+            handleInputChange={(e: any) => handleInputChange(e)}
+            handleSubmit={e => { e.preventDefault(); handleSubmit(e); }}
+            isLoading={chatIsLoading}
             selectedModel={selectedModel}
             handleModelChange={handleModelChange}
             models={models}
-            setInput={(value) => handleInputChange({ target: { value } } as any)} // Adapt setInput for useChat's handleInputChange
-            messages={messages} {/* Combined messages */}
+            setInput={setInput}
+            messages={messages}
             description={description}
             onAttachmentsChange={setAttachments}
           />
           <DesktopSearchUI 
-            input={input} {/* from useChat */}
-            handleInputChange={handleInputChange} {/* from useChat */}
-            handleSubmit={e => { e.preventDefault(); handleSubmit(e); }} // Wrap handleSubmit
-            isLoading={chatIsLoading} {/* from useChat */}
+            input={input}
+            handleInputChange={(e: any) => handleInputChange(e)}
+            handleSubmit={e => { e.preventDefault(); handleSubmit(e); }}
+            isLoading={chatIsLoading}
             selectedModel={selectedModel}
             handleModelChange={handleModelChange}
             models={models}
-            setInput={(value) => handleInputChange({ target: { value } } as any)} // Adapt setInput
+            setInput={setInput}
             description={description}
             messages={messages}
             onAttachmentsChange={setAttachments}
@@ -892,8 +709,8 @@ function PageContent() {
       ) : (
         <>
           <ChatMessages 
-            messages={messages} 
-            isLoading={isLoading}
+            messages={messages as any[]}
+            isLoading={chatIsLoading}
             selectedModel={selectedModel}
             selectedModelObj={selectedModelObj}
             isExa={isExa}
@@ -905,9 +722,9 @@ function PageContent() {
             <DynamicChatInput 
               ref={chatInputRef}
               input={input}
-              handleInputChange={handleInputChange}
+              handleInputChange={(e: any) => handleInputChange(e)}
               handleSubmit={handleSubmit}
-              isLoading={isLoading}
+              isLoading={chatIsLoading}
               selectedModel={selectedModel}
               handleModelChange={handleModelChange}
               models={models}
