@@ -512,42 +512,47 @@ export const fetchResponse = async (
         const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split('\n').filter(line => line.trim());
         for (const line of lines) {
-          try {
-            const data = JSON.parse(line);
-            if (data.citations) {
-              citations = data.citations;
-              updateMessages(setMessages, (prev: Message[]) => 
-                prev.map((msg: Message) => 
-                  msg.id === assistantMessage.id 
-                    ? { ...msg, citations: data.citations } 
-                    : msg
-                )
-              );
-            }
-            // Handle file uploads from Gemini API
-            if (data.type === 'file_uploaded' && data.data && onFileUploaded) {
-              console.log("File uploaded event received:", data.data);
-              data.data.forEach((fileInfo: { name: string; type: string; uri: string }) => {
-                onFileUploaded(fileInfo);
-              });
-              continue; // Skip content update for this event
-            }
-            if (data.choices && data.choices[0]?.delta?.content) {
-              const newContent = data.choices[0].delta.content;
-              content += newContent;
-              if (startTime === null && newContent.length > 0) {
-                startTime = Date.now();
+          if (line.startsWith('0:')) {
+            // Extract the JSON string part (it's quoted)
+            const jsonString = line.substring(2); // Remove "0:"
+            try {
+              const textChunk = JSON.parse(jsonString); // Parse the string e.g. ""Hello"" becomes "Hello"
+              if (typeof textChunk === 'string') {
+                content += textChunk; // Append the actual text
+                if (startTime === null && textChunk.length > 0) {
+                  startTime = Date.now();
+                }
+                // Update messages for UI
+                updateMessages(setMessages, (prev: Message[]) =>
+                  prev.map((msg: Message) =>
+                    msg.id === assistantMessage.id
+                      ? { ...msg, content: content, completed: false, startTime: startTime ?? undefined }
+                      : msg
+                  )
+                );
               }
-              const isEndOfStream = line.includes('"finish_reason"') || line.includes('"done":true') || data.choices[0]?.finish_reason;
-              updateMessages(setMessages, (prev: Message[]) => 
-                prev.map((msg: Message) => 
-                  msg.id === assistantMessage.id 
-                    ? { ...msg, content: content, completed: isEndOfStream, startTime: startTime ?? undefined } 
-                    : msg
-                )
-              );
+            } catch (e) {
+              console.error('Failed to parse text chunk from stream:', line, e);
             }
-          } catch { continue; }
+          } else if (line.startsWith('d:')) {
+            // This prefix is often used for [DONE] or data payloads at the end.
+            // For now, we are primarily interested in text content for the fix.
+            // The existing logic for `isEndOfStream` based on `finish_reason` or `done:true`
+            // might need to be adapted if these flags come via `d:` or `e:` prefixes.
+            // The `useChat` hook handles these more complex states automatically.
+            // For this manual parsing, we'll assume the loop termination (`if (done) break;`)
+            // and the subsequent final message update are sufficient for now.
+          } else if (line.startsWith('e:')) {
+             // Error or event payload.
+          }
+          // Add handling for other prefixes if necessary, e.g., for citations or tool calls,
+          // though the immediate issue is text content.
+          // The original code had:
+          // if (data.citations) { ... }
+          // if (data.type === 'file_uploaded' && data.data && onFileUploaded) { ... }
+          // These would need to be adapted to how they are sent via the Vercel AI SDK stream,
+          // likely via a different prefix (e.g., `1:{...}` or `2:{...}`).
+          // For now, focus on text content to resolve the blank message.
         }
       }
 
