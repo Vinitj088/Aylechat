@@ -1,6 +1,6 @@
 export interface Message {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   createdAt?: Date;
   citations?: any[];
@@ -12,6 +12,7 @@ export interface Message {
   images?: ImageData[];
   attachments?: FileAttachment[];
   provider?: string;
+  tool_calls?: any[]; // For agentic/tool use (AI SDK)
 }
 
 export interface ImageData {
@@ -63,4 +64,6 @@ export interface MediaData {
   genres?: Array<{ id: number; name: string }>;
   cast?: Array<{ id: number; name: string; character: string }>;
   runtime?: number | null; // Add runtime in minutes
-} 
+}
+
+// All types must match AI SDK format. 

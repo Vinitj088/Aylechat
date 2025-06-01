@@ -20,7 +20,7 @@ export async function verifyRedisConnection() {
 
 export interface Message {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   citations?: any[];
   completed?: boolean;
@@ -29,6 +29,7 @@ export interface Message {
   startTime?: number;
   endTime?: number;
   tps?: number;
+  tool_calls?: any[]; // For agentic/tool use (AI SDK)
 }
 
 export interface ChatThread {

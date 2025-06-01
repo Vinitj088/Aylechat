@@ -142,4 +142,6 @@ export default function ChatThreadsList() {
       )}
     </div>
   );
-} 
+}
+
+// All thread/message objects are now AI SDK compatible. 

@@ -125,12 +125,21 @@ export async function PUT(
       }, { status: 404 });
     }
     
+    // All messages must be AI SDK compatible: {id, role, content, ...}
+    // Validate messages for AI SDK compatibility
+    const validatedMessages = messages.map(message => {
+      if (typeof message.id !== 'string' || typeof message.role !== 'string' || typeof message.content !== 'string') {
+        throw new Error('Invalid message format');
+      }
+      return message;
+    });
+    
     // Update the thread in Redis
     const updatedThread = await RedisService.updateChatThread(
       userId,
       threadId,
       {
-        messages,
+        messages: validatedMessages,
         title: title || existingThread.title,
         model: model || existingThread.model
       }

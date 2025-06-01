@@ -91,11 +91,20 @@ export async function POST(req: NextRequest) {
     // Generate title if not provided
     const threadTitle = title || (messages[0]?.content.substring(0, 50) + '...') || 'New Chat';
     
+    // All messages must be AI SDK compatible: {id, role, content, ...}
+    // Validate messages for AI SDK compatibility
+    const validatedMessages = messages.map(message => {
+      if (typeof message.id !== 'string' || typeof message.role !== 'string' || typeof message.content !== 'string') {
+        throw new Error('Invalid message format');
+      }
+      return message;
+    });
+    
     // Create the thread
     const thread = await RedisService.createChatThread(
       userId,
       threadTitle,
-      messages,
+      validatedMessages,
       model
     );
     

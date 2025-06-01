@@ -8,14 +8,10 @@
 // Prefetch API modules to reduce cold start times
 export async function prefetchApiModules() {
   try {
-    // Only prefetch LLM API routes, not server component routes like threads
-    console.log('Prefetching API modules...');
+    // Only prefetch the new universal AI SDK route
+    console.log('Prefetching AI SDK universal API module...');
     Promise.all([
-      import('./groq/route'),
-      import('./openrouter/route'),
-      import('./gemini/route'),
-      import('./exaanswer/route'),
-      import('./cerebras/route')
+      import('./ai/route'),
     ]).catch(() => {
       // Silently catch errors - this is just optimization
     });
@@ -52,11 +48,7 @@ export async function prefetchAll() {
   // Prefetch API modules
   const apiPrefetchPromises = [
     import('./apiService'),
-    import('./groq/route'),
-    import('./openrouter/route'),
-    import('./gemini/route'),
-    import('./exaanswer/route'),
-    import('./cerebras/route')
+    import('./ai/route'),
   ];
 
   // Prefetch models config separately

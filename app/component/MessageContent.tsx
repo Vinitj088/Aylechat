@@ -392,7 +392,7 @@ const TaskListItem = ({ checked, children }: { checked?: boolean; children: Reac
 // Create a custom processor for the markdown content
 export const processMarkdown = (content: string): string => {
   // Process task lists
-  let processed = content.replace(/^(\s*)-\s*\[([ xX])\]\s*(.*?)$/gm, (_, indent, check, text) => {
+  const processed = content.replace(/^(\s*)-\s*\[([ xX])\]\s*(.*?)$/gm, (_, indent, check, text) => {
     const isChecked = check.toLowerCase() === 'x';
     return `${indent}- [task:${isChecked ? 'checked' : 'unchecked'}] ${text}`;
   });

@@ -392,38 +392,8 @@ export const fetchResponse = async (
         ? `${conversationHistory}\nUser: ${finalInput}` // Use potentially modified input
         : finalInput; // Use potentially modified input
 
-      // Determine which API endpoint to use based on the selected model
-      let apiEndpoint;
-      let useFormDataForGemini = false;
-      const modelConfig = modelsConfig.models.find((m: Record<string, unknown>) => m.id === selectedModel);
-      
-      if (selectedModel === 'exa') {
-        apiEndpoint = getAssetPath('/api/exaanswer');
-      } else if (modelConfig?.toolCallType === 'openrouter' || selectedModel === 'gemma3-27b') {
-        apiEndpoint = getAssetPath('/api/openrouter');
-      } else if (modelConfig?.providerId === 'together') {
-        // Route to the Together AI handler for image generation
-        apiEndpoint = getAssetPath('/api/together');
-        // Check if this model has imageGenerationMode flag
-        const isImageGeneration = !!modelConfig?.imageGenerationMode;
-        console.log(`Using Together AI endpoint for ${isImageGeneration ? 'image generation' : 'text generation'}`);
-      } else if (selectedModel.includes('gemini')) {
-        apiEndpoint = getAssetPath('/api/gemini');
-        if ((attachments && attachments.length > 0) || (activeFiles && activeFiles.length > 0)) {
-          useFormDataForGemini = true;
-          console.log("Preparing FormData request for Gemini (new attachments or active files present).");
-        }
-      } else if (modelConfig?.providerId === 'cerebras') {
-        apiEndpoint = getAssetPath('/api/cerebras');
-      } else if (modelConfig?.providerId === 'xai') {
-        // Route to the new xAI handler (needs implementation)
-        apiEndpoint = getAssetPath('/api/xai'); 
-      } else {
-        apiEndpoint = getAssetPath('/api/groq');
-      }
-
-      console.log(`Sending request to ${apiEndpoint} with model ${selectedModel}`);
-      
+      // Always use the new universal AI SDK route
+      const apiEndpoint = getAssetPath('/api/ai');
       const requestOptions: RequestInit = {
         method: 'POST',
         headers: {
@@ -433,54 +403,17 @@ export const fetchResponse = async (
         signal: abortController.signal,
         credentials: 'include' as RequestCredentials,
       };
-      
-      let requestBody: BodyInit;
-
-      if (useFormDataForGemini) {
-        // --- Create FormData for Gemini with Attachments ---
-        const formData = new FormData();
-        formData.append('query', finalInput); // Send potentially modified input query
-        formData.append('model', selectedModel);
-        formData.append('messages', JSON.stringify(truncatedMessages)); 
-        if (attachments && attachments.length > 0) {
-          attachments.forEach((file, index) => {
-            formData.append(`attachment_${index}`, file, file.name);
-            console.log(`Appended NEW file to FormData: ${file.name}`);
-          });
-        } else {
-          console.log("No new attachments to append for this request.");
-        }
-        if (activeFiles && activeFiles.length > 0) {
-          formData.append('activeFiles', JSON.stringify(activeFiles));
-          console.log(`Appended ${activeFiles.length} active file references to FormData.`);
-        }
-        requestBody = formData;
-        // Remove Content-Type header, let the browser set it for FormData
-        if (requestOptions.headers) {
-          delete (requestOptions.headers as Record<string, string>)['Content-Type'];
-        }
-        console.log("Using FormData body for the request.");
-        // --- End FormData Creation ---
-      } else {
-        // --- Use JSON Body for other requests or Gemini without Attachments ---
-        const jsonPayload = selectedModel === 'exa' 
-          ? { query: finalInput, messages: truncatedMessages } 
-          : modelConfig?.providerId === 'together' && modelConfig?.imageGenerationMode
-            ? { model: selectedModel, prompt: finalInput, dimensions: { width: 1024, height: 768 } }
-            : { query: fullQuery, model: selectedModel, messages: truncatedMessages };
-        requestBody = JSON.stringify(jsonPayload);
-        console.log("Using JSON body for the request.");
-        // --- End JSON Body Creation ---
-      }
-      
-      // Make the fetch request for standard LLM
-      response = await fetch(
-        apiEndpoint, 
-        {
-          ...requestOptions,
-          body: requestBody,
-        }
-      );
+      const requestBody = JSON.stringify({
+        model: selectedModel,
+        messages: truncatedMessages,
+        ...(attachments && attachments.length > 0 ? { attachments } : {}),
+        ...(activeFiles && activeFiles.length > 0 ? { activeFiles } : {}),
+        query: fullQuery,
+      });
+      response = await fetch(apiEndpoint, {
+        ...requestOptions,
+        body: requestBody,
+      });
 
       // Check if it's JSON and parse it for error info
       if (!response.ok) {

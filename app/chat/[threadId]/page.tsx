@@ -273,70 +273,48 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
       if (isImageGenerationModel) {
         console.log("Using image generation model:", modelObj?.name, "Provider:", modelObj?.providerId);
 
-        // Determine the API endpoint based on the provider
-        let apiEndpoint = '/api/gemini'; // Default for Gemini models
-
-        if (modelObj?.providerId === 'together') {
-          apiEndpoint = '/api/together';
-          console.log("Using Together AI endpoint for image generation");
-        }
-
         // Handle image generation model
-        const response = await fetch(apiEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            query: userMessage.content,
-            model: selectedModel,
-            prompt: userMessage.content, // Add prompt parameter for Together AI
-            messages: updatedMessages.slice(0, -1) // Exclude the empty assistant message
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Response error: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const response = await fetchResponse(
+          userMessage.content,
+          updatedMessages.slice(0, -1), // Pass messages before placeholder
+          selectedModel,
+          abortControllerRef.current,
+          setMessages, // Still needed for live UI updates during stream
+          assistantMessage, // Pass the placeholder ID/role
+          files,
+          activeChatFiles,
+          handleFileUploaded
+        );
 
         // Debug the response
         console.log('Image generation client response:', {
-          hasText: !!data.text,
-          textLength: data.text?.length || 0,
-          hasImages: !!data.images,
-          imagesCount: data.images?.length || 0
+          hasText: !!response.content,
+          textLength: response.content?.length || 0,
+          hasImages: !!response.images,
+          imagesCount: response.images?.length || 0
         });
 
         // Verify images array is valid
-        if (data.images && Array.isArray(data.images)) {
-          console.log(`Received ${data.images.length} images from API`);
+        if (response.images && Array.isArray(response.images)) {
+          console.log(`Received ${response.images.length} images from API`);
         } else {
-          console.error('No valid images array in response:', data);
-          data.images = []; // Ensure we have a valid array
+          console.error('No valid images array in response:', response);
+          response.images = []; // Ensure we have a valid array
         }
 
         // Process images for storage - if we have URLs, we can optimize storage
-        const optimizedImages = data.images.map((img: { mimeType: string; data: string; url?: string }) => {
+        const optimizedImages = response.images.map((img: { mimeType: string; data: string; url?: string | null }) => {
           // If the image has a URL, we can store just the URL and mime type
           if (img.url) {
-            return {
-              mimeType: img.mimeType,
-              data: img.url,  // Store the URL in the data field for backward compatibility
-              url: img.url    // Also keep the URL field
-            };
+            return { mimeType: img.mimeType, url: img.url, data: '' };
           }
-          // Otherwise keep the original image data
           return img;
         });
 
         // Update the assistant message with text and images
         const completedAssistantMessage: Message = {
           ...assistantMessage,
-          content: data.text || 'Here is the generated image:',
+          content: response.content || 'Here is the generated image:',
           images: optimizedImages || [],
           completed: true,
           provider: selectedModelObj?.provider
