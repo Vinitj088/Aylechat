@@ -1,57 +1,58 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
-import { RedisService, verifyRedisConnection } from '@/lib/redis';
-import { AuthError } from '@supabase/supabase-js';
+import { type NextRequest, NextResponse } from "next/server"
+import { createClient } from "@/utils/supabase/server"
+import { RedisService, verifyRedisConnection } from "@/lib/redis"
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic"
 
 // GET endpoint to list all threads for a user
 export async function GET(req: NextRequest) {
   try {
     // Verify Redis connection first
-    const redisConnected = await verifyRedisConnection();
+    const redisConnected = await verifyRedisConnection()
     if (!redisConnected) {
-      console.error('Redis connection failed');
-      return NextResponse.json(
-        { error: 'Service unavailable', message: 'Database connection error' },
-        { status: 503 }
-      );
+      console.error("Redis connection failed")
+      return NextResponse.json({ error: "Service unavailable", message: "Database connection error" }, { status: 503 })
     }
 
     // Get user from Supabase auth
-    const supabase = createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
+    const supabase = createClient()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
+
     // Check if we have a valid user
     if (error || !user) {
-      console.error('Auth error:', error?.message || 'No user found');
+      console.error("Auth error:", error?.message || "No user found")
       return NextResponse.json(
-        { 
-          error: 'Unauthorized', 
-          message: error?.message || 'Authentication required',
-          authRequired: true 
+        {
+          error: "Unauthorized",
+          message: error?.message || "Authentication required",
+          authRequired: true,
         },
-        { status: 401 }
-      );
+        { status: 401 },
+      )
     }
-    
-    const userId = user.id;
-    console.log(`Fetching threads for user: ${userId}`);
-    
+
+    const userId = user.id
+    console.log(`Fetching threads for user: ${userId}`)
+
     // Get threads from Redis
-    const threads = await RedisService.getUserChatThreads(userId);
-    
+    const threads = await RedisService.getUserChatThreads(userId)
+
     return NextResponse.json({
       success: true,
-      threads: threads || []
-    });
-    
+      threads: threads || [],
+    })
   } catch (error: any) {
-    console.error('Error getting threads:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message || 'Failed to get threads' 
-    }, { status: 500 });
+    console.error("Error getting threads:", error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || "Failed to get threads",
+      },
+      { status: 500 },
+    )
   }
 }
 
@@ -59,73 +60,90 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     // Parse the request body
-    const body = await req.json();
-    const { messages, title, model = 'exa' } = body;
-    
+    const body = await req.json()
+    const { messages, title, model = "gemini-2.0-flash" } = body
+
     if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Messages are required and must be an array' 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Messages are required and must be an array",
+        },
+        { status: 400 },
+      )
     }
-    
+
     // Get user from Supabase auth
-    const supabase = createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
+    const supabase = createClient()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
+
     // Check if we have a valid user
     if (error || !user) {
-      console.error('Auth error:', error?.message || 'No user found');
+      console.error("Auth error:", error?.message || "No user found")
       return NextResponse.json(
-        { 
-          error: 'Unauthorized', 
-          message: error?.message || 'Authentication required',
-          authRequired: true 
+        {
+          error: "Unauthorized",
+          message: error?.message || "Authentication required",
+          authRequired: true,
         },
-        { status: 401 }
-      );
+        { status: 401 },
+      )
     }
-    
-    const userId = user.id;
-    
+
+    const userId = user.id
+
     // Generate title if not provided
-    const threadTitle = title || (messages[0]?.content.substring(0, 50) + '...') || 'New Chat';
-    
-    // All messages must be AI SDK compatible: {id, role, content, ...}
-    // Validate messages for AI SDK compatibility
-    const validatedMessages = messages.map(message => {
-      if (typeof message.id !== 'string' || typeof message.role !== 'string' || typeof message.content !== 'string') {
-        throw new Error('Invalid message format');
+    const threadTitle = title || messages[0]?.content?.substring(0, 50) + "..." || "New Chat"
+
+    // Validate and normalize messages for AI SDK compatibility
+    const validatedMessages = messages.map((message, index) => {
+      // Ensure required fields exist
+      if (!message.role || !message.content) {
+        throw new Error(`Invalid message format at index ${index}: missing role or content`)
       }
-      return message;
-    });
-    
+
+      // Ensure ID exists
+      const messageId = message.id || `msg-${Date.now()}-${index}`
+
+      return {
+        id: messageId,
+        role: message.role,
+        content: message.content,
+        // Preserve any additional fields like attachments
+        ...(message.attachments && { attachments: message.attachments }),
+        ...(message.createdAt && { createdAt: message.createdAt }),
+      }
+    })
+
     // Create the thread
-    const thread = await RedisService.createChatThread(
-      userId,
-      threadTitle,
-      validatedMessages,
-      model
-    );
-    
+    const thread = await RedisService.createChatThread(userId, threadTitle, validatedMessages, model)
+
     if (!thread) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Failed to create thread' 
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to create thread",
+        },
+        { status: 500 },
+      )
     }
-    
+
     return NextResponse.json({
       success: true,
-      thread
-    });
-    
+      thread,
+    })
   } catch (error: any) {
-    console.error('Error creating thread:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message || 'Failed to create thread' 
-    }, { status: 500 });
+    console.error("Error creating thread:", error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || "Failed to create thread",
+      },
+      { status: 500 },
+    )
   }
 }
 
@@ -133,52 +151,54 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     // Verify Redis connection first
-    const redisConnected = await verifyRedisConnection();
+    const redisConnected = await verifyRedisConnection()
     if (!redisConnected) {
-      console.error('Redis connection failed during clear all');
-      return NextResponse.json(
-        { error: 'Service unavailable', message: 'Database connection error' },
-        { status: 503 }
-      );
+      console.error("Redis connection failed during clear all")
+      return NextResponse.json({ error: "Service unavailable", message: "Database connection error" }, { status: 503 })
     }
 
     // Get user from Supabase auth
-    const supabase = createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
+    const supabase = createClient()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
+
     // Check if we have a valid user
     if (error || !user) {
-      console.error('Auth error on DELETE /threads:', error?.message || 'No user found');
+      console.error("Auth error on DELETE /threads:", error?.message || "No user found")
       return NextResponse.json(
-        { 
-          error: 'Unauthorized', 
-          message: error?.message || 'Authentication required',
-          authRequired: true 
+        {
+          error: "Unauthorized",
+          message: error?.message || "Authentication required",
+          authRequired: true,
         },
-        { status: 401 }
-      );
+        { status: 401 },
+      )
     }
-    
-    const userId = user.id;
-    console.log(`Attempting to delete all threads for user: ${userId}`);
-    
+
+    const userId = user.id
+    console.log(`Attempting to delete all threads for user: ${userId}`)
+
     // Call Redis service to delete all threads for the user
-    const deleteCount = await RedisService.deleteAllUserChatThreads(userId);
-    
-    console.log(`Deleted ${deleteCount} threads for user: ${userId}`);
+    const deleteCount = await RedisService.deleteAllUserChatThreads(userId)
+
+    console.log(`Deleted ${deleteCount} threads for user: ${userId}`)
 
     return NextResponse.json({
       success: true,
       message: `Successfully deleted ${deleteCount} chat threads.`,
-      deletedCount: deleteCount
-    });
-    
+      deletedCount: deleteCount,
+    })
   } catch (error: any) {
-    console.error('Error deleting all threads:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to delete threads', 
-      message: error.message || 'An internal server error occurred' 
-    }, { status: 500 });
+    console.error("Error deleting all threads:", error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to delete threads",
+        message: error.message || "An internal server error occurred",
+      },
+      { status: 500 },
+    )
   }
-} 
+}

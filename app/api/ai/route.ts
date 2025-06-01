@@ -1,108 +1,204 @@
-import { streamText } from 'ai';
-// Import all major providers from the AI SDK
-import { openai } from '@ai-sdk/openai';
-import { groq } from '@ai-sdk/groq';
-import { google } from '@ai-sdk/google';
-import { cerebras } from '@ai-sdk/cerebras';
-import { xai } from '@ai-sdk/xai';
-// Together is not available as an official AI SDK provider yet
+import { streamText } from "ai"
+import { openai } from "@ai-sdk/openai"
+import { groq } from "@ai-sdk/groq"
+import { google } from "@ai-sdk/google"
+import { cerebras } from "@ai-sdk/cerebras"
+import { xai } from "@ai-sdk/xai"
 
-// Helper: Map model string to provider instance
-function getProviderModel(model: string) {
-  if (!model) throw new Error('No model specified');
-  // OpenAI and compatible
-  if (model.startsWith('gpt-') || model.startsWith('openai')) return openai(model);
-  // Groq
-  if (model.includes('llama') || model.includes('mixtral') || model.includes('gemma') || model.includes('groq')) return groq(model);
-  // Gemini/Google
-  if (model.includes('gemini') || model.includes('google')) return google(model);
-  // Cerebras
-  if (model.includes('cerebras')) return cerebras(model);
-  // XAI
-  if (model.includes('xai') || model.includes('grok')) return xai(model);
-  // Add more as needed
-  throw new Error('Unknown or unsupported model: ' + model);
+// Import the models configuration
+import modelsData from "../../../models.json"
+
+// Helper: Map model string to provider instance based on models.json
+function getProviderModel(modelId: string) {
+  if (!modelId) throw new Error("No model specified")
+
+  console.log("Mapping model:", modelId)
+
+  // Find the model in our models.json configuration
+  const modelConfig = modelsData.models.find((model) => model.id === modelId)
+
+  if (modelConfig) {
+    console.log(`Found model config for ${modelId}:`, modelConfig)
+
+    switch (modelConfig.providerId) {
+      case "openrouter":
+        console.log("Using OpenRouter provider for:", modelId)
+        const openrouterApiKey = process.env.OPENROUTER_API_KEY
+        if (!openrouterApiKey) {
+          throw new Error("OPENROUTER_API_KEY environment variable is required for OpenRouter models")
+        }
+        return openai(modelId)
+
+      case "google":
+        console.log("Using Google provider for:", modelId)
+        return google(modelId)
+
+      case "groq":
+        console.log("Using Groq provider for:", modelId)
+        return groq(modelId)
+
+      case "cerebras":
+        console.log("Using Cerebras provider for:", modelId)
+        return cerebras(modelId)
+
+      case "xai":
+        console.log("Using xAI provider for:", modelId)
+        return xai(modelId)
+
+      default:
+        console.warn(`Unknown provider ID: ${modelConfig.providerId} for model: ${modelId}`)
+        break
+    }
+  }
+
+  // Fallback logic for models not in configuration
+  console.log("Model not found in configuration, using fallback logic for:", modelId)
+
+  // OpenAI models
+  if (modelId.startsWith("gpt-") || modelId.startsWith("o1-")) {
+    console.log("Using OpenAI provider for:", modelId)
+    return openai(modelId)
+  }
+
+  // OpenRouter models (fallback)
+  if (modelId.includes("mistral") || modelId.includes("deepseek") || modelId.includes("openrouter")) {
+    console.log("Using OpenRouter provider (fallback) for:", modelId)
+    const openrouterApiKey = process.env.OPENROUTER_API_KEY
+    if (!openrouterApiKey) {
+      throw new Error("OPENROUTER_API_KEY environment variable is required for OpenRouter models")
+    }
+    return openai(modelId)
+  }
+
+  // Groq models (fallback)
+  if (
+    modelId.includes("llama") ||
+    modelId.includes("mixtral") ||
+    modelId.includes("gemma") ||
+    modelId.includes("qwen") ||
+    modelId.includes("deepseek") ||
+    modelId.startsWith("groq-")
+  ) {
+    const cleanModel = modelId.replace("groq-", "")
+    console.log("Using Groq provider (fallback) for:", cleanModel)
+    return groq(cleanModel)
+  }
+
+  // Google/Gemini models (fallback)
+  if (modelId.includes("gemini") || modelId.startsWith("google-")) {
+    const cleanModel = modelId.replace("google-", "")
+    console.log("Using Google provider (fallback) for:", cleanModel)
+    return google(cleanModel)
+  }
+
+  // Cerebras models (fallback)
+  if (modelId.includes("cerebras") || modelId.startsWith("cerebras-")) {
+    const cleanModel = modelId.replace("cerebras-", "")
+    console.log("Using Cerebras provider (fallback) for:", cleanModel)
+    return cerebras(cleanModel)
+  }
+
+  // XAI models (fallback)
+  if (modelId.includes("grok") || modelId.startsWith("xai-")) {
+    const cleanModel = modelId.replace("xai-", "")
+    console.log("Using XAI provider (fallback) for:", cleanModel)
+    return xai(cleanModel)
+  }
+
+  // Default fallback to OpenAI
+  console.warn(`Unknown model: ${modelId}, trying OpenAI as final fallback`)
+  return openai(modelId)
 }
 
 export async function POST(req: Request) {
   try {
-    const requestBody = await req.json();
-    const {
-      messages, // This is the primary message history from useChat
-      chatId,   // Optional, from useChat's id parameter
-      selectedModel, // Custom parameter for model selection
-      attachments, // Custom parameter for attachments
-      activeChatFiles, // Custom parameter for active files
-      ...otherOptions // any other options passed in the body
-    } = requestBody;
+    const requestBody = await req.json()
+    const { messages, chatId, selectedModel, attachments, activeChatFiles, warmup, ...otherOptions } = requestBody
 
-    const modelId = selectedModel; // Rename for clarity
+    // Handle warmup requests
+    if (warmup) {
+      return new Response(JSON.stringify({ status: "warmed" }), { status: 200 })
+    }
+
+    const modelId = selectedModel
 
     if (!modelId || !messages) {
-      return new Response(JSON.stringify({ error: 'Missing modelId or messages' }), { status: 400 });
+      return new Response(JSON.stringify({ error: "Missing modelId or messages" }), { status: 400 })
     }
     if (!Array.isArray(messages) || messages.length === 0) {
-      return new Response(JSON.stringify({ error: 'Messages must be a non-empty array' }), { status: 400 });
+      return new Response(JSON.stringify({ error: "Messages must be a non-empty array" }), { status: 400 })
     }
 
-    let processedMessages = messages;
+    console.log("Processing request for model:", modelId)
+    console.log("Messages count:", messages.length)
 
-    // Simplified Attachment Processing:
-    // Log a warning if custom 'attachments' are present, as full multi-modal processing
-    // for this custom structure is not implemented here.
-    // The Vercel AI SDK expects attachments to be part of the message content for some providers.
+    // Check if model is enabled
+    const modelConfig = modelsData.models.find((model) => model.id === modelId)
+    if (modelConfig && !modelConfig.enabled) {
+      return new Response(JSON.stringify({ error: `Model ${modelId} is currently disabled` }), { status: 400 })
+    }
+
+    const processedMessages = messages
+
+    // Handle attachments if present
     if (attachments && attachments.length > 0 && processedMessages.length > 0) {
-      const lastMessageIndex = processedMessages.length - 1;
-      if (processedMessages[lastMessageIndex].role === 'user') {
-        console.warn("/api/ai received 'attachments' in the request body. This custom 'attachments' field is not automatically processed into multi-modal messages by this generic handler. Ensure the client sends files appropriately formatted within the 'messages' array (e.g., for Gemini, as content parts with image data) if vision capabilities are expected from the model via this endpoint.");
-        // Example of what might be needed if 'attachments' contained image data:
-        // const lastUserMessage = processedMessages[lastMessageIndex];
-        // let contentParts = [];
-        // if (typeof lastUserMessage.content === 'string') {
-        //   contentParts.push({ type: 'text', text: lastUserMessage.content });
-        // } else if (Array.isArray(lastUserMessage.content)) {
-        //   contentParts = [...lastUserMessage.content];
-        // }
-        // attachments.forEach(att => {
-        //   if (att.type && att.type.startsWith('image/') && att.data) { // Assuming att.data would be base64
-        //     contentParts.push({ type: 'image', image: att.data, mimeType: att.type });
-        //   }
-        // });
-        // processedMessages[lastMessageIndex] = { ...lastUserMessage, content: contentParts };
+      const lastMessageIndex = processedMessages.length - 1
+      if (processedMessages[lastMessageIndex].role === "user") {
+        console.log("Processing attachments for model:", modelId)
       }
     }
 
-    const providerModel = getProviderModel(modelId);
+    const providerModel = getProviderModel(modelId)
 
-    // Filter 'otherOptions' to only include valid streamText parameters if necessary
-    // For now, we pass common ones if they exist, similar to the original spread of 'rest'
     const streamTextOptions: any = {
       model: providerModel,
       messages: processedMessages,
-    };
+    }
 
+    // Add optional parameters
     if (otherOptions.temperature !== undefined) {
-      streamTextOptions.temperature = otherOptions.temperature;
+      streamTextOptions.temperature = otherOptions.temperature
     }
     if (otherOptions.maxTokens !== undefined) {
-      streamTextOptions.maxTokens = otherOptions.maxTokens;
+      streamTextOptions.maxTokens = otherOptions.maxTokens
     }
     if (otherOptions.system !== undefined) {
-      streamTextOptions.system = otherOptions.system;
+      streamTextOptions.system = otherOptions.system
     }
-    // Add other valid streamText options from otherOptions as needed
 
-    const result = streamText(streamTextOptions);
+    console.log("Streaming with model:", modelId)
+
+    const result = streamText(streamTextOptions)
 
     return result.toDataStreamResponse({
       getErrorMessage: (error) => {
-        if (!error) return 'unknown error';
-        if (typeof error === 'string') return error;
-        if (error instanceof Error) return error.message;
-        return JSON.stringify(error);
+        console.error("AI API Error:", error)
+        if (!error) return "Unknown error occurred"
+        if (typeof error === "string") return error
+        if (error instanceof Error) return error.message
+        return JSON.stringify(error)
       },
-    });
+    })
   } catch (error) {
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), { status: 500 });
+    console.error("AI API Route Error:", error)
+
+    // Handle specific API key errors
+    if (error instanceof Error) {
+      if (error.message.includes("OPENROUTER_API_KEY")) {
+        return new Response(
+          JSON.stringify({
+            error: "OpenRouter API key not configured. Please add OPENROUTER_API_KEY to your environment variables.",
+          }),
+          { status: 500 },
+        )
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : String(error),
+      }),
+      { status: 500 },
+    )
   }
-} 
+}
