@@ -72,6 +72,9 @@ function PageContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null)
   const [refreshSidebar, setRefreshSidebar] = useState(0)
+  const triggerSidebarRefresh = useCallback(() => {
+    setRefreshSidebar((prev) => prev + 1)
+  }, [])
   const abortControllerRef = useRef<AbortController | null>(null)
   const { user, session, isLoading: authLoading, openAuthDialog } = useAuth()
   const router = useRouter()
@@ -136,10 +139,10 @@ function PageContent() {
           console.log("Created new thread:", newThreadId)
           setCurrentThreadId(newThreadId)
           window.history.pushState({}, "", `/chat/${newThreadId}`)
-          setRefreshSidebar((prev) => prev + 1)
+          triggerSidebarRefresh()
         } else if (newThreadId && currentThreadId) {
           console.log("Updated existing thread:", newThreadId)
-          setRefreshSidebar((prev) => prev + 1)
+          triggerSidebarRefresh()
         }
       }
     },
@@ -391,8 +394,7 @@ function PageContent() {
   }
 
   const handleAuthSuccess = async () => {
-    setRefreshSidebar((prev) => prev + 1)
-
+    triggerSidebarRefresh()
     if (input.trim()) {
       setTimeout(() => {
         const fakeEvent = { preventDefault: () => {} } as React.FormEvent
@@ -403,7 +405,7 @@ function PageContent() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      setRefreshSidebar((prev) => prev + 1)
+      triggerSidebarRefresh()
     }
   }, [isAuthenticated])
 
@@ -506,12 +508,12 @@ function PageContent() {
 
       if (result.success && result.thread) {
         console.log("Thread saved successfully:", result.thread.id)
-        setRefreshSidebar((prev) => prev + 1)
+        triggerSidebarRefresh()
         toast.success("Conversation saved")
         return result.thread.id
       } else if (method === "PUT" && response.ok) {
         console.log("Thread updated successfully")
-        setRefreshSidebar((prev) => prev + 1)
+        triggerSidebarRefresh()
         toast.success("Conversation updated")
         return threadIdFromParam
       } else {
@@ -636,6 +638,7 @@ function PageContent() {
         onClose={() => setIsSidebarOpen(false)}
         onSignInClick={openAuthDialog}
         refreshTrigger={refreshSidebar}
+        triggerSidebarRefresh={triggerSidebarRefresh}
       />
 
       {!hasMessages ? (

@@ -27,9 +27,10 @@ interface SidebarProps {
   onClose: () => void
   onSignInClick?: () => void
   refreshTrigger?: number
+  triggerSidebarRefresh?: () => void
 }
 
-export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger = 0 }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger = 0, triggerSidebarRefresh }: SidebarProps) {
   const [lastRefreshTrigger, setLastRefreshTrigger] = useState(0)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false)
@@ -86,7 +87,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   // Determine if sidebar should be visible
   const shouldShowSidebar = isMobile ? isOpen : isHovered
 
-  // Fetch when refreshTrigger changes, this indicates thread operations (create/update/delete)
+  // Fetch when refreshTrigger changes, this indicates thread operations (create/delete)
   useEffect(() => {
     if (isAuthenticated && user && shouldShowSidebar) {
       if (lastRefreshTrigger !== refreshTrigger) {
@@ -132,6 +133,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
 
       if (response.ok) {
         removeThread(threadId)
+        if (triggerSidebarRefresh) triggerSidebarRefresh()
 
         if (pathname === `/chat/${threadId}`) {
           router.push("/")
@@ -188,6 +190,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
 
       if (response.ok) {
         clearThreads()
+        if (triggerSidebarRefresh) triggerSidebarRefresh()
         toast.success("Chat history cleared successfully", { id: toastId })
         if (pathname && pathname.startsWith("/chat/")) {
           router.push("/")

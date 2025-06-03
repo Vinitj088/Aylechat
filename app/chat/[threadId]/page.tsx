@@ -359,6 +359,11 @@ function ThreadPageContent() {
   const hasMessages = chatMessages.length > 0
   const providerName = selectedModelObj?.provider || "AI"
 
+  // Helper to trigger sidebar refresh (for create/delete only)
+  const triggerSidebarRefresh = useCallback(() => {
+    setRefreshSidebar((prev) => prev + 1)
+  }, [])
+
   return (
     <main className="flex min-h-screen flex-col">
       <div className="md:hidden">
@@ -392,6 +397,7 @@ function ThreadPageContent() {
         onClose={() => setIsSidebarOpen(false)}
         onSignInClick={openAuthDialog}
         refreshTrigger={refreshSidebar}
+        triggerSidebarRefresh={triggerSidebarRefresh}
       />
 
       {/* Error message at the top if needed */}
