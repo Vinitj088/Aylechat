@@ -90,7 +90,7 @@ function PageContent() {
     input,
     setInput,
     handleInputChange,
-    handleSubmit: useChatHandleSubmit,
+    handleSubmit: chatHandleSubmit,
     append,
     isLoading: chatIsLoading,
     error: chatError,
@@ -362,7 +362,7 @@ function PageContent() {
       console.log("Submitting message:", input)
       console.log("Current thread ID:", currentThreadId)
 
-      await useChatHandleSubmit(e, {
+      await chatHandleSubmit(e, {
         body: {
           selectedModel: selectedModel,
           activeChatFiles: activeChatFiles,

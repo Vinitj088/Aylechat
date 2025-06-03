@@ -60,7 +60,7 @@ function ThreadPageContent() {
     input,
     setInput,
     handleInputChange,
-    handleSubmit: useChatHandleSubmit,
+    handleSubmit: chatHandleSubmit,
     append,
     isLoading: chatIsLoading,
     error: chatError,
@@ -322,13 +322,13 @@ function ThreadPageContent() {
     const fileList = getFileList()
 
     // Use the useChat handleSubmit directly - this will properly add the user message
-    await useChatHandleSubmitWrapper(e, fileList)
+    await chatHandleSubmitWrapper(e, fileList)
 
     setAttachments([])
   }
 
-  const useChatHandleSubmitWrapper = async (e: React.FormEvent, fileList: FileList | undefined) => {
-    await useChatHandleSubmit(e, {
+  const chatHandleSubmitWrapper = async (e: React.FormEvent, fileList: FileList | undefined) => {
+    await chatHandleSubmit(e, {
       body: {
         selectedModel: selectedModel,
         activeChatFiles: activeChatFiles,
