@@ -85,15 +85,6 @@
       "toolCallType": "manual"
     },
     {
-      "id": "deepseek-r1-distill-qwen-32b",
-      "name": "DeepSeek R1 Distill QWEN 32B",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "deepseek",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
-    {
       "id": "gemma2-9b-it",
       "name": "Gemma 2 9B IT",
       "provider": "Groq",
@@ -112,68 +103,11 @@
       "toolCallType": "manual"
     },
     {
-      "id": "llama-3.2-1b-preview",
-      "name": "LLaMA 3.2 1B Preview",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "meta",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
-    {
-      "id": "llama-3.2-3b-preview",
-      "name": "LLaMA 3.2 3B Preview",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "meta",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
-    {
-      "id": "llama-3.2-90b-vision-preview",
-      "name": "LLaMA 3.2 90B Vision Preview",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "meta",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
-    {
-      "id": "llama-3.3-70b-specdec",
-      "name": "LLaMA 3.3 70B SpecDec",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "meta",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
-    {
       "id": "llama-3.3-70b-versatile",
       "name": "LLaMA 3.3 70B Versatile",
       "provider": "Groq",
       "providerId": "groq",
       "avatarType": "meta",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
-    
-  
-    
-    {
-      "id": "qwen-2.5-32b",
-      "name": "QWEN 2.5 32B",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "qwen",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
-    {
-      "id": "qwen-2.5-coder-32b",
-      "name": "QWEN 2.5 Coder 32B",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "qwen",
       "enabled": true,
       "toolCallType": "manual"
     },
@@ -243,6 +177,24 @@
       "enabled": true,
       "toolCallType": "manual"
     },
+    {
+      "id": "llama-4-scout-17b-16e-instruct",
+      "name": "LLaMA 4 Scout 17B",
+      "provider": "Cerebras",
+      "providerId": "cerebras",
+      "avatarType": "meta",
+      "enabled": true,
+      "toolCallType": "manual"
+    },
+    {
+      "id": "qwen-3-32b",
+      "name": "QWEN 3 32B",
+      "provider": "Cerebras",
+      "providerId": "cerebras",
+      "avatarType": "meta",
+      "enabled": true,
+      "toolCallType": "manual"
+    },
     
     {
       "id": "grok-3-mini-beta",
@@ -262,6 +214,15 @@
       "enabled": true,
       "toolCallType": "native",
       "imageGenerationMode": true
+    },
+    {
+      "id": "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "name": "LLaMA 4 Maverick 17B 128E Instruct",
+      "provider": "Groq",
+      "providerId": "groq",
+      "avatarType": "meta",
+      "enabled": true,
+      "toolCallType": "manual"
     }
   ]
 }
