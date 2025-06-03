@@ -519,53 +519,64 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   if (isThreadLoading) {
     return (
       <main className="flex min-h-screen flex-col">
-           {/* Header - Mobile only */}
-<div className="md:hidden">
-  <Header toggleSidebar={toggleSidebar} />
-</div>
-{/* Fixed Ayle Logo - Desktop only */}
-<Link
-  href="/"
-  className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
-  onClick={(e) => {
-    e.preventDefault();
-    window.location.href = '/';
-  }}
->
-  <span 
-    className="text-3xl text-[var(--brand-default)]"
-    style={{ 
-      fontFamily: 'var(--font-gebuk-regular)',
-      letterSpacing: '0.05em',
-      fontWeight: 'normal',
-      position: 'relative',
-      padding: '0 4px'
-    }}
-  >
-    Ayle
-  </span>
-</Link>
+        {/* Header - Mobile only */}
+        <div className="md:hidden">
+          <Header toggleSidebar={toggleSidebar} />
+        </div>
+        {/* Fixed Ayle Logo - Desktop only */}
+        <Link
+          href="/"
+          className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
+          onClick={(e) => {
+            e.preventDefault();
+            window.location.href = '/';
+          }}
+        >
+          <span 
+            className="text-3xl text-[var(--brand-default)]"
+            style={{ 
+              fontFamily: 'var(--font-gebuk-regular)',
+              letterSpacing: '0.05em',
+              fontWeight: 'normal',
+              position: 'relative',
+              padding: '0 4px'
+            }}
+          >
+            Ayle
+          </span>
+        </Link>
         <Sidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
           onSignInClick={() => setShowAuthDialog(true)}
         />
-        <div className="flex items-center justify-center h-screen">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="flex space-x-2 mt-2">
-              <div className="w-3 h-3 bg-[var(--brand-darker)] animate-[bounce_0.6s_infinite_0.1s]"></div>
-              <div className="w-3 h-3 bg-[var(--brand-darker)] animate-[bounce_0.6s_infinite_0.2s]"></div>
-              <div className="w-3 h-3 bg-[var(--brand-darker)] animate-[bounce_0.6s_infinite_0.3s]"></div>
-            </div>
-            <div className="text-gray-600 font-medium">Loading conversation...</div>
+        {/* ChatMessages skeleton or empty space while loading */}
+        <div className="flex-1 flex flex-col">
+          <div className="flex-1">
+            {/* Optionally, you can add a skeleton here for ChatMessages */}
           </div>
+          <ChatInput
+            ref={chatInputRef}
+            input={input}
+            handleInputChange={handleInputChange}
+            handleSubmit={(e) => handleSubmit(e, attachments)}
+            isLoading={isLoading}
+            selectedModel={selectedModel}
+            handleModelChange={handleModelChange}
+            models={models}
+            isExa={selectedModel === 'exa'}
+            onNewChat={handleNewChat}
+            onAttachmentsChange={setAttachments}
+            activeChatFiles={activeChatFiles}
+            removeActiveFile={removeActiveFile}
+            onActiveFilesHeightChange={handleActiveFilesHeightChange}
+          />
         </div>
         {/* Fixed Theme Toggle - Desktop only */}
         <div className="hidden md:block fixed bottom-4 left-4 z-50">
           <ThemeToggle />
         </div>
       </main>
-
     );
   }
 

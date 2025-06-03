@@ -20,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface SidebarProps {
   isOpen: boolean
@@ -273,13 +274,22 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                 </button>
               </div>
             ) : isLoading ? (
-              <div className="flex justify-center items-center h-24">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 bg-[var(--brand-default)] animate-[bounce_1s_infinite]"></div>
-                  <div className="w-2 h-2 bg-[var(--brand-default)] animate-[bounce_1s_infinite_200ms]"></div>
-                  <div className="w-2 h-2 bg-[var(--brand-default)] animate-[bounce_1s_infinite_400ms]"></div>
-                </div>
-              </div>
+              <ul className="space-y-2.5">
+                {[...Array(6)].map((_, i) => (
+                  <li key={i} className="relative">
+                    <div className="w-full text-left p-3 rounded-md border border-[var(--secondary-darkest)] bg-[var(--secondary-fainter)]">
+                      <div className="flex justify-between items-start">
+                         {/* Title skeleton */} 
+                         <Skeleton className="h-4 w-32 mb-2" />
+                        {/* Delete button skeleton */}
+                        <Skeleton className="h-5 w-5 rounded-full" />
+                      </div>
+                      {/* Time skeleton */}
+                      <Skeleton className="h-3 w-20 mt-2" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
             ) : fetchError ? (
               <div className="text-center py-4 px-3 bg-[var(--accent-maroon-light)] border border-[var(--accent-maroon-dark)] rounded-md">
                 <p className="text-[var(--accent-red)] text-sm">{fetchError}</p>
