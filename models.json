@@ -262,6 +262,15 @@
       "enabled": true,
       "toolCallType": "native",
       "imageGenerationMode": true
+    },
+    {
+      "id": "exa",
+      "name": "Exa Search",
+      "provider": "Exa",
+      "providerId": "exa",
+      "enabled": true,
+      "toolCallType": "native",
+      "searchMode": true
     }
   ]
 }

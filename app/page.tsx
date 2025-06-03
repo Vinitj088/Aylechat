@@ -358,24 +358,78 @@ function PageContent() {
     }
 
     if (isSubmitting) return
-
     setIsSubmitting(true)
 
     try {
-      console.log("Submitting message:", input)
-      console.log("Current thread ID:", currentThreadId)
-
-      await chatHandleSubmit(e, {
-        body: {
-          selectedModel: selectedModel,
-          activeChatFiles: activeChatFiles,
-          isFirstMessage: chatMessages.length === 0,
-          threadTitle:
-            chatMessages.length === 0 ? input.substring(0, 50) + (input.length > 50 ? "..." : "") : undefined,
-        },
-        experimental_attachments: getFileList(),
-      })
-      setAttachments([])
+      if (selectedModel === 'exa') {
+        // Custom Exa logic
+        const userMessage: Message = {
+          id: crypto.randomUUID(),
+          role: "user",
+          content: input,
+        }
+        const assistantMessage: Message = {
+          id: `ai-${Date.now()}`,
+          role: "assistant",
+          content: "...",
+        }
+        setLocalMessages([userMessage, assistantMessage])
+        const exaResult = await fetchResponse(
+          input,
+          [],
+          "exa",
+          new AbortController(),
+          setLocalMessages,
+          assistantMessage,
+          attachments,
+          activeChatFiles,
+          handleFileUploaded,
+        )
+        // exaResult.content is the answer, exaResult.citations is the citations array
+        const finalAssistantMessage: Message = {
+          ...assistantMessage,
+          content: exaResult.content,
+          citations: exaResult.citations,
+          completed: true,
+          startTime: Date.now(),
+          endTime: Date.now(),
+          tps: 0,
+        }
+        setLocalMessages([userMessage, finalAssistantMessage])
+        setInput("")
+        setAttachments([])
+        // Save as a new thread if not already in a thread
+        if (!currentThreadId) {
+          const newThreadId = await createOrUpdateThread(
+            { messages: [userMessage, { ...finalAssistantMessage, citations: undefined }] },
+            null,
+            selectedModel,
+          )
+          if (newThreadId) {
+            setCurrentThreadId(newThreadId)
+            window.history.pushState({}, "", `/chat/${newThreadId}`)
+          }
+        } else {
+          await createOrUpdateThread(
+            { messages: [userMessage, { ...finalAssistantMessage, citations: undefined }] },
+            currentThreadId,
+            selectedModel,
+          )
+        }
+      } else {
+        // All other models: use useChat
+        await chatHandleSubmit(e, {
+          body: {
+            selectedModel,
+            activeChatFiles,
+            isFirstMessage: chatMessages.length === 0,
+            threadTitle:
+              chatMessages.length === 0 ? input.substring(0, 50) + (input.length > 50 ? "..." : "") : undefined,
+          },
+          experimental_attachments: getFileList(),
+        })
+        setAttachments([])
+      }
     } finally {
       setIsSubmitting(false)
     }

@@ -14,6 +14,7 @@ import { toast } from "sonner"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/ThemeToggle"
+import { fetchResponse } from "../../api/apiService"
 
 // Lazy load heavy components
 const ChatMessages = dynamic(() => import("../../component/ChatMessages"), {
@@ -52,6 +53,7 @@ function ThreadPageContent() {
   const [hasLoadedThread, setHasLoadedThread] = useState(false)
   const [threadMessages, setThreadMessages] = useState<any[]>([])
   const latestMessagesRef = useRef<any[]>([])
+  const [localMessages, setLocalMessages] = useState<any[]>([])
 
   const isAuthenticated = !!user
 
@@ -307,34 +309,65 @@ function ThreadPageContent() {
       openAuthDialog()
       return
     }
-
-    console.log("Submitting message in thread:", threadId)
-    console.log("Current input:", input)
-    console.log("Current messages before submit:", chatMessages.length)
-
-    const getFileList = () => {
-      if (attachments.length === 0) return undefined
-      const dt = new DataTransfer()
-      attachments.forEach((file) => dt.items.add(file))
-      return dt.files
+    if (selectedModel === 'exa') {
+      // Custom Exa logic
+      const userMessage: { id: string; role: 'user'; content: string } = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: input,
+      }
+      const assistantMessage: { id: string; role: 'assistant'; content: string } = {
+        id: `ai-${Date.now()}`,
+        role: "assistant",
+        content: "...",
+      }
+      setLocalMessages([userMessage, assistantMessage])
+      const exaResult = await fetchResponse(
+        input,
+        [],
+        "exa",
+        new AbortController(),
+        setLocalMessages,
+        assistantMessage,
+        attachments,
+        activeChatFiles,
+        handleFileUploaded,
+      )
+      // exaResult.content is the answer, exaResult.citations is the citations array
+      const finalAssistantMessage = {
+        ...assistantMessage,
+        content: exaResult.content,
+        citations: exaResult.citations,
+        completed: true,
+        startTime: Date.now(),
+        endTime: Date.now(),
+        tps: 0,
+      }
+      setLocalMessages([userMessage, finalAssistantMessage])
+      setInput("")
+      setAttachments([])
+      // Save to thread
+      if (threadId) {
+        await updateThread(threadId, [userMessage, { ...finalAssistantMessage, citations: undefined }], selectedModel)
+      }
+    } else {
+      // All other models: use useChat
+      await chatHandleSubmit(e, {
+        body: {
+          selectedModel: selectedModel,
+          activeChatFiles: activeChatFiles,
+        },
+        experimental_attachments: getFileList(),
+      })
+      setAttachments([])
     }
-
-    const fileList = getFileList()
-
-    // Use the useChat handleSubmit directly - this will properly add the user message
-    await chatHandleSubmitWrapper(e, fileList)
-
-    setAttachments([])
   }
 
-  const chatHandleSubmitWrapper = async (e: React.FormEvent, fileList: FileList | undefined) => {
-    await chatHandleSubmit(e, {
-      body: {
-        selectedModel: selectedModel,
-        activeChatFiles: activeChatFiles,
-      },
-      experimental_attachments: fileList,
-    })
+  const getFileList = () => {
+    if (attachments.length === 0) return undefined
+    const dt = new DataTransfer()
+    attachments.forEach((file) => dt.items.add(file))
+    return dt.files
   }
 
   const handleModelChange = (modelId: string) => {
@@ -424,6 +457,16 @@ function ThreadPageContent() {
               </div>
             </div>
           </div>
+        ) : isExa ? (
+          <ChatMessages
+            messages={localMessages as any[]}
+            isLoading={chatIsLoading}
+            selectedModel={selectedModel}
+            selectedModelObj={selectedModelObj}
+            isExa={isExa}
+            currentThreadId={threadId}
+            bottomPadding={chatInputHeightOffset}
+          />
         ) : hasMessages || threadMessages.length > 0 ? (
           <ChatMessages
             messages={chatMessages as any[]}

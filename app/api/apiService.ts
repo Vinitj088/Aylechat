@@ -441,7 +441,27 @@ export const fetchResponse = async (
         throw new Error(errorText || `API request failed with status ${response.status}`)
       }
 
-      // Stream handling for AI SDK response
+      // Special handling for Exa: parse as JSON, not as a stream
+      if (selectedModel === 'exa') {
+        const data = await response.json();
+        // Use the answer and citations fields from Exa's /answer endpoint
+        const exaContent = data.answer || 'No answer found.';
+        const finalAssistantMessage: Message = {
+          ...assistantMessage,
+          content: exaContent,
+          citations: data.citations || [],
+          completed: true,
+          startTime: Date.now(),
+          endTime: Date.now(),
+          tps: 0,
+        };
+        updateMessages(setMessages, (prev: Message[]) =>
+          prev.map((msg: Message) => (msg.id === assistantMessage.id ? finalAssistantMessage : msg)),
+        );
+        return finalAssistantMessage;
+      }
+
+      // Stream handling for AI SDK response (all other models)
       if (!response.body) {
         throw new Error("Response body is null")
       }
