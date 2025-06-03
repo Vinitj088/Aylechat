@@ -359,33 +359,6 @@ function ThreadPageContent() {
   const hasMessages = chatMessages.length > 0
   const providerName = selectedModelObj?.provider || "AI"
 
-  // Show loading state
-  if (authLoading || isLoadingThread) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <p className="mt-4 text-muted-foreground">Loading conversation...</p>
-      </main>
-    )
-  }
-
-  // Show error state
-  if (threadLoadError) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center">
-        <p className="text-red-500">Error: {threadLoadError}</p>
-        <Button onClick={() => router.push("/")} className="mt-4">
-          Go Home
-        </Button>
-      </main>
-    )
-  }
-
-  // Debug log to check messages
-  console.log("Thread page rendering with messages:", chatMessages.length)
-  console.log("Has messages:", hasMessages)
-  console.log("Chat messages:", chatMessages)
-
   return (
     <main className="flex min-h-screen flex-col">
       <div className="md:hidden">
@@ -421,8 +394,31 @@ function ThreadPageContent() {
         refreshTrigger={refreshSidebar}
       />
 
-      {hasMessages || threadMessages.length > 0 ? (
-        <>
+      {/* Error message at the top if needed */}
+      {threadLoadError && (
+        <div className="w-full bg-red-100 text-red-700 p-4 text-center">
+          Error: {threadLoadError}
+          <Button onClick={() => router.push("/")} className="ml-4">
+            Go Home
+          </Button>
+        </div>
+      )}
+
+      {/* Main chat area */}
+      <div className="flex-1 flex flex-col">
+        {/* Chat messages area */}
+        {isLoadingThread ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-full max-w-2xl">
+              {/* Skeleton for chat messages */}
+              <div className="animate-pulse space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-6 bg-muted rounded" />
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : hasMessages || threadMessages.length > 0 ? (
           <ChatMessages
             messages={chatMessages as any[]}
             isLoading={chatIsLoading}
@@ -432,32 +428,34 @@ function ThreadPageContent() {
             currentThreadId={threadId}
             bottomPadding={chatInputHeightOffset}
           />
-
-          <DynamicChatInput
-            ref={chatInputRef}
-            input={input}
-            handleInputChange={(e: any) => handleInputChange(e)}
-            handleSubmit={handleSubmit}
-            isLoading={chatIsLoading}
-            selectedModel={selectedModel}
-            handleModelChange={handleModelChange}
-            models={models}
-            isExa={isExa}
-            onNewChat={handleNewChat}
-            onAttachmentsChange={setAttachments}
-            activeChatFiles={activeChatFiles}
-            removeActiveFile={removeActiveFile}
-            onActiveFilesHeightChange={handleActiveFilesHeightChange}
-          />
-        </>
-      ) : (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-muted-foreground mb-4">This conversation is empty</p>
-            <Button onClick={handleNewChat}>Start New Chat</Button>
+        ) : (
+          // Empty state
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-muted-foreground mb-4">This conversation is empty</p>
+              <Button onClick={handleNewChat}>Start New Chat</Button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Chat input is always shown */}
+        <DynamicChatInput
+          ref={chatInputRef}
+          input={input}
+          handleInputChange={(e: any) => handleInputChange(e)}
+          handleSubmit={handleSubmit}
+          isLoading={chatIsLoading}
+          selectedModel={selectedModel}
+          handleModelChange={handleModelChange}
+          models={models}
+          isExa={isExa}
+          onNewChat={handleNewChat}
+          onAttachmentsChange={setAttachments}
+          activeChatFiles={activeChatFiles}
+          removeActiveFile={removeActiveFile}
+          onActiveFilesHeightChange={handleActiveFilesHeightChange}
+        />
+      </div>
 
       <div className="hidden md:block fixed bottom-4 left-4 z-50">
         <ThemeToggle />
