@@ -51,6 +51,7 @@ function ThreadPageContent() {
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0)
   const [hasLoadedThread, setHasLoadedThread] = useState(false)
   const [threadMessages, setThreadMessages] = useState<any[]>([])
+  const latestMessagesRef = useRef<any[]>([])
 
   const isAuthenticated = !!user
 
@@ -75,8 +76,11 @@ function ThreadPageContent() {
       console.log("Thread chat finished, updating thread...")
 
       if (user && isAuthenticated && threadId) {
-        // Get the complete message list including the new message
-        const allMessages = [...chatMessages, message]
+        // Remove any message with the same id as the new message to avoid duplicates
+        const filteredMessages = latestMessagesRef.current.filter(m => m.id !== message.id)
+        // Ensure the new message has a unique id
+        const newMessage = { ...message, id: message.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `msg-${Date.now()}-${Math.random()}`) }
+        const allMessages = [...filteredMessages, newMessage]
         console.log("Updating thread with messages:", allMessages.length)
 
         await updateThread(threadId, allMessages, selectedModel)
@@ -88,6 +92,10 @@ function ThreadPageContent() {
       toast.error(err.message || "An error occurred with the AI chat connection.")
     },
   })
+
+  useEffect(() => {
+    latestMessagesRef.current = chatMessages
+  }, [chatMessages])
 
   // Load models
   useEffect(() => {
@@ -234,7 +242,7 @@ function ThreadPageContent() {
 
     try {
       const plainMessages = messages.map((m, index) => ({
-        id: m.id || `msg-${Date.now()}-${index}`,
+        id: m.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `msg-${Date.now()}-${index}`),
         role: m.role,
         content: m.content,
         createdAt: m.createdAt || new Date().toISOString(),

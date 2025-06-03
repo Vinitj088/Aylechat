@@ -52,6 +52,9 @@ const DynamicSidebar = dynamic(() => import("./component/Sidebar"), {
   ssr: false,
 })
 
+// Move allowedRoles to top-level scope
+const allowedRoles = ['user', 'assistant', 'system', 'tool'];
+
 function PageContent() {
   const [localMessages, setLocalMessages] = useState<Message[]>([])
   const [selectedModel, setSelectedModel] = useState<ModelType>("gemini-2.0-flash")
@@ -98,13 +101,19 @@ function PageContent() {
   } = useChat({
     api: "/api/ai",
     onFinish: async (message, { finishReason, usage }) => {
+      // Only allow valid roles
+      if (!['user', 'assistant', 'system', 'tool'].includes(message.role)) return;
+
       console.log("Chat finished, saving thread...")
       console.log("Current messages:", chatMessages)
       console.log("New message:", message)
 
       if (user && isAuthenticated) {
-        // Get the complete message list including the new message
-        const allMessages = [...chatMessages, message]
+        // Remove any message with the same id as the new message to avoid duplicates
+        const filteredMessages = latestMessagesRef.current.filter(m => m.id !== message.id)
+        // Ensure the new message has a unique id
+        const newMessage = { ...message, id: message.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `msg-${Date.now()}-${Math.random()}`) }
+        const allMessages = [...filteredMessages, newMessage]
         console.log("All messages to save:", allMessages)
 
         const isFirstMessageAfterSubmit = allMessages.length === 2
@@ -116,7 +125,7 @@ function PageContent() {
 
         const newThreadId = await createOrUpdateThread(
           {
-            messages: allMessages,
+            messages: allMessages.filter(m => allowedRoles.includes(m.role)) as Message[],
             title: titleToUse,
           },
           currentThreadId,
@@ -140,12 +149,18 @@ function PageContent() {
     },
   })
 
+  // Add this after chatMessages is defined
+  const latestMessagesRef = useRef<Message[]>([])
+  useEffect(() => {
+    latestMessagesRef.current = chatMessages.filter(m => allowedRoles.includes(m.role)) as Message[];
+  }, [chatMessages])
+
   // Combine messages from useChat with local messages for display
   const messages = useMemo(() => {
-    return chatMessages.length > 0 ? chatMessages : localMessages
+    return (chatMessages.length > 0 ? chatMessages : localMessages).filter(m => ['user', 'assistant', 'system', 'tool'].includes(m.role));
   }, [chatMessages, localMessages])
 
-  const setMessages = setLocalMessages
+  const setMessages = (msgs: Message[]) => setLocalMessages(msgs.filter(m => ['user', 'assistant', 'system', 'tool'].includes(m.role)));
 
   // Prefetch API modules and data when the app loads
   useEffect(() => {
@@ -438,13 +453,15 @@ function PageContent() {
       const timestamp = Date.now()
 
       // Convert messages to plain objects with proper format
-      const plainMessages = threadContent.messages.map((m, index) => ({
-        id: m.id || `msg-${timestamp}-${index}`,
-        role: m.role,
-        content: m.content,
-        createdAt: new Date().toISOString(),
-        ...((m as any).attachments ? { attachments: (m as any).attachments } : {}),
-      }))
+      const plainMessages = threadContent.messages
+        .filter((m) => ['user', 'assistant', 'system', 'tool'].includes(m.role))
+        .map((m, index) => ({
+          id: m.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `msg-${timestamp}-${index}`),
+          role: m.role,
+          content: m.content,
+          createdAt: new Date().toISOString(),
+          ...((m as any).attachments ? { attachments: (m as any).attachments } : {}),
+        }))
 
       console.log("Sending request to:", endpoint)
       console.log("Plain messages:", plainMessages)
