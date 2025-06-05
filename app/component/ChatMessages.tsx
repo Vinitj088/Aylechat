@@ -66,7 +66,7 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
         <div
           className={`rounded-lg px-4 ${isUser
             ? 'bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base max-w-[75%] py-1'
-            : 'bg-white dark:bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] text-[var(--text-light-default)] text-base message-ai py-3 w-full'
+            : ' border border-[var(--secondary-darkest)] text-[var(--text-light-default)] text-base message-ai py-3 w-full md:bg-white md:dark:bg-[var(--secondary-faint)] md:border md:border-[var(--secondary-darkest)] bg-transparent border-0 px-1 md:px-4'
           }`}
         >
           {!isUser && message.mediaData && (
@@ -87,7 +87,7 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
             <Citation citations={message.citations} />
           )}
           {!isUser && message.content && message.content.length > 0 && (
-            <div className="mt-2 flex items-center justify-end gap-2 border-t pt-2 border-gray-100 dark:border-gray-700">
+            <div className="mt-2 flex items-center justify-end gap-2 border-t pt-2 border-gray-100 dark:border-gray-700 md:border-t md:border-gray-100 md:dark:border-gray-700 border-0 px-1 md:px-0">
               <div className="flex items-center space-x-1 sm:space-x-2">
                 <ShareButton threadId={threadId} />
                 <Button 
@@ -205,10 +205,10 @@ const ChatMessages = memo(function ChatMessages({
 
   return (
     <div 
-      className="flex-1 overflow-y-auto pt-16 px-4 pb-[120px] md:pb-[150px] scroll-smooth relative"
+      className="flex-1 overflow-y-auto pt-16 pb-[120px] md:px-4 md:pb-[150px] scroll-smooth relative"
       style={{ paddingBottom: `${(bottomPadding ?? 0) + 150}px` }}
     >
-      <div className="w-full max-w-full md:max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <div className="w-full max-w-full md:max-w-4xl mx-auto px-2 md:px-4 py-6 space-y-6">
         {messages.map(renderMessage)}
         
         {isLoading && (
