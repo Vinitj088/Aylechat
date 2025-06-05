@@ -37,10 +37,20 @@ export async function GET(req: NextRequest) {
     
     const userId = user.id;
     console.log(`Fetching threads for user: ${userId}`);
-    
-    // Get threads from Redis
-    const threads = await RedisService.getUserChatThreads(userId);
-    
+
+    // Check for query params
+    const { searchParams } = new URL(req.url);
+    const limitParam = searchParams.get('limit');
+    const withMessages = searchParams.get('withMessages') === 'true';
+    const limit = limitParam ? Math.max(1, Math.min(50, parseInt(limitParam))) : 10;
+
+    let threads;
+    if (withMessages) {
+      threads = await RedisService.getLatestUserChatThreadsWithMessages(userId, limit);
+    } else {
+      threads = await RedisService.getUserChatThreads(userId);
+    }
+
     return NextResponse.json({
       success: true,
       threads: threads || []

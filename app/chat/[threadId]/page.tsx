@@ -17,6 +17,7 @@ import QueryEnhancer from '../../component/QueryEnhancer';
 import React from 'react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { useThreadCache } from '@/context/ThreadCacheContext';
 
 export default function ChatThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -47,6 +48,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const [attachments, setAttachments] = useState<File[]>([]);
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
+  const { threads: cachedThreads } = useThreadCache();
 
   const isAuthenticated = !!user;
 
@@ -79,16 +81,21 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   }, []);
 
   useEffect(() => {
-    const fetchThread = async () => {
-      // Don't fetch if we already have the thread data
-      if (thread && thread.id === threadId) {
-        setIsThreadLoading(false);
-        return;
+    // Try to use cached thread first
+    const cachedThread = cachedThreads.find(t => t.id === threadId);
+    if (cachedThread) {
+      setThread(cachedThread);
+      setMessages(cachedThread.messages || []);
+      if (cachedThread.model) {
+        setSelectedModel(cachedThread.model as ModelType);
       }
-
+      setIsThreadLoading(false);
+      return;
+    }
+    // If not in cache, fetch from API
+    const fetchThread = async () => {
       try {
         setIsThreadLoading(true);
-        // Add a timestamp to prevent caching
         const timestamp = Date.now();
         const response = await fetch(`/api/chat/threads/${threadId}?t=${timestamp}`, {
           method: 'GET',
@@ -98,26 +105,21 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
             'Content-Type': 'application/json'
           }
         });
-
         if (!response.ok) {
           if (response.status === 404 || response.status === 401) {
-            // Thread not found or unauthorized - just mark as loaded
             setIsThreadLoading(false);
             return;
           }
           throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
-
         const data = await response.json();
         if (data.success && data.thread) {
           setThread(data.thread);
           setMessages(data.thread.messages || []);
-          // If it has an associated model, set it
           if (data.thread.model) {
             setSelectedModel(data.thread.model as ModelType);
           }
         } else {
-          // Thread data issue, but don't redirect
           console.error('Failed to load thread:', data.error);
         }
       } catch (error) {
@@ -126,11 +128,10 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         setIsThreadLoading(false);
       }
     };
-
     if (threadId) {
       fetchThread();
     }
-  }, [threadId, thread]);
+  }, [threadId, thread, cachedThreads]);
 
   // Step 5: Callback to handle file uploaded event from backend
   const handleFileUploaded = useCallback((fileInfo: { name: string; type: string; uri: string }) => {

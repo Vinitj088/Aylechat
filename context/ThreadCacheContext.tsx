@@ -115,7 +115,8 @@ export const ThreadCacheProvider: React.FC<ThreadCacheProviderProps> = ({ childr
 
     setIsLoading(true);
     try {
-      const response = await fetch(getAssetPath('/api/chat/threads'), {
+      // Use the new batch endpoint
+      const response = await fetch(getAssetPath('/api/chat/threads?limit=10&withMessages=true'), {
         credentials: 'include',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -137,7 +138,7 @@ export const ThreadCacheProvider: React.FC<ThreadCacheProviderProps> = ({ childr
         try {
           await refreshSession();
           // Retry after session refresh
-          const retryResponse = await fetch(getAssetPath('/api/chat/threads'), {
+          const retryResponse = await fetch(getAssetPath('/api/chat/threads?limit=10&withMessages=true'), {
             credentials: 'include',
             headers: {
               'Cache-Control': 'no-cache, no-store, must-revalidate',

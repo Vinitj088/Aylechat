@@ -344,4 +344,32 @@ export class RedisService {
       return 0;
     }
   }
+
+  // Get the latest N chat threads for a user, including messages
+  static async getLatestUserChatThreadsWithMessages(userId: string, limit: number): Promise<ChatThread[]> {
+    try {
+      // Get the latest N thread summaries (most recent first)
+      const threadSummaries = await redis.lrange(`user:${userId}:threads`, 0, limit - 1);
+      const threads: ChatThread[] = [];
+      for (const summary of threadSummaries) {
+        let threadId: string | undefined;
+        try {
+          const parsed = typeof summary === 'string' ? JSON.parse(summary) : summary;
+          threadId = parsed.id;
+        } catch (e) {
+          console.error('Error parsing thread summary:', e);
+        }
+        if (threadId) {
+          const thread = await this.getChatThread(userId, threadId);
+          if (thread) {
+            threads.push(thread);
+          }
+        }
+      }
+      return threads;
+    } catch (error) {
+      console.error('Error getting latest user chat threads with messages:', error);
+      return [];
+    }
+  }
 } 
