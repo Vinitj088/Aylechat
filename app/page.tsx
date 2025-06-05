@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { prefetchAll } from './api/prefetch';
 import { FileUp, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { useThreadCache } from '@/context/ThreadCacheContext';
 
 // Helper function to get provider description
 const getProviderDescription = (providerName: string | undefined): string => {
@@ -93,6 +94,7 @@ function PageContent() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
+  const { addThread } = useThreadCache();
 
   const isAuthenticated = !!user;
 
@@ -660,20 +662,15 @@ function PageContent() {
 
   const createOrUpdateThread = async (threadContent: { messages: Message[], title?: string }) => {
     if (!isAuthenticated || !user) {
-      // Show auth dialog instead of redirecting
       openAuthDialog();
       return null;
     }
-
     try {
       const method = currentThreadId ? 'PUT' : 'POST';
       const endpoint = currentThreadId 
         ? `/api/chat/threads/${currentThreadId}` 
         : '/api/chat/threads';
-      
-      // Add a timestamp to ensure we don't get a cached response
       const timestamp = Date.now();
-      
       const response = await fetch(`${endpoint}?t=${timestamp}`, {
         method,
         headers: {
@@ -688,33 +685,23 @@ function PageContent() {
           model: selectedModel
         })
       });
-
       if (!response.ok) {
         if (response.status === 401) {
-          // Auth error - show auth dialog
           openAuthDialog();
           return null;
         }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
       const result = await response.json();
-      
       if (result.success && result.thread) {
-        // Update thread ID if it's a new thread
         if (!currentThreadId) {
           setCurrentThreadId(result.thread.id);
-          
-          // Update the URL to the new thread without forcing a reload
           window.history.pushState({}, '', `/chat/${result.thread.id}`);
+          // Add the new thread to the cache instantly
+          addThread(result.thread);
         }
-        
-        // Refresh the sidebar to show the new/updated thread
-        setRefreshSidebar(prev => prev + 1);
-        
         return result.thread.id;
       }
-      
       return null;
     } catch (error: any) {
       console.error('Error saving thread:', error);

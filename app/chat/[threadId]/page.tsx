@@ -48,7 +48,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const [attachments, setAttachments] = useState<File[]>([]);
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
-  const { threads: cachedThreads } = useThreadCache();
+  const { threads: cachedThreads, updateThread } = useThreadCache();
 
   const isAuthenticated = !!user;
 
@@ -358,9 +358,6 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
               ? completedAssistantMessage
               : msg
           );
-
-          // Log final message count
-          console.log(`Updated messages array now has ${updatedMessages.length} messages`);
           return updatedMessages;
         });
 
@@ -373,7 +370,9 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
                 ? completedAssistantMessage // Use the object with image data
                 : msg
             );
-            await updateThread(finalMessages);
+            await updateThreadInDb(finalMessages);
+            // Update the thread in the cache directly, filter out 'system' messages
+            updateThread(threadId, { messages: finalMessages.filter(m => m.role === 'user' || m.role === 'assistant') as import('@/lib/redis').Message[] });
           } catch (updateError) {
             console.error('Error saving completed thread (image gen):', updateError);
           }
@@ -408,7 +407,9 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
                 ? completedAssistantMessage // Use the object returned by fetchResponse
                 : msg
             );
-            await updateThread(finalMessages);
+            await updateThreadInDb(finalMessages);
+            // Update the thread in the cache directly, filter out 'system' messages
+            updateThread(threadId, { messages: finalMessages.filter(m => m.role === 'user' || m.role === 'assistant') as import('@/lib/redis').Message[] });
           } catch (updateError) {
             console.error('Error saving completed thread (text gen):', updateError);
           }
@@ -470,14 +471,12 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   // Get the provider name for the selected model
   const selectedModelObj = models.find(model => model.id === selectedModel);
 
-  // Update thread in database
-  const updateThread = async (updatedMessages: Message[]) => {
+  // Update thread in database (renamed to avoid confusion)
+  const updateThreadInDb = async (updatedMessages: Message[]) => {
     if (!isAuthenticated || !user || !threadId) {
       return false;
     }
-
     try {
-      // Add timestamp to prevent caching
       const timestamp = Date.now();
       const response = await fetch(`/api/chat/threads/${threadId}?t=${timestamp}`, {
         method: 'PUT',
@@ -492,24 +491,20 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           model: selectedModel
         })
       });
-
       if (!response.ok) {
         if (response.status === 401) {
-          // No need to refresh, just show auth dialog
           setShowAuthDialog(true);
           setIsThreadLoading(false);
           return;
         }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
       const result = await response.json();
       if (result.success) {
-        // Update sidebar to reflect changes
-        setRefreshSidebar(prev => prev + 1);
+        // Only trigger sidebar refresh if a thread was created or deleted
+        // setRefreshSidebar(prev => prev + 1); // REMOVE THIS
         return true;
       }
-
       return false;
     } catch (error) {
       console.error('Error updating thread:', error);

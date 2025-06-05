@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { ChatThread } from '@/lib/redis';
 import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
@@ -52,6 +52,7 @@ export const ThreadCacheProvider: React.FC<ThreadCacheProviderProps> = ({ childr
   
   const isAuthenticated = !!user;
   const userId = user?.id || '';
+  const isFetchingRef = useRef(false);
 
   // Load threads from cache
   const loadFromCache = useCallback(() => {
@@ -102,20 +103,22 @@ export const ThreadCacheProvider: React.FC<ThreadCacheProviderProps> = ({ childr
       setIsLoading(false);
       return;
     }
-
+    if (isFetchingRef.current) {
+      // Already fetching, skip
+      return;
+    }
+    isFetchingRef.current = true;
     // If not forcing refresh, try to use cache
     if (!forceRefresh) {
       const cachedThreads = loadFromCache();
       if (cachedThreads) {
-        console.log('Using cached threads data');
         setThreads(cachedThreads);
+        isFetchingRef.current = false;
         return;
       }
     }
-
     setIsLoading(true);
     try {
-      // Use the new batch endpoint
       const response = await fetch(getAssetPath('/api/chat/threads?limit=10&withMessages=true'), {
         credentials: 'include',
         headers: {
@@ -123,21 +126,17 @@ export const ThreadCacheProvider: React.FC<ThreadCacheProviderProps> = ({ childr
           'Pragma': 'no-cache',
         }
       });
-      
       if (response.ok) {
         const data = await response.json();
         if (data.success && Array.isArray(data.threads)) {
           setThreads(data.threads);
           saveToCache(data.threads);
         } else {
-          console.error('Threads data is not in expected format:', data);
           setThreads([]);
         }
       } else if (response.status === 401) {
-        // Handle authentication error
         try {
           await refreshSession();
-          // Retry after session refresh
           const retryResponse = await fetch(getAssetPath('/api/chat/threads?limit=10&withMessages=true'), {
             credentials: 'include',
             headers: {
@@ -145,7 +144,6 @@ export const ThreadCacheProvider: React.FC<ThreadCacheProviderProps> = ({ childr
               'Pragma': 'no-cache',
             }
           });
-
           if (retryResponse.ok) {
             const retryData = await retryResponse.json();
             if (retryData.success && Array.isArray(retryData.threads)) {
@@ -158,18 +156,16 @@ export const ThreadCacheProvider: React.FC<ThreadCacheProviderProps> = ({ childr
             setThreads([]);
           }
         } catch (refreshError) {
-          console.error('Failed to refresh session:', refreshError);
           setThreads([]);
         }
       } else {
-        console.error('Failed to fetch threads');
         setThreads([]);
       }
     } catch (error) {
-      console.error('Error fetching threads:', error);
       setThreads([]);
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
   }, [isAuthenticated, refreshSession, loadFromCache, saveToCache]);
 

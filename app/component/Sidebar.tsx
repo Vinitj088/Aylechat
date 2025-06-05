@@ -39,7 +39,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   const router = useRouter()
   const pathname = usePathname()
   const { user, signOut, refreshSession, openAuthDialog } = useAuth()
-  const { threads, isLoading, fetchThreads, removeThread, clearThreads, lastUpdated } = useThreadCache()
+  const { threads, isLoading, fetchThreads, addThread, removeThread, clearThreads, lastUpdated } = useThreadCache()
 
   const isAuthenticated = !!user
 
@@ -86,25 +86,14 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   // Determine if sidebar should be visible
   const shouldShowSidebar = isMobile ? isOpen : isHovered
 
-  // Fetch when refreshTrigger changes, this indicates thread operations (create/update/delete)
+  // Only fetch if not already loading and cache is empty
   useEffect(() => {
     if (isAuthenticated && user && shouldShowSidebar) {
-      if (lastRefreshTrigger !== refreshTrigger) {
-        setLastRefreshTrigger(refreshTrigger)
-        fetchThreads(true)
+      if (!isLoading && threads.length === 0) {
+        fetchThreads(false);
       }
     }
-  }, [refreshTrigger, isAuthenticated, user, shouldShowSidebar, lastRefreshTrigger, fetchThreads])
-
-  // When sidebar opens, check if we should refresh based on the last update time
-  useEffect(() => {
-    if (shouldShowSidebar && isAuthenticated && user) {
-      const now = Date.now()
-      if (threads.length === 0 || now - lastUpdated > 5 * 60 * 1000) {
-        fetchThreads(false)
-      }
-    }
-  }, [shouldShowSidebar, isAuthenticated, user, fetchThreads, threads.length, lastUpdated])
+  }, [shouldShowSidebar, isAuthenticated, user, isLoading, threads.length, fetchThreads]);
 
   const handleThreadClick = (threadId: string) => {
     router.push(`/chat/${threadId}`)
