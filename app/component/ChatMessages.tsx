@@ -87,7 +87,7 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
             <Citation citations={message.citations} />
           )}
           {!isUser && message.content && message.content.length > 0 && (
-            <div className="mt-2 flex items-center justify-end gap-2 border-t pt-2 border-gray-100 dark:border-gray-700 md:border-t md:border-gray-100 md:dark:border-gray-700 border-0 px-1 md:px-0">
+            <div className="mt-2 flex items-center justify-end gap-2 pt-2 md:border-t md:border-gray-100 md:dark:border-gray-700 border-0 px-1 md:px-0">
               <div className="flex items-center space-x-1 sm:space-x-2">
                 <ShareButton threadId={threadId} />
                 <Button 
