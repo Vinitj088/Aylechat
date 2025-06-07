@@ -68,7 +68,14 @@ const ChatMessage = memo(({ message, isUser, threadId, onQuote }: { message: Mes
             <div className={`mb-1 mr-0 ml-0 ${isUser ? 'w-full' : 'w-full'}`}>
               <div className="flex items-center">
                 <div className="border-l-4 border-[var(--brand-default)] bg-[var(--secondary-faint)] rounded-md px-3 py-2 text-[var(--text-light-muted)] text-sm max-w-full whitespace-pre-line shadow-sm">
-                  {message.quotedText}
+                  {isUser
+                    ? (() => {
+                        const words = message.quotedText.split(/\s+/);
+                        return words.length > 40
+                          ? words.slice(0, 40).join(' ') + ' ...'
+                          : message.quotedText;
+                      })()
+                    : message.quotedText}
                 </div>
               </div>
             </div>
