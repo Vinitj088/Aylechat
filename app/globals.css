@@ -92,7 +92,7 @@
   --secondary-dark: #202020;
   --secondary-darker: #1d1d1d;
   --secondary-darkest: #2e2e2e;
-  --secondary-default: #121212;
+  --secondary-default: #141414;
   --secondary-faint: #131313;
   --secondary-fainter: #1e1e1e;
 
@@ -303,7 +303,7 @@ p, span, div, li, button, input, textarea {
 }
 
 .dark .message-ai {
-  background-color: var(--secondary-faint);
+  
   border-color: var(--secondary-darkest);
 }
 
