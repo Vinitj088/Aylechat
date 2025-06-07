@@ -245,7 +245,8 @@ function PageContent() {
             const userMessage: Message = {
               id: crypto.randomUUID(),
               role: 'user',
-              content: decodedQuery
+              content: decodedQuery,
+              ...(quotedText && quotedText.trim().length > 0 ? { quotedText } : {})
             };
 
             const assistantMessage: Message = {
@@ -330,6 +331,10 @@ function PageContent() {
     e.preventDefault();
     if (!input.trim() && attachments.length === 0) return;
 
+    const fullInput = quotedText && quotedText.trim().length > 0
+      ? `> ${quotedText.replace(/\n/g, '\n> ')}\n\n${input}`
+      : input;
+
     // Guest logic: allow up to 3 real AI messages, then block
     if (isGuest) {
       if (guestMessageCount >= GUEST_MESSAGE_LIMIT) {
@@ -340,8 +345,8 @@ function PageContent() {
       const userMessage: Message = {
         id: crypto.randomUUID(),
         role: 'user',
-        content: input,
-        ...(quotedText ? { quotedText } : {})
+        content: input, // Only the user's input, not the quoted text
+        ...(quotedText && quotedText.trim().length > 0 ? { quotedText } : {})
       };
       if (attachments.length > 0) {
         userMessage.attachments = attachments.map(file => ({
@@ -370,7 +375,7 @@ function PageContent() {
       try {
         abortControllerRef.current = new AbortController();
         const completedAssistantMessage = await fetchResponse(
-          input,
+          fullInput,
           messages,
           selectedModel,
           abortControllerRef.current,
@@ -405,8 +410,8 @@ function PageContent() {
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: input,
-      ...(quotedText ? { quotedText } : {})
+      content: input, // Only the user's input, not the quoted text
+      ...(quotedText && quotedText.trim().length > 0 ? { quotedText } : {})
     };
 
     // Process attachments if any and add them to the user message
@@ -470,7 +475,7 @@ function PageContent() {
           },
           credentials: 'include',
           body: JSON.stringify({
-            query: userMessage.content,
+            query: fullInput,
             model: selectedModel,
             prompt: userMessage.content, // Add prompt parameter for Together AI
             messages: messages, // Send all previous messages for context
@@ -559,7 +564,7 @@ function PageContent() {
       // Regular text response flow - only execute this if not an image generation model
       // Capture the complete assistant message object from fetchResponse
       const completedAssistantMessage = await fetchResponse(
-        input,
+        fullInput,
         messages, // Pass current messages state for context
         selectedModel,
         abortControllerRef.current,

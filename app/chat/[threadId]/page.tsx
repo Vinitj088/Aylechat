@@ -218,12 +218,16 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
       );
     }
 
+    const fullInput = quotedText && quotedText.trim().length > 0
+      ? `> ${quotedText.replace(/\n/g, '\n> ')}\n\n${input.trim()}`
+      : input.trim();
+
     // Create new user message
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: input.trim(),
-      ...(quotedText ? { quotedText } : {})
+      content: input.trim(), // Only the user's input, not the quoted text
+      ...(quotedText && quotedText.trim().length > 0 ? { quotedText } : {})
     };
 
     // Process attachments if any
@@ -387,7 +391,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 
         // Fetch the model response - it now returns the complete assistant message
         const completedAssistantMessage = await fetchResponse(
-          userMessage.content,
+          fullInput,
           updatedMessages.slice(0, -1), // Pass messages before placeholder
           selectedModel,
           abortControllerRef.current,
