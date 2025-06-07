@@ -50,6 +50,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
   const { threads: cachedThreads, updateThread } = useThreadCache();
   const [quotedText, setQuotedText] = useState('');
+  const [retriedMessageId, setRetriedMessageId] = useState<string | null>(null);
 
   const isAuthenticated = !!user;
 
@@ -256,6 +257,21 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     setIsLoading(true);
     const updatedMessages = [...messages, userMessage, assistantMessage];
     setMessages(updatedMessages);
+
+    // After new user+assistant pair is added, remove old retried pair if needed
+    if (retriedMessageId) {
+      setMessages(prev => {
+        const idx = prev.findIndex(m => m.id === retriedMessageId);
+        if (idx === -1) return prev;
+        // Remove user and next assistant (if any)
+        const newMessages = prev.slice(0, idx);
+        if (prev[idx + 1] && prev[idx + 1].role === 'assistant') {
+          return newMessages.concat(prev.slice(idx + 2));
+        }
+        return newMessages.concat(prev.slice(idx + 1));
+      });
+      setRetriedMessageId(null);
+    }
 
     // Cancel any previous requests
     if (abortControllerRef.current) {
@@ -519,6 +535,21 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     }
   };
 
+  // Retry logic: fill input, remove old user+assistant pair, focus input
+  const handleRetryMessage = useCallback((message: Message) => {
+    if (message.role !== 'user') return;
+    setInput(message.content || '');
+    setQuotedText(message.quotedText || '');
+    setMessages(prev => {
+      const idx = prev.findIndex(m => m.id === message.id);
+      if (idx === -1) return prev;
+      return prev.slice(0, idx);
+    });
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 100);
+  }, []);
+
   if (isThreadLoading) {
     return (
       <main className="flex min-h-screen flex-col">
@@ -629,6 +660,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         currentThreadId={threadId}
         bottomPadding={chatInputHeightOffset}
         onQuote={setQuotedText}
+        onRetry={handleRetryMessage}
       />
 
       <ChatInput

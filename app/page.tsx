@@ -102,6 +102,7 @@ function PageContent() {
   const isGuest = !user;
   const prevGuestMessageCount = useRef(guestMessageCount);
   const [quotedText, setQuotedText] = useState('');
+  const [retriedMessageId, setRetriedMessageId] = useState<string | null>(null);
 
   const isAuthenticated = !!user;
 
@@ -663,6 +664,20 @@ function PageContent() {
       setIsLoading(false);
       // Clear attachments after submission
       setAttachments([]);
+      // After new user+assistant pair is added, remove old retried pair if needed
+      if (retriedMessageId) {
+        setMessages(prev => {
+          const idx = prev.findIndex(m => m.id === retriedMessageId);
+          if (idx === -1) return prev;
+          // Remove user and next assistant (if any)
+          const newMessages = prev.slice(0, idx);
+          if (prev[idx + 1] && prev[idx + 1].role === 'assistant') {
+            return newMessages.concat(prev.slice(idx + 2));
+          }
+          return newMessages.concat(prev.slice(idx + 1));
+        });
+        setRetriedMessageId(null);
+      }
     }
   };
   
@@ -922,6 +937,21 @@ function PageContent() {
     prevGuestMessageCount.current = guestMessageCount;
   }, [guestMessageCount, isGuest, guestCountLoaded]);
 
+  // Retry logic: fill input, remove old user+assistant pair, focus input
+  const handleRetryMessage = useCallback((message: Message) => {
+    if (message.role !== 'user') return;
+    setInput(message.content || '');
+    setQuotedText(message.quotedText || '');
+    setMessages(prev => {
+      const idx = prev.findIndex(m => m.id === message.id);
+      if (idx === -1) return prev;
+      return prev.slice(0, idx);
+    });
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 100);
+  }, []);
+
   return (
     <main className="flex min-h-screen flex-col">
       {/* Header - Mobile only */}
@@ -1006,6 +1036,7 @@ function PageContent() {
             currentThreadId={currentThreadId}
             bottomPadding={chatInputHeightOffset}
             onQuote={setQuotedText}
+            onRetry={handleRetryMessage}
           />
 
           {/* Chat input: block for guest after 3 messages */}

@@ -6,7 +6,7 @@ import MessageContent from "./MessageContent"
 import Citation from "./Citation"
 import ShareButton from "./ShareButton"
 import { Button } from "@/components/ui/button"
-import { Copy, Check } from "lucide-react"
+import { Copy, Check, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import MediaCard from "@/components/MediaCard"
@@ -20,6 +20,7 @@ interface ChatMessagesProps {
   currentThreadId: string | null | undefined
   bottomPadding?: number
   onQuote?: (text: string) => void
+  onRetry?: (message: Message) => void
 }
 
 // Memoized message component to prevent unnecessary re-renders
@@ -29,7 +30,8 @@ const ChatMessage = memo(
     isUser,
     threadId,
     onQuote,
-  }: { message: Message; isUser: boolean; threadId?: string | null | undefined; onQuote?: (text: string) => void }) => {
+    onRetry,
+  }: { message: Message; isUser: boolean; threadId?: string | null | undefined; onQuote?: (text: string) => void; onRetry?: (message: Message) => void }) => {
     const [copySuccess, setCopySuccess] = useState(false)
 
     const handleCopyMessage = async () => {
@@ -48,6 +50,11 @@ const ChatMessage = memo(
       }
     }
 
+    // Retry handler for user messages
+    const handleRetry = () => {
+      if (onRetry) onRetry(message)
+    }
+
     // Debug log for message properties
     if (!isUser) {
       console.log(`ChatMessage (Assistant, ID: ${message.id}):`, {
@@ -64,7 +71,7 @@ const ChatMessage = memo(
     return (
       <div className="w-full">
         <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-          <div className={`flex flex-col items-end ${isUser ? "w-full max-w-[75%]" : "w-full"}`}>
+          <div className={`flex flex-col items-end ${isUser ? "w-full max-w-[75%]" : "w-full"} group`}>
             {/* Quoted block outside the bubble */}
             {message.quotedText && message.quotedText.trim().length > 0 && (
               <div className={`mb-1 mr-0 ml-0 w-full flex ${isUser ? "justify-end" : "justify-start"}`}>
@@ -80,7 +87,7 @@ const ChatMessage = memo(
             )}
             {/* Main message bubble */}
             <div
-              className={`rounded-lg px-4 group ${
+              className={`rounded-lg px-4 ${
                 isUser
                   ? "bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base py-0.5"
                   : "w-full text-[var(--text-light-default)] text-base message-ai py-3 border-0 px-1 md:px-4"
@@ -103,8 +110,9 @@ const ChatMessage = memo(
                 />
               </div>
               {message.citations && message.citations.length > 0 && <Citation citations={message.citations} />}
+              {/* Action row for assistant (share/copy) - always visible on mobile, hover on desktop */}
               {!isUser && message.content && message.content.length > 0 && (
-                <div className="mt-2 flex items-center justify-end gap-2 pt-2 border-0 px-1 md:px-0 opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
+                <div className="mt-2 flex items-center justify-end gap-2 pt-2 border-0 px-1 md:px-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
                   <div className="flex items-center space-x-1 sm:space-x-2">
                     <ShareButton threadId={threadId} />
                     <Button
@@ -152,6 +160,21 @@ const ChatMessage = memo(
                 </div>
               )}
             </div>
+            {/* Retry button below the user message bubble - always visible on mobile, hover on desktop */}
+            {isUser && message.content && message.content.length > 0 && (
+              <div className="flex justify-end w-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 mt-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-all duration-300 ease-in-out"
+                  aria-label="Retry message"
+                  onClick={handleRetry}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span className="ml-2 text-xs">Retry</span>
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -186,6 +209,7 @@ const ChatMessages = memo(function ChatMessages({
   currentThreadId,
   bottomPadding,
   onQuote,
+  onRetry,
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [messageCount, setMessageCount] = useState(0)
@@ -225,10 +249,11 @@ const ChatMessages = memo(function ChatMessages({
           isUser={message.role === "user"}
           threadId={currentThreadId}
           onQuote={onQuote}
+          onRetry={onRetry}
         />
       )
     },
-    [currentThreadId, onQuote],
+    [currentThreadId, onQuote, onRetry],
   )
 
   return (

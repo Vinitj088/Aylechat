@@ -111,7 +111,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
 
             {/* Sidebar Toggle Button */}
             <button
-              className="p-1.5 text-[var(--text-light-muted)] hover:bg-[var(--secondary-darker)] rounded-md transition-colors"
+              className="p-1.5 text-[var(--text-light-muted)] hover:bg-[var(--secondary-darker)] rounded-md transition-colors md:hidden"
               onClick={toggleSidebar}
               aria-label="Toggle sidebar"
             >
