@@ -95,11 +95,6 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
     }
   }, [shouldShowSidebar, isAuthenticated, user, isLoading, threads.length, fetchThreads]);
 
-  // Hide sidebar for guests (after all hooks)
-  if (!user) {
-    return null;
-  }
-
   const handleThreadClick = (threadId: string) => {
     router.push(`/chat/${threadId}`)
     if (isMobile) {
@@ -262,7 +257,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                 <p className="text-sm text-[var(--text-light-muted)]">Sign in to view your chat history</p>
                 <button
                   onClick={onSignInClick || openAuthDialog}
-                  className="px-4 py-2 text-sm font-medium bg-[var(--brand-default)] text-white rounded-md hover:bg-[var(--brand-muted)] shadow-sm transition-all hover:shadow"
+                  className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all"
                 >
                   Sign In
                 </button>

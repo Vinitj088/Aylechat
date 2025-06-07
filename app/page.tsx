@@ -940,15 +940,13 @@ function PageContent() {
           Ayle
         </span>
       </Link>
-      {/* Sidebar: only for authenticated users */}
-      {user && (
-        <DynamicSidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
-          onSignInClick={openAuthDialog}
-          refreshTrigger={refreshSidebar}
-        />
-      )}
+      {/* Sidebar: always render, for both guests and authenticated users */}
+      <DynamicSidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+        onSignInClick={openAuthDialog}
+        refreshTrigger={refreshSidebar}
+      />
       
       {!hasMessages ? (
         <>
