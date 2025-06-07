@@ -101,6 +101,7 @@ function PageContent() {
   const [guestCountLoaded, setGuestCountLoaded] = useState(false);
   const isGuest = !user;
   const prevGuestMessageCount = useRef(guestMessageCount);
+  const [quotedText, setQuotedText] = useState('');
 
   const isAuthenticated = !!user;
 
@@ -339,7 +340,8 @@ function PageContent() {
       const userMessage: Message = {
         id: crypto.randomUUID(),
         role: 'user',
-        content: input
+        content: input,
+        ...(quotedText ? { quotedText } : {})
       };
       if (attachments.length > 0) {
         userMessage.attachments = attachments.map(file => ({
@@ -349,6 +351,7 @@ function PageContent() {
         }));
       }
       setInput('');
+      setQuotedText('');
       setIsLoading(true);
       // Add user message and placeholder assistant message
       const assistantMessage: Message = {
@@ -402,7 +405,8 @@ function PageContent() {
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: input
+      content: input,
+      ...(quotedText ? { quotedText } : {})
     };
 
     // Process attachments if any and add them to the user message
@@ -425,6 +429,7 @@ function PageContent() {
 
     // Clear the input field and update the messages state
     setInput('');
+    setQuotedText('');
     setIsLoading(true);
     setMessages(prev => [...prev, userMessage, assistantMessage]);
 
@@ -995,6 +1000,7 @@ function PageContent() {
             isExa={isExa}
             currentThreadId={currentThreadId}
             bottomPadding={chatInputHeightOffset}
+            onQuote={setQuotedText}
           />
 
           {/* Chat input: block for guest after 3 messages */}
@@ -1015,6 +1021,8 @@ function PageContent() {
                 activeChatFiles={activeChatFiles}
                 removeActiveFile={removeActiveFile}
                 onActiveFilesHeightChange={handleActiveFilesHeightChange}
+                quotedText={quotedText}
+                setQuotedText={setQuotedText}
               />
             )
           ) : (

@@ -49,6 +49,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
   const { threads: cachedThreads, updateThread } = useThreadCache();
+  const [quotedText, setQuotedText] = useState('');
 
   const isAuthenticated = !!user;
 
@@ -221,7 +222,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: input.trim()
+      content: input.trim(),
+      ...(quotedText ? { quotedText } : {})
     };
 
     // Process attachments if any
@@ -246,6 +248,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 
     // Update UI right away
     setInput('');
+    setQuotedText('');
     setIsLoading(true);
     const updatedMessages = [...messages, userMessage, assistantMessage];
     setMessages(updatedMessages);
@@ -566,6 +569,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
             activeChatFiles={activeChatFiles}
             removeActiveFile={removeActiveFile}
             onActiveFilesHeightChange={handleActiveFilesHeightChange}
+            quotedText={quotedText}
+            setQuotedText={setQuotedText}
           />
         </div>
         {/* Fixed Theme Toggle - Desktop only, only for lg and up */}
@@ -619,6 +624,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         isExa={selectedModel === 'exa'}
         currentThreadId={threadId}
         bottomPadding={chatInputHeightOffset}
+        onQuote={setQuotedText}
       />
 
       <ChatInput
@@ -636,6 +642,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         activeChatFiles={activeChatFiles}
         removeActiveFile={removeActiveFile}
         onActiveFilesHeightChange={handleActiveFilesHeightChange}
+        quotedText={quotedText}
+        setQuotedText={setQuotedText}
       />
 
       {/* Auth Dialog */}

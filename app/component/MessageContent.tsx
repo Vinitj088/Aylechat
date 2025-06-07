@@ -25,6 +25,7 @@ interface MessageContentProps {
   images?: { mimeType: string; data: string; url?: string | null }[];
   attachments?: FileAttachment[];
   provider?: string;
+  onQuote?: (text: string) => void;
 }
 
 // Add the parseMessageContent helper function
@@ -630,9 +631,14 @@ const FileAttachmentView = ({ attachments }: { attachments: FileAttachment[] }) 
 };
 
 // Component for message content with Markdown
-const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, attachments, provider }) => {
+const MessageContent: React.FC<MessageContentProps & { quotedText?: string }> = ({ content, role, images, attachments, provider, onQuote, quotedText }) => {
   const { thinking, visible } = parseMessageContent(content || '');
   const [copied, setCopied] = useState(false);
+  const [showQuoteMenu, setShowQuoteMenu] = useState(false);
+  const [quoteMenuPos, setQuoteMenuPos] = useState<{x: number, y: number} | null>(null);
+  const [selectedText, setSelectedText] = useState('');
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const quoteMenuRef = React.useRef<HTMLDivElement>(null);
 
   // Function to copy text to clipboard
   const copyToClipboard = (text: string) => {
@@ -650,10 +656,61 @@ const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, 
   // Process the markdown content for task lists
   const processedContent = processMarkdown(visible);
 
+  // Handler for mouseup/selection
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (role !== 'assistant') return;
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const selText = selection.toString();
+      if (selText.trim().length > 0 && contentRef.current && contentRef.current.contains(selection.anchorNode)) {
+        setSelectedText(selText);
+        setQuoteMenuPos({ x: e.clientX, y: e.clientY });
+        setShowQuoteMenu(true);
+      } else {
+        setShowQuoteMenu(false);
+      }
+    } else {
+      setShowQuoteMenu(false);
+    }
+  };
+
+  // Hide menu on click elsewhere, but not inside the menu
+  React.useEffect(() => {
+    const hide = (e: MouseEvent) => {
+      if (
+        quoteMenuRef.current &&
+        e.target instanceof Node &&
+        quoteMenuRef.current.contains(e.target)
+      ) {
+        // Click inside the menu, don't close yet
+        return;
+      }
+      setShowQuoteMenu(false);
+    };
+    if (showQuoteMenu) {
+      document.addEventListener('mousedown', hide);
+      return () => document.removeEventListener('mousedown', hide);
+    }
+  }, [showQuoteMenu]);
+
+  // Handler for quote action
+  const handleQuote = () => {
+    if (onQuote && selectedText.trim().length > 0) {
+      onQuote(selectedText);
+    }
+    setShowQuoteMenu(false);
+    setSelectedText('');
+  };
+
   // Show image view if there are images and the message is from an assistant
   if (role === 'assistant' && images && images.length > 0) {
     return (
       <>
+        {quotedText && quotedText.trim().length > 0 && (
+          <div className="flex items-start bg-[var(--secondary-faint)] border-l-4 border-[var(--brand-default)] rounded-md p-3 mb-2">
+            <span className="text-[var(--text-light-muted)] text-sm flex-1 whitespace-pre-line">{quotedText}</span>
+          </div>
+        )}
         {visible && (
           <div className="markdown-content prose prose-base max-w-none dark:prose-invert overflow-hidden">
             <Markdown options={markdownOptions}>{processedContent}</Markdown>
@@ -665,7 +722,13 @@ const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, 
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={contentRef} onMouseUp={handleMouseUp}>
+      {/* Persistent quote block for user or assistant messages */}
+      {quotedText && quotedText.trim().length > 0 && (
+        <div className="flex items-start bg-[var(--secondary-faint)] border-l-4 border-[var(--brand-default)] rounded-md p-3 mb-2">
+          <span className="text-[var(--text-light-muted)] text-sm flex-1 whitespace-pre-line">{quotedText}</span>
+        </div>
+      )}
       {thinking && (
         <div className="my-6 space-y-3">
           <div className="flex items-center gap-2 text-[var(--text-light-default)]">
@@ -694,6 +757,23 @@ const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, 
 
       {images && (
         <GeneratedImageView images={images} provider={provider} />
+      )}
+
+      {/* Quote context menu */}
+      {showQuoteMenu && quoteMenuPos && (
+        <div style={{ position: 'fixed', top: quoteMenuPos.y + 8, left: quoteMenuPos.x, zIndex: 9999 }}>
+          <div
+            ref={quoteMenuRef}
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg px-2 py-1 flex items-center space-x-2"
+          >
+            <button
+              className="text-sm px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+              onClick={handleQuote}
+            >
+              Quote
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

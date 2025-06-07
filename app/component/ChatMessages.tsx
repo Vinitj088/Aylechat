@@ -22,10 +22,11 @@ interface ChatMessagesProps {
   isExa: boolean;
   currentThreadId: string | null | undefined;
   bottomPadding?: number;
+  onQuote?: (text: string) => void;
 }
 
 // Memoized message component to prevent unnecessary re-renders
-const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isUser: boolean, threadId?: string | null | undefined }) => {
+const ChatMessage = memo(({ message, isUser, threadId, onQuote }: { message: Message, isUser: boolean, threadId?: string | null | undefined, onQuote?: (text: string) => void }) => {
 
   const [copySuccess, setCopySuccess] = useState(false);
 
@@ -60,76 +61,88 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
 
   return (
     <div className="w-full">
-      <div
-        className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
-      >
-        <div
-          className={`rounded-lg px-4 group ${isUser
-            ? 'bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base max-w-[75%] py-0.5'
-            : 'text-[var(--text-light-default)] text-base message-ai py-3 w-full bg-transparent border-0 px-1 md:px-4'
-            }`}
-        >
-          {!isUser && message.mediaData && (
-            <div className="mb-3">
-              <MediaCard data={message.mediaData} />
-            </div>
-          )}
-          <div className="whitespace-pre-wrap text-[15px]">
-            <MessageContent
-              content={message.content || ''}
-              role={message.role}
-              images={message.images}
-              attachments={message.attachments}
-              provider={message.provider}
-            />
-          </div>
-          {message.citations && message.citations.length > 0 && (
-            <Citation citations={message.citations} />
-          )}
-          {!isUser && message.content && message.content.length > 0 && (
-            <div className="mt-2 flex items-center justify-end gap-2 pt-2 border-0 px-1 md:px-0 opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
-              <div className="flex items-center space-x-1 sm:space-x-2">
-                <ShareButton threadId={threadId} />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="px-2 sm:px-3 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 group h-8 rounded-md transition-all duration-300 ease-in-out overflow-hidden"
-                  aria-label="Copy message"
-                  onClick={handleCopyMessage}
-                >
-                  <div className="flex items-center justify-center">
-                    {copySuccess ? (
-                      <>
-                        <Check className="h-4 w-4 flex-shrink-0 text-[var(--brand-default)] dark:text-[var(--brand-fainter)]" />
-                        <span className="ml-2 text-xs text-[var(--brand-default)] dark:text-[var(--brand-default)]">Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-4 w-4 flex-shrink-0 group-hover:mr-2 transition-all duration-300 ease-in-out" />
-                        <span className="max-w-0 group-hover:max-w-0 sm:group-hover:max-w-xs transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap text-xs">
-                          Copy text
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </Button>
-                {message.completed && typeof message.tps === 'number' && message.tps > 0 && (
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap cursor-help">
-                          {message.tps.toFixed(1)} tokens/s
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Frontend-perceived throughput. <br /> Includes network and processing time.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
+      <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+        <div className={`flex flex-col items-end ${isUser ? 'w-full max-w-[75%]' : 'w-full'}`}>
+          {/* Quoted block outside the bubble */}
+          {message.quotedText && message.quotedText.trim().length > 0 && (
+            <div className={`mb-1 mr-0 ml-0 ${isUser ? 'w-full' : 'w-full'}`}>
+              <div className="flex items-center">
+                <div className="border-l-4 border-[var(--brand-default)] bg-[var(--secondary-faint)] rounded-md px-3 py-2 text-[var(--text-light-muted)] text-sm max-w-full whitespace-pre-line shadow-sm">
+                  {message.quotedText}
+                </div>
               </div>
             </div>
           )}
+          {/* Main message bubble */}
+          <div
+            className={`rounded-lg px-4 group ${isUser
+              ? 'bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base py-0.5'
+              : 'w-full text-[var(--text-light-default)] text-base message-ai py-3 border-0 px-1 md:px-4'
+              }`}
+          >
+            {!isUser && message.mediaData && (
+              <div className="mb-3">
+                <MediaCard data={message.mediaData} />
+              </div>
+            )}
+            <div className="whitespace-pre-wrap text-[15px]">
+              <MessageContent
+                content={message.content || ''}
+                role={message.role}
+                images={message.images}
+                attachments={message.attachments}
+                provider={message.provider}
+                onQuote={onQuote}
+              />
+            </div>
+            {message.citations && message.citations.length > 0 && (
+              <Citation citations={message.citations} />
+            )}
+            {!isUser && message.content && message.content.length > 0 && (
+              <div className="mt-2 flex items-center justify-end gap-2 pt-2 border-0 px-1 md:px-0 opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
+                <div className="flex items-center space-x-1 sm:space-x-2">
+                  <ShareButton threadId={threadId} />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="px-2 sm:px-3 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 group h-8 rounded-md transition-all duration-300 ease-in-out overflow-hidden"
+                    aria-label="Copy message"
+                    onClick={handleCopyMessage}
+                  >
+                    <div className="flex items-center justify-center">
+                      {copySuccess ? (
+                        <>
+                          <Check className="h-4 w-4 flex-shrink-0 text-[var(--brand-default)] dark:text-[var(--brand-fainter)]" />
+                          <span className="ml-2 text-xs text-[var(--brand-default)] dark:text-[var(--brand-default)]">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4 flex-shrink-0 group-hover:mr-2 transition-all duration-300 ease-in-out" />
+                          <span className="max-w-0 group-hover:max-w-0 sm:group-hover:max-w-xs transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap text-xs">
+                            Copy text
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </Button>
+                  {message.completed && typeof message.tps === 'number' && message.tps > 0 && (
+                    <TooltipProvider delayDuration={100}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap cursor-help">
+                            {message.tps.toFixed(1)} tokens/s
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Frontend-perceived throughput. <br /> Includes network and processing time.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -161,7 +174,8 @@ const ChatMessages = memo(function ChatMessages({
   selectedModelObj,
   isExa,
   currentThreadId,
-  bottomPadding
+  bottomPadding,
+  onQuote
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messageCount, setMessageCount] = useState(0);
@@ -199,9 +213,10 @@ const ChatMessages = memo(function ChatMessages({
         message={message}
         isUser={message.role === 'user'}
         threadId={currentThreadId}
+        onQuote={onQuote}
       />
     );
-  }, [currentThreadId]);
+  }, [currentThreadId, onQuote]);
 
   return (
     <div

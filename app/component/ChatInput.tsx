@@ -68,6 +68,8 @@ interface ChatInputProps {
   activeChatFiles?: Array<{ name: string; type: string; uri: string }>;
   removeActiveFile?: (uri: string) => void;
   onActiveFilesHeightChange?: (height: number) => void;
+  quotedText?: string;
+  setQuotedText?: (text: string) => void;
 }
 
 // Define command mode state type
@@ -86,7 +88,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   onAttachmentsChange,
   activeChatFiles,
   removeActiveFile,
-  onActiveFilesHeightChange
+  onActiveFilesHeightChange,
+  quotedText,
+  setQuotedText
 }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -189,21 +193,25 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   }, [handleInputChange]);
   // --- End Modify --- 
 
-  // Modified submit handler to include attachments
+  // Modified submit handler to include attachments and quote
   const handleSubmitWithAttachments = (e: React.FormEvent) => {
     e.preventDefault();
-    
     // Extract files from attachments
     const files = attachments.map(att => att.file);
-    
     // Notify parent component about attachments if the callback exists
     if (onAttachmentsChange) {
       onAttachmentsChange(files);
     }
-    
-    // Call the original handleSubmit, now we've passed the files to the parent
-    handleSubmit(e);
-    
+    // If there's a quote, prepend it as markdown to the input
+    if (quotedText && quotedText.trim().length > 0) {
+      // Call handleInputChange with the quoted text prepended
+      handleInputChange(`> ${quotedText.replace(/\n/g, '\n> ')}\n\n${input}`);
+      if (setQuotedText) setQuotedText('');
+      // Call the original handleSubmit after updating input
+      setTimeout(() => handleSubmit(e), 0);
+    } else {
+      handleSubmit(e);
+    }
     // Clear attachments after submit
     attachments.forEach(attachment => {
       if (attachment.previewUrl) {
@@ -305,10 +313,36 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   };
   // --- End Determine --- 
 
+  // Helper to truncate quoted text for display
+  const getTruncatedQuote = (text: string) => {
+    if (!text) return '';
+    const words = text.split(/\s+/);
+    if (words.length > 100) {
+      return words.slice(0, 100).join(' ') + ' ...';
+    }
+    return text;
+  };
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 md:max-w-4xl mx-auto">
       <div className="w-full bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] rounded-lg shadow-lg p-3 relative">
         <form onSubmit={handleSubmitWithAttachments} className="relative flex flex-col w-full">
+          {/* Quote block UI */}
+          {quotedText && quotedText.trim().length > 0 && (
+            <div className="flex items-start bg-[var(--secondary-faint)] border-l-4 border-[var(--brand-default)] rounded-md p-3 mb-2 relative">
+              <span className="text-[var(--text-light-muted)] text-sm flex-1 whitespace-pre-line">{getTruncatedQuote(quotedText)}</span>
+              {setQuotedText && (
+                <button
+                  type="button"
+                  className="ml-2 text-gray-400 hover:text-gray-700 absolute top-2 right-2"
+                  onClick={() => setQuotedText('')}
+                  aria-label="Remove quote"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              )}
+            </div>
+          )}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center flex-shrink overflow-hidden max-w-[65%] sm:max-w-none">
               <label htmlFor="chat-model-selector" className="text-sm text-[var(--text-light-muted)] mr-2 hidden sm:inline font-medium">Model:</label>

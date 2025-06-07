@@ -12,6 +12,7 @@ export interface Message {
   images?: ImageData[];
   attachments?: FileAttachment[];
   provider?: string;
+  quotedText?: string;
 }
 
 export interface ImageData {
