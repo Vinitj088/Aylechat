@@ -516,13 +516,13 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     return (
       <main className="flex min-h-screen flex-col">
         {/* Header - Mobile only */}
-        <div className="md:hidden">
+        <div className="lg:hidden">
           <Header toggleSidebar={toggleSidebar} />
         </div>
         {/* Fixed Ayle Logo - Desktop only */}
         <Link
           href="/"
-          className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
+          className="hidden lg:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
           onClick={(e) => {
             e.preventDefault();
             window.location.href = '/';
@@ -568,8 +568,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
             onActiveFilesHeightChange={handleActiveFilesHeightChange}
           />
         </div>
-        {/* Fixed Theme Toggle - Desktop only */}
-        <div className="hidden md:block fixed bottom-4 left-4 z-50">
+        {/* Fixed Theme Toggle - Desktop only, only for lg and up */}
+        <div className="hidden lg:block fixed bottom-4 left-4 z-50">
           <ThemeToggle />
         </div>
       </main>
@@ -579,13 +579,13 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   return (
     <main className="flex min-h-screen flex-col">
          {/* Header - Mobile only */}
-<div className="md:hidden">
+<div className="lg:hidden">
   <Header toggleSidebar={toggleSidebar} />
 </div>
 {/* Fixed Ayle Logo - Desktop only */}
 <Link
   href="/"
-  className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
+  className="hidden lg:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
   onClick={(e) => {
     e.preventDefault();
     window.location.href = '/';
@@ -678,8 +678,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           }
         }}
       />
-      {/* Fixed Theme Toggle - Desktop only */}
-      <div className="hidden md:block fixed bottom-4 left-4 z-50">
+      {/* Fixed Theme Toggle - Desktop only, only for lg and up */}
+      <div className="hidden lg:block fixed bottom-4 left-4 z-50">
         <ThemeToggle />
       </div>
     </main>

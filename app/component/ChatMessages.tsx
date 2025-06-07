@@ -26,15 +26,15 @@ interface ChatMessagesProps {
 
 // Memoized message component to prevent unnecessary re-renders
 const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isUser: boolean, threadId?: string | null | undefined }) => {
-  
+
   const [copySuccess, setCopySuccess] = useState(false);
-  
+
   const handleCopyMessage = async () => {
     try {
       await navigator.clipboard.writeText(message.content || '');
       setCopySuccess(true);
       toast.success('Message copied to clipboard');
-      
+
       // Reset the status after 2 seconds
       setTimeout(() => {
         setCopySuccess(false);
@@ -44,7 +44,7 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
       toast.error('Failed to copy message');
     }
   };
-  
+
   // Debug log for message properties
   if (!isUser) {
     console.log(`ChatMessage (Assistant, ID: ${message.id}):`, {
@@ -57,17 +57,17 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
       hasMediaData: !!message.mediaData
     });
   }
-  
+
   return (
     <div className="w-full">
       <div
         className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
       >
         <div
-          className={`rounded-lg px-4 ${isUser
-            ? 'bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base max-w-[75%] py-1'
-            : ' border border-[var(--secondary-darkest)] text-[var(--text-light-default)] text-base message-ai py-3 w-full md:bg-white md:dark:bg-[var(--secondary-faint)] md:border md:border-[var(--secondary-darkest)] bg-transparent border-0 px-1 md:px-4'
-          }`}
+          className={`rounded-lg px-4 group ${isUser
+            ? 'bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base max-w-[75%] py-0.5'
+            : 'text-[var(--text-light-default)] text-base message-ai py-3 w-full bg-transparent border-0 px-1 md:px-4'
+            }`}
         >
           {!isUser && message.mediaData && (
             <div className="mb-3">
@@ -75,9 +75,9 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
             </div>
           )}
           <div className="whitespace-pre-wrap text-[15px]">
-            <MessageContent 
-              content={message.content || ''} 
-              role={message.role} 
+            <MessageContent
+              content={message.content || ''}
+              role={message.role}
               images={message.images}
               attachments={message.attachments}
               provider={message.provider}
@@ -87,12 +87,12 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
             <Citation citations={message.citations} />
           )}
           {!isUser && message.content && message.content.length > 0 && (
-            <div className="mt-2 flex items-center justify-end gap-2 pt-2 md:border-t md:border-gray-100 md:dark:border-gray-700 border-0 px-1 md:px-0">
+            <div className="mt-2 flex items-center justify-end gap-2 pt-2 border-0 px-1 md:px-0 opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
               <div className="flex items-center space-x-1 sm:space-x-2">
                 <ShareButton threadId={threadId} />
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="px-2 sm:px-3 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 group h-8 rounded-md transition-all duration-300 ease-in-out overflow-hidden"
                   aria-label="Copy message"
                   onClick={handleCopyMessage}
@@ -114,7 +114,7 @@ const ChatMessage = memo(({ message, isUser, threadId }: { message: Message, isU
                   </div>
                 </Button>
                 {message.completed && typeof message.tps === 'number' && message.tps > 0 && (
-                  <TooltipProvider delayDuration={100}> 
+                  <TooltipProvider delayDuration={100}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap cursor-help">
@@ -154,12 +154,12 @@ const LoadingIndicator = memo(({ isExa, modelName }: { isExa: boolean, modelName
 // Add display name to the component
 LoadingIndicator.displayName = 'LoadingIndicator';
 
-const ChatMessages = memo(function ChatMessages({ 
-  messages, 
-  isLoading, 
+const ChatMessages = memo(function ChatMessages({
+  messages,
+  isLoading,
   selectedModel,
   selectedModelObj,
-  isExa, 
+  isExa,
   currentThreadId,
   bottomPadding
 }: ChatMessagesProps) {
@@ -167,19 +167,19 @@ const ChatMessages = memo(function ChatMessages({
   const [messageCount, setMessageCount] = useState(0);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  
+
   // Track message count to only scroll when new messages are added
   useEffect(() => {
     if (messages.length !== messageCount) {
       setMessageCount(messages.length);
-      
+
       // Scroll to bottom only when a new message is added
       if (messagesEndRef.current) {
         messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
       }
     }
   }, [messages.length, messageCount]);
-  
+
   // Scroll when loading state changes from false to true
   useEffect(() => {
     if (isLoading) {
@@ -194,27 +194,27 @@ const ChatMessages = memo(function ChatMessages({
 
   const renderMessage = useCallback((message: Message) => {
     return (
-      <ChatMessage 
-        key={message.id} 
-        message={message} 
-        isUser={message.role === 'user'} 
+      <ChatMessage
+        key={message.id}
+        message={message}
+        isUser={message.role === 'user'}
         threadId={currentThreadId}
       />
     );
   }, [currentThreadId]);
 
   return (
-    <div 
+    <div
       className="flex-1 overflow-y-auto pt-16 pb-[120px] md:px-4 md:pb-[150px] scroll-smooth relative"
       style={{ paddingBottom: `${(bottomPadding ?? 0) + 150}px` }}
     >
       <div className="w-full max-w-full md:max-w-4xl mx-auto px-2 md:px-4 py-6 space-y-6">
         {messages.map(renderMessage)}
-        
+
         {isLoading && (
           <LoadingIndicator isExa={isExa} modelName={modelName} />
         )}
-        
+
         {/* Empty div for auto-scrolling to bottom */}
         <div ref={messagesEndRef} />
       </div>
