@@ -47,6 +47,10 @@ interface DesktopSearchUIProps {
   description: string;
   messages: { id: string; role: string; content: string }[];
   onAttachmentsChange?: (files: File[]) => void;
+  isGuest: boolean;
+  guestMessageCount: number;
+  guestMessageLimit: number;
+  openAuthDialog: () => void;
 }
 
 const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
@@ -60,11 +64,17 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   setInput,
   description,
   messages,
-  onAttachmentsChange
+  onAttachmentsChange,
+  isGuest,
+  guestMessageCount,
+  guestMessageLimit,
+  openAuthDialog,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
+
+  const disableInput = isGuest && guestMessageCount >= guestMessageLimit;
 
   // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -203,6 +213,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
               placeholder:text-[var(--text-light-subtle)] resize-none min-h-[46px] max-h-[120px]
               scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent dark:focus:outline-none"
               style={{ lineHeight: '1.5' }}
+              disabled={disableInput}
             />
             
             <div className="flex items-center justify-between px-2 py-2 border-t border-[var(--secondary-darkest)]">
@@ -234,7 +245,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
 
                 <button
                   type="submit"
-                  disabled={!input.trim() || isLoading}
+                  disabled={!input.trim() || isLoading || disableInput}
                   className="bg-[var(--brand-default)] text-white px-6 py-2 rounded-md font-medium
                   disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 dark:bg-[var(--brand-dark)] dark:hover:bg-[var(--brand-muted)]"
                 >
@@ -302,6 +313,12 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
           </div>
         </div>
       </div>
+      {disableInput && (
+        <div className="flex flex-col items-center justify-center py-4">
+          <p className="text-lg font-semibold mb-2">Sign in to unlock unlimited messages and advanced features</p>
+          <button className="px-4 py-2 bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] text-white rounded-md" onClick={openAuthDialog}>Sign In</button>
+        </div>
+      )}
     </div>
   );
 };

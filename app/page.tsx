@@ -95,6 +95,12 @@ function PageContent() {
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
   const { addThread } = useThreadCache();
+  const GUEST_MESSAGE_LIMIT = 3;
+  const GUEST_MESSAGE_KEY = 'guestMessageCount';
+  const [guestMessageCount, setGuestMessageCount] = useState(0);
+  const [guestCountLoaded, setGuestCountLoaded] = useState(false);
+  const isGuest = !user;
+  const prevGuestMessageCount = useRef(guestMessageCount);
 
   const isAuthenticated = !!user;
 
@@ -322,6 +328,69 @@ function PageContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() && attachments.length === 0) return;
+
+    // Guest logic: allow up to 3 real AI messages, then block
+    if (isGuest) {
+      if (guestMessageCount >= GUEST_MESSAGE_LIMIT) {
+        openAuthDialog();
+        return;
+      }
+      // Add the user message to the messages array (temporary, not persisted)
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: input
+      };
+      if (attachments.length > 0) {
+        userMessage.attachments = attachments.map(file => ({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        }));
+      }
+      setInput('');
+      setIsLoading(true);
+      // Add user message and placeholder assistant message
+      const assistantMessage: Message = {
+        id: `ai-${Date.now()}`,
+        role: 'assistant',
+        content: '...'
+      };
+      setMessages(prev => [...prev, userMessage, assistantMessage]);
+      setGuestMessageCount(count => {
+        const newCount = count + 1;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(GUEST_MESSAGE_KEY, newCount.toString());
+        }
+        return newCount;
+      });
+      try {
+        abortControllerRef.current = new AbortController();
+        const completedAssistantMessage = await fetchResponse(
+          input,
+          messages,
+          selectedModel,
+          abortControllerRef.current,
+          (updatedMessages: Message[]) => {
+            setMessages(updatedMessages);
+          },
+          assistantMessage,
+          attachments,
+          activeChatFiles,
+          handleFileUploaded
+        );
+        setMessages(prev => prev.map(msg =>
+          msg.id === assistantMessage.id ? completedAssistantMessage : msg
+        ));
+      } catch (error) {
+        setMessages(prev => prev.map(msg =>
+          msg.id === assistantMessage.id ? { ...msg, content: 'Error: Failed to get response.' } : msg
+        ));
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
 
     // If not authenticated, show auth dialog and keep the message in the input
     if (!isAuthenticated || !user) {
@@ -810,41 +879,76 @@ function PageContent() {
     setChatInputHeightOffset(height > 0 ? height + 8 : 0); // Add some padding if height > 0
   }, []);
 
+  // Optionally, on sign-in, clear the guest counter:
+  useEffect(() => {
+    if (user) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(GUEST_MESSAGE_KEY);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(GUEST_MESSAGE_KEY);
+      setGuestMessageCount(stored ? parseInt(stored, 10) : 0);
+      setGuestCountLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Only show toast if the count increased (i.e., after a message is sent)
+    if (
+      isGuest &&
+      guestCountLoaded &&
+      guestMessageCount > 0 &&
+      guestMessageCount < GUEST_MESSAGE_LIMIT &&
+      guestMessageCount > prevGuestMessageCount.current
+    ) {
+      toast.info(
+        `${GUEST_MESSAGE_LIMIT - guestMessageCount} message${GUEST_MESSAGE_LIMIT - guestMessageCount === 1 ? '' : 's'} remaining`
+      );
+    }
+    prevGuestMessageCount.current = guestMessageCount;
+  }, [guestMessageCount, isGuest, guestCountLoaded]);
+
   return (
     <main className="flex min-h-screen flex-col">
       {/* Header - Mobile only */}
-<div className="md:hidden">
-  <Header toggleSidebar={toggleSidebar} />
-</div>
-{/* Fixed Ayle Logo - Desktop only */}
-<Link
-  href="/"
-  className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
-  onClick={(e) => {
-    e.preventDefault();
-    window.location.href = '/';
-  }}
->
-  <span 
-    className="text-3xl text-[var(--brand-default)]"
-    style={{ 
-      fontFamily: 'var(--font-gebuk-regular)',
-      letterSpacing: '0.05em',
-      fontWeight: 'normal',
-      position: 'relative',
-      padding: '0 4px'
-    }}
-  >
-    Ayle
-  </span>
-</Link>
-      {/* <Header toggleSidebar={toggleSidebar} /> */}
-      <DynamicSidebar 
-        isOpen={isSidebarOpen} 
-        onClose={() => setIsSidebarOpen(false)} 
-        onSignInClick={openAuthDialog}
-        refreshTrigger={refreshSidebar}
-      />
+      <div className="md:hidden">
+        <Header toggleSidebar={toggleSidebar} />
+      </div>
+      {/* Fixed Ayle Logo - Desktop only */}
+      <Link
+        href="/"
+        className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
+        onClick={(e) => {
+          e.preventDefault();
+          window.location.href = '/';
+        }}
+      >
+        <span 
+          className="text-3xl text-[var(--brand-default)]"
+          style={{ 
+            fontFamily: 'var(--font-gebuk-regular)',
+            letterSpacing: '0.05em',
+            fontWeight: 'normal',
+            position: 'relative',
+            padding: '0 4px'
+          }}
+        >
+          Ayle
+        </span>
+      </Link>
+      {/* Sidebar: only for authenticated users */}
+      {user && (
+        <DynamicSidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+          onSignInClick={openAuthDialog}
+          refreshTrigger={refreshSidebar}
+        />
+      )}
       
       {!hasMessages ? (
         <>
@@ -860,6 +964,10 @@ function PageContent() {
             messages={messages}
             description={description}
             onAttachmentsChange={setAttachments}
+            isGuest={isGuest}
+            guestMessageCount={guestMessageCount}
+            guestMessageLimit={GUEST_MESSAGE_LIMIT}
+            openAuthDialog={openAuthDialog}
           />
           <DesktopSearchUI 
             input={input}
@@ -873,6 +981,10 @@ function PageContent() {
             description={description}
             messages={messages}
             onAttachmentsChange={setAttachments}
+            isGuest={isGuest}
+            guestMessageCount={guestMessageCount}
+            guestMessageLimit={GUEST_MESSAGE_LIMIT}
+            openAuthDialog={openAuthDialog}
           />
         </>
       ) : (
@@ -887,30 +999,38 @@ function PageContent() {
             bottomPadding={chatInputHeightOffset}
           />
 
-          {hasMessages && (
-            <DynamicChatInput 
-              ref={chatInputRef}
-              input={input}
-              handleInputChange={handleInputChange}
-              handleSubmit={handleSubmit}
-              isLoading={isLoading}
-              selectedModel={selectedModel}
-              handleModelChange={handleModelChange}
-              models={models}
-              isExa={isExa}
-              onNewChat={handleNewChat}
-              onAttachmentsChange={setAttachments}
-              activeChatFiles={activeChatFiles}
-              removeActiveFile={removeActiveFile}
-              onActiveFilesHeightChange={handleActiveFilesHeightChange}
-            />
+          {/* Chat input: block for guest after 3 messages */}
+          {(!isGuest || guestMessageCount < GUEST_MESSAGE_LIMIT) ? (
+            hasMessages && (
+              <DynamicChatInput 
+                ref={chatInputRef}
+                input={input}
+                handleInputChange={handleInputChange}
+                handleSubmit={handleSubmit}
+                isLoading={isLoading}
+                selectedModel={selectedModel}
+                handleModelChange={handleModelChange}
+                models={models}
+                isExa={isExa}
+                onNewChat={handleNewChat}
+                onAttachmentsChange={setAttachments}
+                activeChatFiles={activeChatFiles}
+                removeActiveFile={removeActiveFile}
+                onActiveFilesHeightChange={handleActiveFilesHeightChange}
+              />
+            )
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+              <p className="text-lg font-semibold mb-2">Sign in to unlock unlimited messages and advanced features</p>
+              <button className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all" onClick={openAuthDialog}>Sign In</button>
+            </div>
           )}
         </>
       )}
-{/* Fixed Theme Toggle - Desktop only */}
-<div className="hidden md:block fixed bottom-4 left-4 z-50">
-  <ThemeToggle />
-</div>
+      {/* Fixed Theme Toggle - Desktop only */}
+      <div className="hidden md:block fixed bottom-4 left-4 z-50">
+        <ThemeToggle />
+      </div>
     </main>
   );
 }

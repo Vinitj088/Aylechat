@@ -95,6 +95,11 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
     }
   }, [shouldShowSidebar, isAuthenticated, user, isLoading, threads.length, fetchThreads]);
 
+  // Hide sidebar for guests (after all hooks)
+  if (!user) {
+    return null;
+  }
+
   const handleThreadClick = (threadId: string) => {
     router.push(`/chat/${threadId}`)
     if (isMobile) {

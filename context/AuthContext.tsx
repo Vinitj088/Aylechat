@@ -11,6 +11,7 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   isLoading: boolean;
+  isAnonymous: boolean;
   signIn: (email: string, password: string) => Promise<{
     error: AuthError | null;
     success: boolean;
@@ -44,6 +45,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  // Helper to extract is_anonymous from user or session
+  const getIsAnonymous = (user: User | null, session: Session | null): boolean => {
+    if (user && typeof user.is_anonymous === 'boolean') {
+      return user.is_anonymous;
+    }
+    // Fallback: try to decode JWT if available
+    if (session && session.access_token) {
+      try {
+        const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+        if (typeof payload.is_anonymous === 'boolean') {
+          return payload.is_anonymous;
+        }
+      } catch (e) {
+        // Ignore decoding errors
+      }
+    }
+    return false;
+  };
+
+  const isAnonymous = getIsAnonymous(user, session);
 
   const refreshSession = async (): Promise<boolean> => {
     try {
@@ -270,6 +292,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     user,
     isLoading,
+    isAnonymous,
     signIn,
     signUp,
     signOut,
