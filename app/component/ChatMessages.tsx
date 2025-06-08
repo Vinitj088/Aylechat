@@ -216,27 +216,6 @@ const ChatMessages = memo(function ChatMessages({
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [showScrollButton, setShowScrollButton] = useState(false)
 
-  // Track message count to only scroll when new messages are added
-  useEffect(() => {
-    if (messages.length !== messageCount) {
-      setMessageCount(messages.length)
-
-      // Scroll to bottom only when a new message is added
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
-      }
-    }
-  }, [messages.length, messageCount])
-
-  // Scroll when loading state changes from false to true
-  useEffect(() => {
-    if (isLoading) {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
-      }
-    }
-  }, [isLoading])
-
   // Get the model name for display
   const modelName = (selectedModelObj?.name as string) || ""
 
@@ -255,6 +234,15 @@ const ChatMessages = memo(function ChatMessages({
     },
     [currentThreadId, onQuote, onRetry],
   )
+
+  // Scroll to bottom only on initial mount (when thread is opened), with no animation
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "auto" })
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div
