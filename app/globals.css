@@ -274,11 +274,14 @@ p, span, div, li, button, input, textarea {
   text-decoration: underline;
 }
 
-.prose code {
-  background-color: var(--secondary-darker);
-  padding: 0.2em 0.4em;
-  border-radius: 0.25em;
-  font-size: 0.875em;
+.prose code:not(pre code) {
+  background: #e0e0e0 !important;
+  color: #1a1a1a !important;
+  font-size: 1em;
+  font-weight: 600;
+  border-radius: 0.45em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  box-shadow: none;
 }
 
 .prose pre code {
@@ -287,9 +290,15 @@ p, span, div, li, button, input, textarea {
 }
 
 /* Dark mode styles for code blocks */
-.dark .prose code {
-  /* background-color: rgba(255, 255, 255, 0.1); */
-  color: var(--text-light-default);
+.dark .prose code:not(pre code) {
+  background: #262626 !important;
+  color: #e6e6e6 !important;
+  font-size: 1em;
+  font-weight: 600;
+  padding: 0.22em 0.55em;
+  border-radius: 0.45em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  box-shadow: none;
 }
 
 .dark .prose pre {
@@ -679,3 +688,11 @@ pre code {
   ::-webkit-scrollbar-thumb:hover {
   background-color: rgba(0, 0, 0, 0.4); /* Darker grey on hover */
   }
+
+.dark .prose, .dark .prose * {
+  color: #c4c4c4;
+}
+
+.dark .prose b, .dark .prose strong {
+  color: #d4d4d4;
+}

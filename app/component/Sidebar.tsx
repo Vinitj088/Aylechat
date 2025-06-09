@@ -35,6 +35,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [threadToDelete, setThreadToDelete] = useState<string | null>(null)
 
   const router = useRouter()
   const pathname = usePathname()
@@ -102,13 +103,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
     }
   }
 
-  const handleDeleteThread = async (threadId: string, event: React.MouseEvent) => {
-    event.stopPropagation()
-
-    if (!confirm("Are you sure you want to delete this chat thread?")) {
-      return
-    }
-
+  const handleDeleteThread = async (threadId: string) => {
     try {
       const response = await fetch(getAssetPath(`/api/chat/threads/${threadId}`), {
         method: "DELETE",
@@ -139,6 +134,12 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
         description: "Please check your connection and try again",
       })
     }
+  }
+
+  const handleConfirmDeleteThread = async () => {
+    if (!threadToDelete) return;
+    await handleDeleteThread(threadToDelete);
+    setThreadToDelete(null);
   }
 
   const handleSignOut = async () => {
@@ -314,7 +315,10 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                           {thread.title}
                         </div>
                         <button
-                          onClick={(e) => handleDeleteThread(thread.id, e)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setThreadToDelete(thread.id);
+                          }}
                           className="p-1 text-[var(--text-light-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-maroon-light)] rounded-full transition-colors"
                           title="Delete thread"
                         >
@@ -391,6 +395,27 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmClearAll} className="bg-red-600 hover:bg-red-700 text-white">
               Yes, delete all history
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Thread delete dialog */}
+      <AlertDialog open={!!threadToDelete} onOpenChange={(open) => { if (!open) setThreadToDelete(null); }}>
+        <AlertDialogContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Delete this chat thread?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this chat thread and remove its data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDeleteThread} className="bg-red-600 hover:bg-red-700 text-white">
+              Yes, delete thread
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
