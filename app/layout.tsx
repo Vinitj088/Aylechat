@@ -7,6 +7,7 @@ import Script from 'next/script';
 import { Instrument_Sans, Space_Grotesk } from 'next/font/google';
 import { gebukRegular } from './fonts';
 import { Geist } from 'next/font/google';
+import BorderRadiusInitializer from './component/BorderRadiusInitializer';
 // Configure fonts
 const instrumentSans = Instrument_Sans({
   subsets: ['latin'],
@@ -58,6 +59,7 @@ export default function RootLayout({
       </head>
       <body className={GeistSans.className}>
         <Providers>
+          <BorderRadiusInitializer />
           <div className="w-full overflow-x-hidden">
             {children}
           </div>

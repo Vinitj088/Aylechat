@@ -127,9 +127,10 @@ const config: Config = {
   			}
   		},
   		borderRadius: {
-  			lg: 'var(--radius)',
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			DEFAULT: 'var(--border-radius-default)',
+  			lg: 'var(--border-radius-default)',
+  			md: 'calc(var(--border-radius-default) - 2px)',
+  			sm: 'calc(var(--border-radius-default) - 4px)'
   		},
   		backgroundImage: {
   			'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
