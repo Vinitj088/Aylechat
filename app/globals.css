@@ -467,7 +467,7 @@ p, span, div, li, button, input, textarea {
 }
 
 .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
-  margin-top: 1.8em !important;
+  margin-top: 0.8em !important;
   margin-bottom: 0.8em !important;
 }
 
@@ -695,4 +695,9 @@ pre code {
 
 .dark .prose b, .dark .prose strong {
   color: #d4d4d4;
+}
+
+/* Force rounded corners for user chat bubbles, override all */
+.chat-bubble-user {
+  border-radius: 0.25rem !important; /* 12px, matches Tailwind rounded-lg */
 }

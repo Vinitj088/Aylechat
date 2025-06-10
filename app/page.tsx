@@ -952,6 +952,14 @@ function PageContent() {
     }, 100);
   }, []);
 
+  // --- Guest model filtering ---
+  const guestModels = models.filter(
+    (model) =>
+      model.id === 'gemini-2.0-flash' ||
+      model.id === 'gemini-2.5-flash-preview-05-20' ||
+      model.providerId === 'cerebras'
+  );
+
   return (
     <main className="flex min-h-screen flex-col">
       {/* Header - Mobile only */}
@@ -997,7 +1005,7 @@ function PageContent() {
             isLoading={isLoading}
             selectedModel={selectedModel}
             handleModelChange={handleModelChange}
-            models={models}
+            models={isGuest ? guestModels : models}
             setInput={setInput}
             messages={messages}
             description={description}
@@ -1014,7 +1022,7 @@ function PageContent() {
             isLoading={isLoading}
             selectedModel={selectedModel}
             handleModelChange={handleModelChange}
-            models={models}
+            models={isGuest ? guestModels : models}
             setInput={setInput}
             description={description}
             messages={messages}
@@ -1050,7 +1058,7 @@ function PageContent() {
                 isLoading={isLoading}
                 selectedModel={selectedModel}
                 handleModelChange={handleModelChange}
-                models={models}
+                models={isGuest ? guestModels : models}
                 isExa={isExa}
                 onNewChat={handleNewChat}
                 onAttachmentsChange={setAttachments}

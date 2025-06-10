@@ -87,11 +87,11 @@ const ChatMessage = memo(
             )}
             {/* Main message bubble */}
             <div
-              className={`rounded-lg px-4 ${
+              className={
                 isUser
-                  ? "bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base py-0.5"
+                  ? "chat-bubble-user !rounded-lg bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base py-0.5 px-4"
                   : "w-full text-[var(--text-light-default)] text-base message-ai py-3 border-0 px-1 md:px-4"
-              }`}
+              }
             >
               {!isUser && message.mediaData && (
                 <div className="mb-3">

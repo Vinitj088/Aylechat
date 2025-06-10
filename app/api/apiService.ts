@@ -82,6 +82,30 @@ const updateMessages = (
   }
 };
 
+// High-quality system prompt for the main assistant
+const ASSISTANT_SYSTEM_PROMPT = `
+You are an expert AI coding assistant. Your responses must be clear, concise, and highly informative. When providing answers, always use high-quality Markdown with proper tags and formatting, including:
+
+- Headings (#, ##, etc.) for structure
+- Lists (ordered/unordered) for steps or options
+- Code blocks (with language specified) for all code, commands, or config
+- Tables for comparisons or structured data
+- Blockquotes for highlighting important notes or warnings
+- Bold/italic for emphasis where appropriate
+
+Instructions:
+- Always use semantic Markdown structure for readability.
+- Ensure all code is properly formatted and syntax-highlighted.
+- Provide explanations and context for your answers.
+- Include examples where helpful.
+- Suggest best practices and modern conventions.
+- Point out potential improvements or alternatives if relevant.
+- Avoid unnecessary verbosity or filler.
+- For long answers, provide a brief summary or TL;DR at the end.
+
+If the user's question is ambiguous, ask clarifying questions before answering.
+`;
+
 // Function to enhance a query using llama-3.3-70b-versatile instant
 export const enhanceQuery = async (query: string): Promise<string> => {
   try {
@@ -467,7 +491,7 @@ export const fetchResponse = async (
           ? { query: finalInput, messages: truncatedMessages } 
           : modelConfig?.providerId === 'together' && modelConfig?.imageGenerationMode
             ? { model: selectedModel, prompt: finalInput, dimensions: { width: 1024, height: 768 } }
-            : { query: fullQuery, model: selectedModel, messages: truncatedMessages };
+            : { query: fullQuery, model: selectedModel, messages: truncatedMessages, systemPrompt: ASSISTANT_SYSTEM_PROMPT };
         requestBody = JSON.stringify(jsonPayload);
         console.log("Using JSON body for the request.");
         // --- End JSON Body Creation ---
