@@ -68,7 +68,7 @@
   --accent: var(--brand-default);
   --accent-background: var(--brand-default);
   --border-default: var(--gray-300);
-  --border-radius-default: 0.5rem;
+  --border-radius-default: 0px;
 
   /* Typography - These are now handled by variables set in layout.tsx */
   /* --font-family-sans: 'Instrument Sans', sans-serif; */
@@ -174,7 +174,7 @@ p, span, div, li, button, input, textarea {
 
 :root {
   --border-default: var(--gray-300);
-  --border-radius-default: 0.5rem;
+  --border-radius-default: 0px;
 
   /* Typography - These are now handled by variables set in layout.tsx */
   /* --font-family-sans: 'Instrument Sans', sans-serif; */
