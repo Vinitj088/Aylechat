@@ -18,6 +18,8 @@ import React from 'react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useThreadCache } from '@/context/ThreadCacheContext';
+import { cn } from '@/lib/utils';
+import { useSidebarPin } from '../../../context/SidebarPinContext';
 
 export default function ChatThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -51,6 +53,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const { threads: cachedThreads, updateThread } = useThreadCache();
   const [quotedText, setQuotedText] = useState('');
   const [retriedMessageId, setRetriedMessageId] = useState<string | null>(null);
+  const { pinned, setPinned } = useSidebarPin();
 
   const isAuthenticated = !!user;
 
@@ -193,7 +196,11 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   };
 
   const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
+    if (pinned) {
+      setPinned(false);
+    } else {
+      setIsSidebarOpen(true);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent, files?: File[]) => {
@@ -550,9 +557,25 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     }, 100);
   }, []);
 
+  // Auto-unpin sidebar on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1300 && pinned) setPinned(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [pinned, setPinned]);
+
   if (isThreadLoading) {
     return (
-      <main className="flex min-h-screen flex-col">
+      <div className={cn(
+        pinned ? "ayle-grid-layout" : "",
+        "min-h-screen w-full"
+      )}>
+        <main className={cn(
+          "flex flex-col flex-1 min-h-screen",
+          pinned ? "ayle-main-pinned" : ""
+        )}>
         {/* Header - Mobile only */}
         <div className="lg:hidden">
           <Header toggleSidebar={toggleSidebar} />
@@ -560,7 +583,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         {/* Fixed Ayle Logo - Desktop only */}
         <Link
           href="/"
-          className="hidden lg:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
+            className={cn("hidden lg:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]", pinned ? "sidebar-pinned-fixed" : "")}
           onClick={(e) => {
             e.preventDefault();
             window.location.href = '/';
@@ -580,12 +603,14 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           </span>
         </Link>
         <Sidebar
-          isOpen={isSidebarOpen}
+          isOpen={pinned || isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
           onSignInClick={() => setShowAuthDialog(true)}
+            refreshTrigger={refreshSidebar}
+            pinned={pinned}
+            setPinned={setPinned}
         />
         {/* ChatMessages skeleton or empty space while loading */}
-        <div className="flex-1 flex flex-col">
           <div className="flex-1">
             {/* Optionally, you can add a skeleton here for ChatMessages */}
           </div>
@@ -606,18 +631,26 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
             onActiveFilesHeightChange={handleActiveFilesHeightChange}
             quotedText={quotedText}
             setQuotedText={setQuotedText}
+            sidebarPinned={pinned}
           />
-        </div>
         {/* Fixed Theme Toggle - Desktop only, only for lg and up */}
-        <div className="hidden lg:block fixed bottom-4 left-4 z-50">
+          <div className={cn("hidden lg:block fixed bottom-4 left-4 z-50", pinned ? "sidebar-pinned-fixed" : "")}>
           <ThemeToggle />
         </div>
       </main>
+      </div>
     );
   }
 
   return (
-    <main className="flex min-h-screen flex-col">
+    <div className={cn(
+      pinned ? "ayle-grid-layout" : "",
+      "min-h-screen w-full"
+    )}>
+      <main className={cn(
+        "flex flex-col flex-1 min-h-screen",
+        pinned ? "ayle-main-pinned" : ""
+      )}>
          {/* Header - Mobile only */}
 <div className="lg:hidden">
   <Header toggleSidebar={toggleSidebar} />
@@ -625,7 +658,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 {/* Fixed Ayle Logo - Desktop only */}
 <Link
   href="/"
-  className="hidden lg:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
+          className={cn("hidden lg:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]", pinned ? "sidebar-pinned-fixed" : "")}
   onClick={(e) => {
     e.preventDefault();
     window.location.href = '/';
@@ -645,10 +678,12 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   </span>
 </Link>
       <Sidebar
-        isOpen={isSidebarOpen}
+        isOpen={pinned || isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onSignInClick={() => setShowAuthDialog(true)}
         refreshTrigger={refreshSidebar}
+          pinned={pinned}
+          setPinned={setPinned}
       />
 
       <ChatMessages
@@ -680,6 +715,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         onActiveFilesHeightChange={handleActiveFilesHeightChange}
         quotedText={quotedText}
         setQuotedText={setQuotedText}
+          sidebarPinned={pinned}
       />
 
       {/* Auth Dialog */}
@@ -723,9 +759,10 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         }}
       />
       {/* Fixed Theme Toggle - Desktop only, only for lg and up */}
-      <div className="hidden lg:block fixed bottom-4 left-4 z-50">
+        <div className={cn("hidden lg:block fixed bottom-4 left-4 z-50", pinned ? "sidebar-pinned-fixed" : "")}>
         <ThemeToggle />
       </div>
     </main>
+    </div>
   );
 } 
