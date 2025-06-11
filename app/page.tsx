@@ -28,6 +28,8 @@ import { prefetchAll } from './api/prefetch';
 import { FileUp, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useThreadCache } from '@/context/ThreadCacheContext';
+import { cn } from '@/lib/utils';
+import { useSidebarPin } from '../context/SidebarPinContext';
 
 // Helper function to get provider description
 const getProviderDescription = (providerName: string | undefined): string => {
@@ -83,7 +85,7 @@ function PageContent() {
       searchMode: true
     }
   ]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { pinned, setPinned } = useSidebarPin();
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -103,6 +105,7 @@ function PageContent() {
   const prevGuestMessageCount = useRef(guestMessageCount);
   const [quotedText, setQuotedText] = useState('');
   const [retriedMessageId, setRetriedMessageId] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const isAuthenticated = !!user;
 
@@ -697,7 +700,11 @@ function PageContent() {
   };
 
   const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
+    if (pinned) {
+      setPinned(false);
+    } else {
+      setIsSidebarOpen(true);
+    }
   };
 
   // Handle successful auth
@@ -960,128 +967,146 @@ function PageContent() {
       model.providerId === 'cerebras'
   );
 
+  // Auto-unpin sidebar on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1300 && pinned) setPinned(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [pinned, setPinned]);
+
   return (
-    <main className="flex min-h-screen flex-col">
-      {/* Header - Mobile only */}
-      <div className="lg:hidden">
-        <Header toggleSidebar={toggleSidebar} />
-      </div>
-      {/* Fixed Ayle Logo - Desktop only */}
-      <Link
-        href="/"
-        className="hidden lg:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
-        onClick={(e) => {
-          e.preventDefault();
-          window.location.href = '/';
-        }}
-      >
-        <span 
-          className="text-3xl text-[var(--brand-default)]"
-          style={{ 
-            fontFamily: 'var(--font-gebuk-regular)',
-            letterSpacing: '0.05em',
-            fontWeight: 'normal',
-            position: 'relative',
-            padding: '0 4px'
+    <div className={cn(
+      pinned ? "ayle-grid-layout" : "",
+      "min-h-screen w-full"
+    )}>
+      <main className={cn(
+        "flex flex-col flex-1 min-h-screen",
+        pinned ? "ayle-main-pinned" : ""
+      )}>
+        {/* Header - Mobile only */}
+        <div className="lg:hidden">
+          <Header toggleSidebar={toggleSidebar} />
+        </div>
+        {/* Fixed Ayle Logo - Desktop only */}
+        <Link
+          href="/"
+          className={cn("hidden lg:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]", pinned ? "sidebar-pinned-fixed" : "")}
+          onClick={(e) => {
+            e.preventDefault();
+            window.location.href = '/';
           }}
         >
-          Ayle
-        </span>
-      </Link>
-      {/* Sidebar: always render, for both guests and authenticated users */}
-      <DynamicSidebar 
-        isOpen={isSidebarOpen} 
-        onClose={() => setIsSidebarOpen(false)} 
-        onSignInClick={openAuthDialog}
-        refreshTrigger={refreshSidebar}
-      />
-      
-      {!hasMessages ? (
-        <>
-          <MobileSearchUI 
-            input={input}
-            handleInputChange={handleInputChange}
-            handleSubmit={handleSubmit}
-            isLoading={isLoading}
-            selectedModel={selectedModel}
-            handleModelChange={handleModelChange}
-            models={isGuest ? guestModels : models}
-            setInput={setInput}
-            messages={messages}
-            description={description}
-            onAttachmentsChange={setAttachments}
-            isGuest={isGuest}
-            guestMessageCount={guestMessageCount}
-            guestMessageLimit={GUEST_MESSAGE_LIMIT}
-            openAuthDialog={openAuthDialog}
-          />
-          <DesktopSearchUI 
-            input={input}
-            handleInputChange={handleInputChange}
-            handleSubmit={handleSubmit}
-            isLoading={isLoading}
-            selectedModel={selectedModel}
-            handleModelChange={handleModelChange}
-            models={isGuest ? guestModels : models}
-            setInput={setInput}
-            description={description}
-            messages={messages}
-            onAttachmentsChange={setAttachments}
-            isGuest={isGuest}
-            guestMessageCount={guestMessageCount}
-            guestMessageLimit={GUEST_MESSAGE_LIMIT}
-            openAuthDialog={openAuthDialog}
-          />
-        </>
-      ) : (
-        <>
-          <ChatMessages 
-            messages={messages} 
-            isLoading={isLoading}
-            selectedModel={selectedModel}
-            selectedModelObj={selectedModelObj}
-            isExa={isExa}
-            currentThreadId={currentThreadId}
-            bottomPadding={chatInputHeightOffset}
-            onQuote={setQuotedText}
-            onRetry={handleRetryMessage}
-          />
-
-          {/* Chat input: block for guest after 3 messages */}
-          {(!isGuest || guestMessageCount < GUEST_MESSAGE_LIMIT) ? (
-            hasMessages && (
-              <DynamicChatInput 
-                ref={chatInputRef}
-                input={input}
-                handleInputChange={handleInputChange}
-                handleSubmit={handleSubmit}
-                isLoading={isLoading}
-                selectedModel={selectedModel}
-                handleModelChange={handleModelChange}
-                models={isGuest ? guestModels : models}
-                isExa={isExa}
-                onNewChat={handleNewChat}
-                onAttachmentsChange={setAttachments}
-                activeChatFiles={activeChatFiles}
-                removeActiveFile={removeActiveFile}
-                onActiveFilesHeightChange={handleActiveFilesHeightChange}
-                quotedText={quotedText}
-                setQuotedText={setQuotedText}
-              />
-            )
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-              <p className="text-lg font-semibold mb-2">Sign in to unlock unlimited messages and advanced features</p>
-              <button className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all" onClick={openAuthDialog}>Sign In</button>
-            </div>
-          )}
-        </>
-      )}
-      {/* Fixed Theme Toggle - Desktop only */}
-      <div className="hidden lg:block fixed bottom-4 left-4 z-50">
-        <ThemeToggle />
-      </div>
-    </main>
+          <span 
+            className="text-3xl text-[var(--brand-default)]"
+            style={{ 
+              fontFamily: 'var(--font-gebuk-regular)',
+              letterSpacing: '0.05em',
+              fontWeight: 'normal',
+              position: 'relative',
+              padding: '0 4px'
+            }}
+          >
+            Ayle
+          </span>
+        </Link>
+        {/* Sidebar: always render, for both guests and authenticated users */}
+        <DynamicSidebar 
+          isOpen={pinned || isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          onSignInClick={openAuthDialog}
+          refreshTrigger={refreshSidebar}
+          pinned={pinned}
+          setPinned={setPinned}
+        />
+        {!hasMessages ? (
+          <>
+            <MobileSearchUI 
+              input={input}
+              handleInputChange={handleInputChange}
+              handleSubmit={handleSubmit}
+              isLoading={isLoading}
+              selectedModel={selectedModel}
+              handleModelChange={handleModelChange}
+              models={isGuest ? guestModels : models}
+              setInput={setInput}
+              messages={messages}
+              description={description}
+              onAttachmentsChange={setAttachments}
+              isGuest={isGuest}
+              guestMessageCount={guestMessageCount}
+              guestMessageLimit={GUEST_MESSAGE_LIMIT}
+              openAuthDialog={openAuthDialog}
+            />
+            <DesktopSearchUI 
+              input={input}
+              handleInputChange={handleInputChange}
+              handleSubmit={handleSubmit}
+              isLoading={isLoading}
+              selectedModel={selectedModel}
+              handleModelChange={handleModelChange}
+              models={isGuest ? guestModels : models}
+              setInput={setInput}
+              description={description}
+              messages={messages}
+              onAttachmentsChange={setAttachments}
+              isGuest={isGuest}
+              guestMessageCount={guestMessageCount}
+              guestMessageLimit={GUEST_MESSAGE_LIMIT}
+              openAuthDialog={openAuthDialog}
+            />
+          </>
+        ) : (
+          <>
+            <ChatMessages 
+              messages={messages} 
+              isLoading={isLoading}
+              selectedModel={selectedModel}
+              selectedModelObj={selectedModelObj}
+              isExa={isExa}
+              currentThreadId={currentThreadId}
+              bottomPadding={chatInputHeightOffset}
+              onQuote={setQuotedText}
+              onRetry={handleRetryMessage}
+            />
+            {/* Chat input: block for guest after 3 messages */}
+            {(!isGuest || guestMessageCount < GUEST_MESSAGE_LIMIT) ? (
+              hasMessages && (
+                <DynamicChatInput 
+                  ref={chatInputRef}
+                  input={input}
+                  handleInputChange={handleInputChange}
+                  handleSubmit={handleSubmit}
+                  isLoading={isLoading}
+                  selectedModel={selectedModel}
+                  handleModelChange={handleModelChange}
+                  models={isGuest ? guestModels : models}
+                  isExa={isExa}
+                  onNewChat={handleNewChat}
+                  onAttachmentsChange={setAttachments}
+                  activeChatFiles={activeChatFiles}
+                  removeActiveFile={removeActiveFile}
+                  onActiveFilesHeightChange={handleActiveFilesHeightChange}
+                  quotedText={quotedText}
+                  setQuotedText={setQuotedText}
+                  sidebarPinned={pinned}
+                />
+              )
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                <p className="text-lg font-semibold mb-2">Sign in to unlock unlimited messages and advanced features</p>
+                <button className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all" onClick={openAuthDialog}>Sign In</button>
+              </div>
+            )}
+          </>
+        )}
+        {/* Fixed Theme Toggle - Desktop only */}
+        <div className={cn("hidden lg:block fixed bottom-4 left-4 z-50", pinned ? "sidebar-pinned-fixed" : "")}> 
+          <ThemeToggle />
+        </div>
+      </main>
+    </div>
   );
 }
 

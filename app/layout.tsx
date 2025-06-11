@@ -8,6 +8,7 @@ import { Instrument_Sans, Space_Grotesk } from 'next/font/google';
 import { gebukRegular } from './fonts';
 import { Geist } from 'next/font/google';
 import BorderRadiusInitializer from './component/BorderRadiusInitializer';
+import { SidebarPinProvider } from '../context/SidebarPinContext';
 // Configure fonts
 const instrumentSans = Instrument_Sans({
   subsets: ['latin'],
@@ -59,10 +60,12 @@ export default function RootLayout({
       </head>
       <body className={GeistSans.className}>
         <Providers>
-          <BorderRadiusInitializer />
-          <div className="w-full overflow-x-hidden">
-            {children}
-          </div>
+          <SidebarPinProvider>
+            <BorderRadiusInitializer />
+            <div className="w-full overflow-x-hidden">
+              {children}
+            </div>
+          </SidebarPinProvider>
         </Providers>
         <Analytics />
         <SpeedInsights />
