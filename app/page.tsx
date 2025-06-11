@@ -30,6 +30,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { useThreadCache } from '@/context/ThreadCacheContext';
 import { cn } from '@/lib/utils';
 import { useSidebarPin } from '../context/SidebarPinContext';
+import useIsMobile from './hooks/useIsMobile';
 
 // Helper function to get provider description
 const getProviderDescription = (providerName: string | undefined): string => {
@@ -106,6 +107,7 @@ function PageContent() {
   const [quotedText, setQuotedText] = useState('');
   const [retriedMessageId, setRetriedMessageId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const isAuthenticated = !!user;
 
@@ -1021,7 +1023,7 @@ function PageContent() {
           setPinned={setPinned}
         />
         {!hasMessages ? (
-          <>
+          isMobile ? (
             <MobileSearchUI 
               input={input}
               handleInputChange={handleInputChange}
@@ -1039,6 +1041,7 @@ function PageContent() {
               guestMessageLimit={GUEST_MESSAGE_LIMIT}
               openAuthDialog={openAuthDialog}
             />
+          ) : (
             <DesktopSearchUI 
               input={input}
               handleInputChange={handleInputChange}
@@ -1056,7 +1059,7 @@ function PageContent() {
               guestMessageLimit={GUEST_MESSAGE_LIMIT}
               openAuthDialog={openAuthDialog}
             />
-          </>
+          )
         ) : (
           <>
             <ChatMessages 
