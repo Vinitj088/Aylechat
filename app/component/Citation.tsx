@@ -28,27 +28,26 @@ export default function Citation({ citations }: CitationProps) {
       </div>
 
       {/* Results */}
-      <div className="pl-4">
+      <div className="pl-0 md:pl-4">
         <div className="space-y-2">
           {citations.map((citation, idx) => (
-            <div key={citation.id || idx} className="text-sm group relative">
-              <a href={citation.url} 
-                 target="_blank" 
-                 rel="noopener noreferrer"
-                 className="text-[var(--text-light-muted)] hover:text-[var(--brand-default)] flex items-center gap-2">
+            <div key={citation.id || idx} className="text-sm w-full">
+              <a
+                href={citation.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--text-light-muted)] hover:text-[var(--brand-default)] flex items-center gap-2 max-w-full break-all overflow-x-auto"
+                title={citation.url}
+              >
                 [{idx + 1}] {citation.title || citation.url}
                 {citation.favicon && (
-                  <img 
-                    src={citation.favicon} 
+                  <img
+                    src={citation.favicon}
                     alt=""
                     className="w-4 h-4 object-contain"
                   />
                 )}
               </a>
-              {/* URL tooltip */}
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-0 -bottom-6 bg-gray-800 dark:bg-gray-900 text-white text-xs py-1 px-2 rounded whitespace-nowrap z-10 pointer-events-none">
-                {citation.url}
-              </div>
             </div>
           ))}
         </div>
