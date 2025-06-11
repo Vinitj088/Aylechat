@@ -33,6 +33,7 @@ AyleChat is an open-source custom-built AI chat application that integrates mult
 - API keys for your chosen model providers
 - Supabase account for authentication
 - Upstash Redis for chat history
+- Backend services (Supabase and Upstash Redis) configured as detailed in the 'Backend Setup' section.
 
 ### Installation
 
@@ -51,8 +52,7 @@ npm install
 ```bash
 cp .env.example .env.local
 ```
-Then add your API keys and service URLs to `.env.local`:
-```
+Then add your API keys and service URLs to `.env.local`. The necessary Supabase and Upstash variables are detailed in the 'Backend Setup' section. You will also need to add API keys for any AI model providers you intend to use.
 
 4. Run the development server
 ```bash
@@ -60,6 +60,57 @@ npm run dev
 ```
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+<br>
+
+## Backend Setup
+
+### Supabase Setup
+To set up Supabase for this project, follow these steps:
+
+1.  **Create a Supabase Project:**
+    *   Go to [supabase.com](https://supabase.com), create an account or log in.
+    *   Set up a new project.
+    *   Choose a strong password for your database and save it securely.
+
+2.  **Run SQL Schema:**
+    *   Navigate to the **SQL Editor** in your Supabase project dashboard (usually found in the left sidebar under "Database").
+    *   Copy the entire content of `supabase-schema.sql` (located at the root of this repository) from this repository.
+    *   Paste the copied SQL into the Supabase SQL Editor and click **Run**. This will set up the necessary tables (`profiles`, `threads`, `thread_messages`) and Row Level Security (RLS) policies.
+
+3.  **Configure Supabase Storage:**
+    *   Navigate to the **Storage** section in your Supabase project dashboard.
+    *   Click on **Create a new bucket**.
+    *   Name the bucket `ai-generated-images`.
+    *   Ensure this bucket is set to **Public**. This can typically be done via a toggle or policy setting during bucket creation, or by editing the bucket's settings/policies after creation to allow public read access (the `supabase-storage.sql` script also includes a command to attempt to set the bucket to public, but it's good to verify in the UI).
+    *   Go back to the **SQL Editor**.
+    *   Copy the entire content of `supabase-storage.sql` (located at the root of this repository) from this repository.
+    *   Paste the copied SQL into the Supabase SQL Editor and click **Run**. This will configure the necessary policies for the storage bucket, allowing public read access and restricted write access.
+
+4.  **Environment Variables:**
+    *   In your Supabase project settings, navigate to the **API** section (usually under "Project Settings").
+    *   Find your **Project URL** and **anon key**.
+    *   Add these to your `.env.local` file in the root of this project:
+        ```env
+        NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_PROJECT_URL
+        NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+        ```
+
+### Upstash Redis Setup
+Upstash Redis is used for storing chat history to ensure persistence and performance, especially for streaming responses and managing conversation threads.
+
+1.  **Create an Upstash Account and Database:**
+    *   If you don't have an account, go to [upstash.com](https://upstash.com) and sign up.
+    *   Create a new Redis database. Choose a region closest to your users or your Vercel deployment region for optimal performance.
+
+2.  **Environment Variables:**
+    *   From the Upstash console, navigate to your Redis database details page.
+    *   Find your **REST URL** (sometimes labeled as Endpoint) and **Token** (sometimes labeled as Password or Read/Write Token).
+    *   Add these to your `.env.local` file:
+        ```env
+        UPSTASH_REDIS_REST_URL=YOUR_UPSTASH_REDIS_REST_URL
+        UPSTASH_REDIS_REST_TOKEN=YOUR_UPSTASH_REDIS_REST_TOKEN
+        ```
 
 <br>
 
