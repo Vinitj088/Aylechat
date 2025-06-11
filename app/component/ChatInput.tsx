@@ -70,6 +70,7 @@ interface ChatInputProps {
   onActiveFilesHeightChange?: (height: number) => void;
   quotedText?: string;
   setQuotedText?: (text: string) => void;
+  sidebarPinned?: boolean;
 }
 
 // Define command mode state type
@@ -90,7 +91,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   removeActiveFile,
   onActiveFilesHeightChange,
   quotedText,
-  setQuotedText
+  setQuotedText,
+  sidebarPinned = false
 }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -324,7 +326,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 md:max-w-4xl mx-auto">
+    <div className={cn("fixed bottom-0 left-0 right-0 z-40 md:max-w-4xl mx-auto transition-all duration-300", sidebarPinned ? "sidebar-pinned-fixed" : "")}>
       <div className="w-full bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] rounded-lg shadow-lg p-3 relative">
         <form onSubmit={handleSubmitWithAttachments} className="relative flex flex-col w-full">
           {/* Quote block UI */}

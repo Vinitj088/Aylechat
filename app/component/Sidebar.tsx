@@ -8,7 +8,7 @@ import { useThreadCache } from "@/context/ThreadCacheContext"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 import { getAssetPath } from "../utils"
-import { X, Trash2, LogOut, Clock, User, AlertTriangle, Settings } from "lucide-react"
+import { X, Trash2, LogOut, Clock, User, AlertTriangle, Settings, Pin, PinOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   AlertDialog,
@@ -28,9 +28,11 @@ interface SidebarProps {
   onClose: () => void
   onSignInClick?: () => void
   refreshTrigger?: number
+  pinned?: boolean
+  setPinned?: (pinned: boolean) => void
 }
 
-export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger = 0 }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger = 0, pinned = false, setPinned }: SidebarProps) {
   const [lastRefreshTrigger, setLastRefreshTrigger] = useState(0)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false)
@@ -216,7 +218,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       )}
 
       {/* Hover trigger area for desktop - invisible area at right edge */}
-      {!isMobile && (
+      {!isMobile && !pinned && (
         <div
           className="fixed right-0 top-0 w-5 h-full z-30 pointer-events-auto"
           onMouseEnter={() => setIsHovered(true)}
@@ -227,10 +229,11 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       <div
         className={cn(
           "fixed inset-y-0 right-0 z-50 w-64 bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-fainter)] border-l border-[var(--secondary-darkest)] shadow-lg transform transition-transform duration-300 ease-in-out",
-          shouldShowSidebar ? "translate-x-0" : "translate-x-full",
+          shouldShowSidebar || pinned ? "translate-x-0" : "translate-x-full",
         )}
         onMouseEnter={() => !isMobile && setIsHovered(true)}
         onMouseLeave={() => !isMobile && setIsHovered(false)}
+        style={pinned ? { right: 0 } : {}}
       >
         {/* Sidebar content */}
         <div className="flex flex-col h-full">
@@ -240,6 +243,17 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
               <Clock className="h-4 w-4 mr-2 text-[var(--brand-default)]" />
               Chat History
             </h2>
+            <div className="flex items-center gap-1">
+              {/* Pin/unpin button - desktop only */}
+              {!isMobile && setPinned && (
+                <button
+                  onClick={() => setPinned(!pinned)}
+                  className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
+                  aria-label={pinned ? "Unpin sidebar" : "Pin sidebar"}
+                >
+                  {pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                </button>
+              )}
             {/* Only show close button on mobile */}
             {isMobile && (
               <button
@@ -250,6 +264,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                 <X className="h-4 w-4" />
               </button>
             )}
+            </div>
           </div>
 
           {/* Content */}
