@@ -103,11 +103,11 @@ export async function POST(req: NextRequest) {
       model: model,
       temperature: 0.5,
       max_tokens: enhance ? 1000 : 4000, // Use smaller max_tokens for enhancements
-      stream: true,
+      stream: body.stream !== false, // Default to true unless explicitly false
       top_p: 1,
     };
     
-    // Call the GROQ API for streaming
+    // Call the GROQ API
     const response = await fetch(API_ENDPOINT, {
       method: 'POST',
       headers: {
@@ -123,19 +123,31 @@ export async function POST(req: NextRequest) {
       const error = await response.json();
       throw new Error(`Groq API error: ${error.error?.message || response.statusText}`);
     }
-    
-    // Create the transform stream
-    const transformer = createStreamTransformer();
-    
-    // Pipe the response through our transformer
-    return new Response(response.body?.pipeThrough(transformer), {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no' // Disable buffering in Nginx
-      }
-    });
+
+    // Handle based on streaming parameter
+    if (params.stream) {
+      // Create the transform stream for streaming responses
+      const transformer = createStreamTransformer();
+      
+      // Pipe the response through our transformer
+      return new Response(response.body?.pipeThrough(transformer), {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no' // Disable buffering in Nginx
+        }
+      });
+    } else {
+      // For non-streaming, return the complete JSON response
+      const data = await response.json();
+      return new Response(JSON.stringify(data), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        }
+      });
+    }
   } catch (error: any) {
     console.error('Groq error:', error.message);
     return new Response(

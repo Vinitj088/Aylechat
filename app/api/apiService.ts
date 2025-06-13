@@ -4,6 +4,7 @@ import { Message } from '../types';
 import { toast } from 'sonner';
 // Import models instead of using require()
 import modelsConfig from '../../models.json';
+import { availableTools, Tool } from '../tools';
 
 // --- Add URL Regex ---
 // Basic regex to find potential URLs. Can be refined for more complex cases.
@@ -81,6 +82,93 @@ const updateMessages = (
     }
   }
 };
+
+// --- Tool Calling Analysis Function ---
+async function analyzeQueryForTools(query: string, messages: Message[]): Promise<{ command: string; query: string; text: string; } | null> {
+  const model = 'llama-3.1-8b-instant'; // A fast model is good for this
+  const toolsString = availableTools.map(t => `- ${t.command} - ${t.description}`).join('\n');
+  
+  // Format previous messages to provide context
+  const history = messages.slice(-3).map(m => `${m.role}: ${m.content}`).join('\n');
+
+  const systemPrompt = `You are an expert AI assistant that analyzes a user's query and conversation history to determine if the query can be better answered using one of the available tools. Your primary goal is to distinguish between requests for **real-time, specific data** (which tools can provide) and **general knowledge questions** (which you should answer directly).
+
+Your task is to respond with a JSON object. The JSON object should have one of two formats:
+1. If a tool is applicable for real-time data: {"tool": "/command_name", "query": "argument for the command", "text": "Short phrase for a button, e.g., 'Get Weather'"}
+2. If no tool is applicable (i.e., it's a general knowledge question): {"tool": null}
+
+Available Tools:
+${toolsString}
+
+Conversation History (for context):
+---
+${history}
+---
+
+Rules:
+- **Crucial Rule**: Use the conversation history to resolve pronouns or ambiguous references (e.g., "there," "that movie").
+- Only use a tool if the user is asking for specific, current information. For example, use the weather tool for "what is the weather *right now* in Paris?", but NOT for "is Paris *usually* cold in winter?". The latter is a general knowledge question.
+- ONLY respond with the JSON object. Do not include any other text, explanations, or markdown.
+- If the user's question is general, conceptual, historical, or a statement to be verified, respond with {"tool": null}.
+
+Examples:
+User Query: "what is the weather like in london?"
+Response: {"tool": "/weather", "query": "london", "text": "Get Weather for London"}
+
+User Query (after a conversation about Paris): "what about there?"
+Response: {"tool": "/weather", "query": "paris", "text": "Get Weather for Paris"}
+
+User Query: "weather all around the year in paris is snowy, isnt it?"
+Response: {"tool": null}
+`;
+
+  try {
+    const response = await fetch('/api/groq', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: query,
+        model: model,
+        systemPrompt: systemPrompt,
+        stream: false, // We need a single JSON response, not a stream
+        temperature: 0.0,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Tool analysis API call failed:', response.status);
+      return null;
+    }
+
+    const result = await response.json();
+    const content = result.choices[0]?.message?.content;
+
+    if (!content) {
+      console.error('Tool analysis returned no content.');
+      return null;
+    }
+
+    // Extract the JSON object from the response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('Tool analysis response was not valid JSON:', content);
+      return null;
+    }
+
+    const toolJson = JSON.parse(jsonMatch[0]);
+
+    if (toolJson.tool && toolJson.query && toolJson.text) {
+      console.log('Tool suggestion analysis result:', toolJson);
+      return { command: toolJson.tool, query: toolJson.query, text: toolJson.text };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error during tool analysis:', error);
+    return null;
+  }
+}
+// --- End Tool Calling Analysis ---
 
 // High-quality system prompt for the main assistant
 const ASSISTANT_SYSTEM_PROMPT = `
@@ -282,7 +370,7 @@ export const fetchResponse = async (
   onFileUploaded?: (fileInfo: { name: string; type: string; uri: string }) => void
 ) => {
   const trimmedInput = input.trim();
-  let command: '/movies' | '/tv' | null = null;
+  let command: '/movies' | '/tv' | '/weather' | null = null;
   let commandQuery: string | null = null;
   let finalInput = trimmedInput; // Use a new variable for potentially modified input
 
@@ -325,6 +413,36 @@ export const fetchResponse = async (
     );
   }
   // --- End Modify ---
+
+  // --- Autonomous Tool-Calling Logic ---
+  // Check if the input is a manual command first
+  if (finalInput.startsWith('/')) {
+    const parts = finalInput.split(' ');
+    const potentialCommand = parts[0];
+    if (availableTools.some(t => t.command === potentialCommand)) {
+      command = potentialCommand as any; // Trusting the check
+      commandQuery = parts.slice(1).join(' ');
+    }
+  } else if (selectedModel !== 'exa' && !finalInput.match(URL_REGEX)) {
+    // If it's not a manual command, analyze for autonomous tool use
+    const toolResult = await analyzeQueryForTools(finalInput, messages);
+    if (toolResult) {
+      // If a tool is identified, set the command and query to be executed directly
+      console.log(`Autonomous tool execution identified: ${toolResult.command}`);
+      command = toolResult.command as any;
+      commandQuery = toolResult.query;
+
+      // Update the assistant message to indicate tool usage
+      updateMessages(setMessages, (prev: Message[]) =>
+        prev.map((msg: Message) =>
+          msg.id === assistantMessage.id
+            ? { ...msg, content: `> Running tool: \`${command} ${commandQuery}\`\n\n_Getting results..._` }
+            : msg
+        )
+      );
+    }
+  }
+  // --- End Autonomous Tool-Calling Logic ---
 
   if (finalInput.startsWith('/movies ')) { // Check modified input for commands
     command = '/movies';
@@ -378,6 +496,17 @@ export const fetchResponse = async (
           startTime: assistantMessage.startTime || Date.now(), // Or set more accurately
           endTime: Date.now(),
           tps: 0, // TPS not really applicable here
+        };
+      } else if (result.type === 'weather_result') {
+        console.log('Received weather_result:', result.data);
+        finalAssistantMessage = {
+          ...assistantMessage,
+          content: result.answer, // The text answer generated by LLM
+          weatherData: result.data, // The structured weather data for the card
+          completed: true,
+          startTime: assistantMessage.startTime || Date.now(),
+          endTime: Date.now(),
+          tps: 0,
         };
       } else if (result.type === 'no_result' || result.type === 'error') {
         console.log(`Command handler returned: ${result.type}`);

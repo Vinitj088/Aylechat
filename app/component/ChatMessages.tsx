@@ -10,6 +10,7 @@ import { Copy, Check, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import MediaCard from "@/components/MediaCard"
+import WeatherCard from "./WeatherCard"
 
 interface ChatMessagesProps {
   messages: Message[]
@@ -96,6 +97,11 @@ const ChatMessage = memo(
               {!isUser && message.mediaData && (
                 <div className="mb-3">
                   <MediaCard data={message.mediaData} />
+                </div>
+              )}
+              {!isUser && message.weatherData && (
+                <div className="mb-3">
+                  <WeatherCard data={message.weatherData} />
                 </div>
               )}
               <div className="whitespace-pre-wrap text-[15px]">

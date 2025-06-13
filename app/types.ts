@@ -9,6 +9,7 @@ export interface Message {
   endTime?: number; // Timestamp when the stream completed
   tps?: number; // Calculated tokens per second
   mediaData?: MediaData;
+  weatherData?: any; // Placeholder for weather card data
   images?: ImageData[];
   attachments?: FileAttachment[];
   provider?: string;

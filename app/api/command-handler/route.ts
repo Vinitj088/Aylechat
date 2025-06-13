@@ -2,6 +2,187 @@ import { NextRequest, NextResponse } from 'next/server';
 import { MediaData } from '@/app/types'; // Adjusted import path
 import { searchTmdb } from '@/lib/tmdb'; // Adjusted import path
 
+// --- Weather Command Helpers ---
+
+// Helper to convert wind direction from degrees to a cardinal point
+function degreesToCardinal(deg: number): string {
+    const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+    return directions[Math.round(deg / 22.5) % 16];
+}
+
+// A mapping from Tomorrow.io weather codes to a simpler description
+const getWeatherDescription = (code: number): string => {
+  const weatherCodeMap: { [key: number]: string } = {
+    1000: 'Clear', 1100: 'Mostly Clear', 1101: 'Partly Cloudy', 1102: 'Mostly Cloudy',
+    1001: 'Cloudy', 2000: 'Fog', 2100: 'Light Fog', 4000: 'Drizzle',
+    4200: 'Light Rain', 4001: 'Rain', 4201: 'Heavy Rain', 5000: 'Snow',
+    5001: 'Flurries', 5100: 'Light Snow', 5101: 'Heavy Snow', 6000: 'Freezing Drizzle',
+    6001: 'Freezing Rain', 6200: 'Light Freezing Rain', 6201: 'Heavy Freezing Rain',
+    7000: 'Ice Pellets', 7101: 'Heavy Ice Pellets', 7102: 'Light Ice Pellets',
+    8000: 'Thunderstorm', 0: 'Unknown'
+  };
+  return weatherCodeMap[code] || 'Unknown';
+};
+
+async function getWeatherData(location: string): Promise<any | null> {
+  const apiKey = process.env.TOMORROW_API_KEY;
+  if (!apiKey) {
+    console.error("TOMORROW_API_KEY is not set in environment variables.");
+    // Return a specific structure that can be caught and reported to the user.
+    return { error: 'API_KEY_MISSING', message: 'The weather service API key is not configured. Please set TOMORROW_API_KEY.' };
+  }
+
+  const forecastUrl = new URL('https://api.tomorrow.io/v4/weather/forecast');
+  forecastUrl.searchParams.append('location', location);
+  forecastUrl.searchParams.append('timesteps', '1h,1d');
+  forecastUrl.searchParams.append('units', 'metric');
+  forecastUrl.searchParams.append('apikey', apiKey);
+
+  try {
+    const response = await fetch(forecastUrl.toString(), {
+      headers: { 'accept': 'application/json' }
+    });
+
+    const responseBody = await response.json();
+
+    if (!response.ok) {
+      console.error(`Tomorrow.io API error for location "${location}": ${response.status}`, responseBody);
+      // Pass a structured error message back
+      return { 
+          error: 'API_ERROR', 
+          message: responseBody.message || `Could not fetch weather for "${location}". The location might be invalid.`
+      };
+    }
+    
+    // Basic validation to see if we got data back
+    if (!responseBody.timelines || !responseBody.timelines.daily || !responseBody.timelines.hourly) {
+      console.warn(`Tomorrow.io data for "${location}" seems invalid.`, responseBody);
+      return null;
+    }
+    
+    const now = responseBody.timelines.hourly[0].values;
+    const today = responseBody.timelines.daily[0].values;
+
+    // --- Data Transformation ---
+    // Transform the Tomorrow.io response to a format similar to the old wttr.in one
+    // to minimize changes in consuming components (WeatherCard, LLM context builder).
+    const transformedData = {
+      display_location: location, // Keep user's query
+      location: {
+        name: responseBody.location.name || location,
+      },
+      current_condition: [ // Keep as array for compatibility
+        {
+          temp_C: Math.round(now.temperature),
+          FeelsLikeC: Math.round(now.temperatureApparent),
+          weatherDesc: [{ value: getWeatherDescription(now.weatherCode) }],
+          weatherCode: now.weatherCode,
+          windspeedKmph: Math.round(now.windSpeed * 3.6), // m/s to km/h
+          winddir16Point: degreesToCardinal(now.windDirection),
+          humidity: Math.round(now.humidity),
+          visibility: Math.round(now.visibility),
+        }
+      ],
+      weather: [ // Keep as array for compatibility
+        {
+          maxtempC: Math.round(today.temperatureMax),
+          mintempC: Math.round(today.temperatureMin),
+          // For the daily forecast, provide a summary of conditions using the full day code
+          hourly: [{}, {}, {}, {}, { weatherDesc: [{ value: getWeatherDescription(today.weatherCodeMax) }] }],
+        }
+      ]
+    };
+
+    return transformedData;
+
+  } catch (error) {
+    console.error(`Error fetching or parsing weather data for "${location}":`, error);
+    return null;
+  }
+}
+
+async function getWeatherAnswerFromContext(weatherData: any, originalQuery: string, reqUrl: string): Promise<string | null> {
+  const model = 'gemini-1.5-flash-latest';
+  
+  // Create a simplified but informative context from the weather JSON
+  const current = weatherData.current_condition[0];
+  const forecast = weatherData.weather[0];
+  const contextString = `
+- Location: ${weatherData.location.name}
+- Current Temperature: ${current.temp_C}°C
+- Feels Like: ${current.FeelsLikeC}°C
+- Weather: ${current.weatherDesc[0].value}
+- Wind: ${current.windspeedKmph} km/h from ${current.winddir16Point}
+- Humidity: ${current.humidity}%
+- Visibility: ${current.visibility} km
+- Today's Forecast: High ${forecast.maxtempC}°C, Low ${forecast.mintempC}°C. Overall conditions will be ${forecast.hourly[4].weatherDesc[0].value}.
+  `;
+
+  const fullPrompt = `You are a helpful assistant providing a weather report.
+Use ONLY the provided context below to answer the user's question in a clear, human-readable format.
+Do not use any outside knowledge. Start with a summary and then provide details if the user asked for them.
+
+Context:
+---
+${contextString}
+---
+
+User Question: "${originalQuery}"
+
+Answer:`;
+
+  // Re-use the Gemini helper logic from getAnswerFromContext
+  const geminiApiUrl = new URL('/api/gemini', reqUrl).toString();
+  console.log(`Using Gemini endpoint for weather answer: ${geminiApiUrl} with model ${model}`);
+
+  try {
+    const response = await fetch(geminiApiUrl, { 
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      },
+      body: JSON.stringify({
+        query: fullPrompt, 
+        model: model,
+        messages: [], 
+        temperature: 0.3,
+      })
+    });
+
+    if (!response.ok || !response.body) {
+      const errorText = await response.text();
+      console.error(`Gemini API error for weather answering: ${response.status} ${response.statusText}`, errorText);
+      return `(Error getting weather summary from LLM)`;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullResponse = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n').filter(line => line.trim());
+      for (const line of lines) {
+        try {
+          const data = JSON.parse(line);
+          if (data.choices && data.choices[0]?.delta?.content) {
+            fullResponse += data.choices[0].delta.content;
+          }
+        } catch { /* Ignore parsing errors */ }
+      }
+    }
+    
+    return fullResponse.trim() || "(Could not generate a weather summary.)";
+  } catch (error) {
+    console.error('Error calling Gemini for weather answering:', error);
+    return "(An error occurred while generating the weather summary.)";
+  }
+}
+
+// --- End Weather Command Helpers ---
+
 // Helper function to call Groq API for title extraction (Reverted)
 async function extractMediaTitle(query: string, commandType: 'movies' | 'tv', reqUrl: string): Promise<string | null> {
   const itemType = commandType === 'movies' ? 'movie' : 'TV show';
@@ -220,13 +401,37 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     // Explicitly type the body structure for clarity
-    const { command, query } = body as { command: '/movies' | '/tv', query: string }; 
+    const { command, query } = body as { command: '/movies' | '/tv' | '/weather', query: string }; 
 
-    if (!command || !query || (command !== '/movies' && command !== '/tv')) {
+    if (!command || !query || (command !== '/movies' && command !== '/tv' && command !== '/weather')) {
       return NextResponse.json({ type: 'error', message: 'Invalid command or query.' }, { status: 400 });
     }
 
     console.log(`Received command: ${command}, Query: ${query}`);
+
+    // --- Handle /weather command ---
+    if (command === '/weather') {
+      const location = query; // For now, assume query is the location
+      const weatherData = await getWeatherData(location);
+      
+      if (!weatherData || weatherData.error) {
+        const message = weatherData?.message || `Sorry, I couldn't find weather information for "${location}". Please check the location and try again.`;
+        return NextResponse.json({ 
+          type: 'no_result', 
+          message: message 
+        }, { status: 200 });
+      }
+
+      // Generate a human-readable answer from the data
+      const answer = await getWeatherAnswerFromContext(weatherData, query, requestUrl);
+      
+      return NextResponse.json({ 
+        type: 'weather_result', 
+        data: weatherData, 
+        answer: answer || "Here is the weather data." 
+      }, { status: 200 });
+    }
+    // --- End /weather command handler ---
 
     // 1. Extract Title
     const commandType = command === '/movies' ? 'movies' : 'tv';
