@@ -4,24 +4,16 @@ import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Providers } from './providers';
 import Script from 'next/script';
-import { Instrument_Sans, Space_Grotesk } from 'next/font/google';
-import { gebukRegular } from './fonts';
-import { Geist } from 'next/font/google';
+import { Geist, Space_Grotesk } from 'next/font/google';
+import { Sentient, MagnetBold, gebukRegular } from './fonts';
 import BorderRadiusInitializer from './component/BorderRadiusInitializer';
 import { SidebarPinProvider } from '../context/SidebarPinContext';
-// Configure fonts
-const instrumentSans = Instrument_Sans({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-instrument-sans',
-  weight: ['400', '500', '600', '700'],
-});
+import FontInitializer from './component/FontInitializer';
 
 const GeistSans = Geist({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-geist',
-  weight: ['400', '500', '600', '700'],
+  variable: '--font-geist-sans',
 });
 
 const spaceGrotesk = Space_Grotesk({
@@ -42,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${instrumentSans.variable} ${spaceGrotesk.variable} ${gebukRegular.variable} ${GeistSans.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${GeistSans.variable} ${spaceGrotesk.variable} ${Sentient.variable} ${MagnetBold.variable} ${gebukRegular.variable}`} suppressHydrationWarning>
       <head>
         <Script id="sw-register" strategy="beforeInteractive">
           {`
@@ -62,6 +54,7 @@ export default function RootLayout({
         <Providers>
           <SidebarPinProvider>
             <BorderRadiusInitializer />
+            <FontInitializer />
             <div className="w-full overflow-x-hidden">
               {children}
             </div>

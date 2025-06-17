@@ -126,7 +126,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
     <div className={`w-full max-w-full md:max-w-3xl mb-8 ${sidebarPinned ? 'text-left' : 'mx-auto text-center'}`}>
       <div className="mb-8 text-center">
         <h1 className="text-5xl font-bold mb-2 text-[var(--text-light-default)]">
-          The web, <span className="text-[var(--brand-default)]" style={{ fontFamily: 'Space Grotesk' }}>organized</span>
+          The web, <span className="text-[var(--brand-default)]" style={{ fontFamily: 'var(--font-heading)' }}>organized</span>
         </h1>
         <p className="text-base text-[var(--text-light-muted)] mb-2">
           {description}

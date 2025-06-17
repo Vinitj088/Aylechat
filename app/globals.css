@@ -1,9 +1,10 @@
-/* @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Space+Grotesk:wght@300..700&display=swap'); */ /* Removed import */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  --font-body: var(--font-geist-sans);
+  --font-heading: var(--font-space-grotesk);
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 231, 231, 245;
   --background-end-rgb: 255, 255, 255;
@@ -132,7 +133,7 @@ body {
 
   /* Use Instrument Sans for body text via variable */
   /* font-family: 'Instrument Sans', sans-serif; */ /* Replaced by className in layout.tsx or variable below */
-  font-family: var(--font-GeistSans);
+  font-family: var(--font-body);
   font-weight: 500; /* Keeping default weight, specific weights handled by next/font */
 
   /* Hide scrollbar for Chrome, Safari and Opera */
@@ -150,14 +151,14 @@ body {
 /* Use Space Grotesk for headings via variable */
 /* font-family: 'Space Grotesk', sans-serif; */ /* Replaced */
 h1, h2, h3, h4, h5, h6, .heading {
-  font-family: var(--font-space-grotesk);
+  font-family: var(--font-heading);
   font-weight: 600; /* Keeping default weight, specific weights handled by next/font */
 }
 
 p, span, div, li, button, input, textarea {
   /* Ensure other elements also use the base font variable */
   /* font-family: 'Instrument Sans', sans-serif; */ /* Replaced */
-  font-family: var(--font-GeistSans);
+  font-family: var(--font-body);
 }
 
 @layer utilities {

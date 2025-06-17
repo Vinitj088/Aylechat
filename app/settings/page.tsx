@@ -7,20 +7,35 @@ import { useRouter } from "next/navigation";
 export default function SettingsPage() {
   const { user } = useAuth();
   const [rounded, setRounded] = useState(true);
+  const [fontTheme, setFontTheme] = useState('default');
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   // On mount, read from localStorage and apply
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('roundedCorners');
-      if (stored === 'off') {
+      // Rounded corners
+      const storedRounded = localStorage.getItem('roundedCorners');
+      if (storedRounded === 'off') {
         setRounded(false);
         document.documentElement.style.setProperty('--border-radius-default', '0px');
       } else {
         setRounded(true);
         document.documentElement.style.setProperty('--border-radius-default', '0.5rem');
       }
+
+      // Font theme
+      const storedFontTheme = localStorage.getItem('fontTheme');
+      if (storedFontTheme === 'alternative') {
+        setFontTheme('alternative');
+        document.documentElement.style.setProperty("--font-body", "var(--font-sentient)");
+        document.documentElement.style.setProperty("--font-heading", "var(--font-magnet-bold)");
+      } else {
+        setFontTheme('default');
+        document.documentElement.style.setProperty("--font-body", "var(--font-geist-sans)");
+        document.documentElement.style.setProperty("--font-heading", "var(--font-space-grotesk)");
+      }
+
       setLoading(false);
     }
   }, []);
@@ -36,6 +51,21 @@ export default function SettingsPage() {
       } else {
         localStorage.setItem('roundedCorners', 'off');
         document.documentElement.style.setProperty('--border-radius-default', '0px');
+      }
+    }
+  };
+
+  const handleFontChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newFontTheme = event.target.value;
+    setFontTheme(newFontTheme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fontTheme', newFontTheme);
+      if (newFontTheme === 'alternative') {
+        document.documentElement.style.setProperty("--font-body", "var(--font-sentient)");
+        document.documentElement.style.setProperty("--font-heading", "var(--font-magnet-bold)");
+      } else {
+        document.documentElement.style.setProperty("--font-body", "var(--font-geist-sans)");
+        document.documentElement.style.setProperty("--font-heading", "var(--font-space-grotesk)");
       }
     }
   };
@@ -82,6 +112,20 @@ export default function SettingsPage() {
                 className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${rounded ? 'translate-x-6' : 'translate-x-1'}`}
               />
             </button>
+          </div>
+          {/* Font Theme Selector */}
+          <div className="flex items-center justify-between">
+            <span className="text-base text-[var(--text-light-default)] font-medium">Font Theme</span>
+            <select
+              value={fontTheme}
+              onChange={handleFontChange}
+              disabled={loading}
+              className="px-3 py-1.5 text-base text-[var(--text-light-default)] bg-transparent border border-[var(--secondary-darkest)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--brand-default)]"
+              aria-label="Select font theme"
+            >
+              <option value="default" className="bg-[var(--secondary-darker)] text-[var(--text-light-default)]">Default</option>
+              <option value="alternative" className="bg-[var(--secondary-darker)] text-[var(--text-light-default)]">Alternative</option>
+            </select>
           </div>
         </div>
       </div>

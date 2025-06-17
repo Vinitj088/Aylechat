@@ -198,7 +198,7 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
       <div className="w-full max-w-full mx-auto p-4">
         <div className="mb-6 text-center">
           <h1 className="text-3xl font-bold mb-2 text-[var(--text-light-default)]">
-            <span className="text-[var(--brand-default)]" style={{ fontFamily: 'Space Grotesk' }}>The Web, </span> Organised
+            <span className="text-[var(--brand-default)]" style={{ fontFamily: 'var(--font-heading)' }}>The Web, </span> Organised
           </h1>
           <p className="text-sm text-[var(--text-light-muted)] mb-2">
             {description}
