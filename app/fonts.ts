@@ -12,11 +12,6 @@ export const MagnetBold = localFont({
   variable: '--font-magnet-bold',
 });
 
-export const MagnetRegular = localFont({
-  src: './fonts/MagnetRegular.otf',
-  display: 'swap',
-  variable: '--font-magnet-regular',
-});
 
 export const Sentient = localFont({
   src: './fonts/Sentient-Regular.woff2',
