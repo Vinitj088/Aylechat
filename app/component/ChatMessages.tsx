@@ -112,6 +112,7 @@ const ChatMessage = memo(
                   attachments={message.attachments}
                   provider={message.provider}
                   onQuote={onQuote}
+                  completed={message.completed}
                   // Do NOT include quotedText here
                 />
               </div>

@@ -7,6 +7,7 @@ import hljs from "highlight.js"
 import "highlight.js/styles/github.css" // Import default style
 import "@/app/styles/highlight.css" // Import our custom styles
 import type { FileAttachment } from "@/app/types"
+import useTypewriter from "../hooks/useTypewriter"
 
 // Initialize highlight.js - not needed as we're using the full build
 // but added for clarity
@@ -27,6 +28,7 @@ interface MessageContentProps {
   attachments?: FileAttachment[]
   provider?: string
   onQuote?: (text: string) => void
+  completed?: boolean
 }
 
 // Add the parseMessageContent helper function
@@ -729,7 +731,7 @@ const FileAttachmentView = ({ attachments }: { attachments: FileAttachment[] }) 
 }
 
 // Component for message content with Markdown
-const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, attachments, provider, onQuote }) => {
+const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, attachments, provider, onQuote, completed }) => {
   const { thinking, visible } = parseMessageContent(content || "")
   const [copied, setCopied] = useState(false)
   const [showQuoteMenu, setShowQuoteMenu] = useState(false)
@@ -737,6 +739,10 @@ const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, 
   const [selectedText, setSelectedText] = useState("")
   const contentRef = React.useRef<HTMLDivElement>(null)
   const quoteMenuRef = React.useRef<HTMLDivElement>(null)
+
+  // Apply typewriter effect for assistant messages
+  const animatedContent = useTypewriter(visible)
+  const finalVisibleContent = role === "assistant" ? animatedContent : visible
 
   // Function to copy text to clipboard
   const copyToClipboard = (text: string) => {
@@ -752,7 +758,7 @@ const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, 
   }
 
   // Process the markdown content for task lists
-  const processedContent = processMarkdown(visible)
+  const processedContent = processMarkdown(finalVisibleContent)
 
   // Handler for mouseup/selection
   const handleMouseUp = (e: React.MouseEvent) => {
