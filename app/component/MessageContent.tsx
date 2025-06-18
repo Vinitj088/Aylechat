@@ -317,7 +317,7 @@ const GeneratedImageView = ({
 // Simple inline code component
 const InlineCode = ({ children }: { children: React.ReactNode }) => {
   return (
-    <code className="px-1.5 py-0 break-words">
+    <code className="px-1.5 py-1 break-words">
       {children}
     </code>
   )

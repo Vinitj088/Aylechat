@@ -285,6 +285,11 @@ p, span, div, li, button, input, textarea {
   box-shadow: none;
 }
 
+.prose code:not(pre code)::before,
+.prose code:not(pre code)::after {
+  content: none;
+}
+
 .prose pre code {
   background-color: transparent;
   padding: 0;
@@ -292,8 +297,8 @@ p, span, div, li, button, input, textarea {
 
 /* Dark mode styles for code blocks */
 .dark .prose code:not(pre code) {
-  background: #262626 !important;
-  color: #e6e6e6 !important;
+  background: #242b2e !important;
+  color: #B1D4E0 !important;
   font-size: 1em;
   font-weight: 600;
   padding: 0.22em 0.55em;
@@ -729,3 +734,4 @@ pre code {
     grid-row: 1 / span 2;
   }
 }
+
