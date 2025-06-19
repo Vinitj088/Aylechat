@@ -1,6 +1,6 @@
 {
   "functions": {
-    "app/api/pdf/route.ts": {
+    "api/pdf": {
       "includeFiles": "node_modules/@sparticuz/chromium/**"
     }
   }
