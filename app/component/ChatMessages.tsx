@@ -6,7 +6,7 @@ import MessageContent from "./MessageContent"
 import Citation from "./Citation"
 import ShareButton from "./ShareButton"
 import { Button } from "@/components/ui/button"
-import { Copy, Check, RefreshCw } from "lucide-react"
+import { Copy, Check, RefreshCw, Download } from "lucide-react"
 import { toast } from "sonner"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import MediaCard from "@/components/MediaCard"
@@ -28,12 +28,21 @@ interface ChatMessagesProps {
 const ChatMessage = memo(
   ({
     message,
+    messages,
     isUser,
     threadId,
     onQuote,
     onRetry,
-  }: { message: Message; isUser: boolean; threadId?: string | null | undefined; onQuote?: (text: string) => void; onRetry?: (message: Message) => void }) => {
+  }: { 
+    message: Message; 
+    messages: Message[];
+    isUser: boolean; 
+    threadId?: string | null | undefined; 
+    onQuote?: (text: string) => void; 
+    onRetry?: (message: Message) => void; 
+  }) => {
     const [copySuccess, setCopySuccess] = useState(false)
+    const [isExporting, setIsExporting] = useState(false)
 
     const handleCopyMessage = async () => {
       try {
@@ -48,6 +57,70 @@ const ChatMessage = memo(
       } catch (err) {
         console.error("Failed to copy message:", err)
         toast.error("Failed to copy message")
+      }
+    }
+
+    const handleExportPdf = async () => {
+      setIsExporting(true)
+      toast.info("Generating PDF...", { duration: 5000 })
+  
+      try {
+        // Find all messages up to and including the current message
+        const currentMessageIndex = messages.findIndex(msg => msg.id === message.id)
+        
+        if (currentMessageIndex === -1) {
+          toast.error("Could not find message in conversation.")
+          return
+        }
+
+        // Get all messages up to the current one
+        const relevantMessages = messages.slice(0, currentMessageIndex + 1)
+
+        if (relevantMessages.length === 0) {
+          toast.error("No content to export.")
+          return
+        }
+
+        // Format the conversation with proper styling for all user messages
+        const formattedMessages = relevantMessages.map(msg => {
+          if (msg.role === "user") {
+            // Format user messages as headings
+            return `# ${msg.content}`
+          }
+          return msg.content
+        })
+
+        const markdown = formattedMessages.join("\n\n---\n\n")
+  
+        const response = await fetch("/api/pdf", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ markdown }),
+        })
+  
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Failed to generate PDF")
+        }
+  
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = "chat-export.pdf"
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        window.URL.revokeObjectURL(url)
+  
+        toast.success("PDF exported successfully!")
+      } catch (error: any) {
+        console.error("Failed to export PDF:", error)
+        toast.error(error.message || "Failed to export PDF. See console for details.")
+      } finally {
+        setIsExporting(false)
       }
     }
 
@@ -113,7 +186,6 @@ const ChatMessage = memo(
                   provider={message.provider}
                   onQuote={onQuote}
                   completed={message.completed}
-                  // Do NOT include quotedText here
                 />
               </div>
               {message.citations && message.citations.length > 0 && <Citation citations={message.citations} />}
@@ -122,6 +194,21 @@ const ChatMessage = memo(
                 <div className="mt-2 flex items-center justify-end gap-2 pt-2 border-0 px-1 md:px-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
                   <div className="flex items-center space-x-1 sm:space-x-2">
                     <ShareButton threadId={threadId} />
+                    {message.content && message.content.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleExportPdf}
+                        disabled={isExporting}
+                        className="px-2 sm:px-3 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 group h-8 rounded-md transition-all duration-300 ease-in-out overflow-hidden"
+                        aria-label="Export to PDF"
+                      >
+                        <Download className={`h-4 w-4 flex-shrink-0 group-hover:mr-2 transition-all duration-300 ease-in-out ${isExporting ? "animate-pulse" : ""}`} />
+                        <span className="max-w-0 group-hover:max-w-0 sm:group-hover:max-w-xs transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap text-xs">
+                          {isExporting ? "Exporting..." : "Export PDF"}
+                        </span>
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -232,6 +319,7 @@ const ChatMessages = memo(function ChatMessages({
         <ChatMessage
           key={message.id}
           message={message}
+          messages={messages}
           isUser={message.role === "user"}
           threadId={currentThreadId}
           onQuote={onQuote}
@@ -239,7 +327,7 @@ const ChatMessages = memo(function ChatMessages({
         />
       )
     },
-    [currentThreadId, onQuote, onRetry],
+    [currentThreadId, onQuote, onRetry, messages],
   )
 
   // Scroll to bottom only on initial mount (when thread is opened), with no animation
@@ -260,8 +348,7 @@ const ChatMessages = memo(function ChatMessages({
         {messages.map(renderMessage)}
 
         {isLoading && <LoadingIndicator isExa={isExa} modelName={modelName} />}
-
-        {/* Empty div for auto-scrolling to bottom */}
+        
         <div ref={messagesEndRef} />
       </div>
     </div>
