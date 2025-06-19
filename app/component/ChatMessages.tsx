@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import MediaCard from "@/components/MediaCard"
 import WeatherCard from "./WeatherCard"
+import SystemPromptDisplay from "./SystemPromptDisplay"
 
 interface ChatMessagesProps {
   messages: Message[]
@@ -320,6 +321,9 @@ const ChatMessages = memo(function ChatMessages({
 
   const renderMessage = useCallback(
     (message: Message) => {
+      if (message.role === "system") {
+        return <SystemPromptDisplay key={message.id} content={message.content} />
+      }
       return (
         <ChatMessage
           key={message.id}

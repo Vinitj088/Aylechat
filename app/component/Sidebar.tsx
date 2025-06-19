@@ -8,7 +8,7 @@ import { useThreadCache } from "@/context/ThreadCacheContext"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 import { getAssetPath } from "../utils"
-import { X, Trash2, LogOut, Clock, User, AlertTriangle, Settings, Pin, PinOff } from "lucide-react"
+import { X, Trash2, LogOut, Clock, User, AlertTriangle, Settings, Pin, PinOff, PlusCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   AlertDialog,
@@ -244,6 +244,16 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
               Chat History
             </h2>
             <div className="flex items-center gap-1">
+              {/* New Space button */}
+              <Link href="/spaces" passHref>
+                <button
+                  className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
+                  aria-label="Create new space"
+                  title="New Space"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                </button>
+              </Link>
               {/* Pin/unpin button - desktop only */}
               {!isMobile && setPinned && (
                 <button
