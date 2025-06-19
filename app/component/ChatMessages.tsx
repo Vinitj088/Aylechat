@@ -19,6 +19,7 @@ interface ChatMessagesProps {
   selectedModelObj?: Model
   isExa: boolean
   currentThreadId: string | null | undefined
+  threadTitle?: string
   bottomPadding?: number
   onQuote?: (text: string) => void
   onRetry?: (message: Message) => void
@@ -33,13 +34,15 @@ const ChatMessage = memo(
     threadId,
     onQuote,
     onRetry,
-  }: { 
-    message: Message; 
-    messages: Message[];
-    isUser: boolean; 
-    threadId?: string | null | undefined; 
-    onQuote?: (text: string) => void; 
-    onRetry?: (message: Message) => void; 
+    threadTitle,
+  }: {
+    message: Message
+    messages: Message[]
+    isUser: boolean
+    threadId?: string | null | undefined
+    threadTitle?: string
+    onQuote?: (text: string) => void
+    onRetry?: (message: Message) => void
   }) => {
     const [copySuccess, setCopySuccess] = useState(false)
     const [isExporting, setIsExporting] = useState(false)
@@ -109,7 +112,8 @@ const ChatMessage = memo(
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement("a")
         a.href = url
-        a.download = "chat-export.pdf"
+        const safeTitle = (threadTitle || "chat-export").replace(/[\\/?%*:|"<>]/g, "-")
+        a.download = `${safeTitle}.pdf`
         document.body.appendChild(a)
         a.click()
         a.remove()
@@ -301,6 +305,7 @@ const ChatMessages = memo(function ChatMessages({
   selectedModelObj,
   isExa,
   currentThreadId,
+  threadTitle,
   bottomPadding,
   onQuote,
   onRetry,
@@ -324,10 +329,11 @@ const ChatMessages = memo(function ChatMessages({
           threadId={currentThreadId}
           onQuote={onQuote}
           onRetry={onRetry}
+          threadTitle={threadTitle}
         />
       )
     },
-    [currentThreadId, onQuote, onRetry, messages],
+    [currentThreadId, onQuote, onRetry, messages, threadTitle],
   )
 
   // Scroll to bottom only on initial mount (when thread is opened), with no animation

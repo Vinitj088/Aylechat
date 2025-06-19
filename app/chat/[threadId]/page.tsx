@@ -693,6 +693,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         selectedModelObj={selectedModelObj}
         isExa={selectedModel === 'exa'}
         currentThreadId={threadId}
+        threadTitle={thread?.title}
         bottomPadding={chatInputHeightOffset}
         onQuote={setQuotedText}
         onRetry={handleRetryMessage}

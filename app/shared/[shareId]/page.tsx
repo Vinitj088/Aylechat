@@ -199,6 +199,7 @@ export default function SharedThreadPage({ params }: { params: Promise<{ shareId
           selectedModelObj={selectedModelObj}
           isExa={thread.model === 'exa'}
           currentThreadId={shareId}
+          threadTitle={thread.title}
         />
       </div>
       {/* Fixed Theme Toggle - Desktop only */}
