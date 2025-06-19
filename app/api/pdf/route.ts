@@ -151,11 +151,14 @@ export async function POST(request: Request) {
           </a>
         </div>
       `
+
+      // Configure browser based on environment
       if (process.env.NODE_ENV === "development") {
-        // Use local puppeteer installation for development
-        executablePath = require("puppeteer").executablePath()
+        // For local development
+        const puppeteerPkg = await import('puppeteer')
+        executablePath = puppeteerPkg.executablePath()
       } else {
-        // Use @sparticuz/chromium for production
+        // For Vercel production
         executablePath = await chromium.executablePath()
         browserArgs = chromium.args
       }
