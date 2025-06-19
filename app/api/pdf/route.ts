@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import puppeteer from "puppeteer-core"
-import chromium from "@sparticuz/chromium"
+import chromium from "@sparticuz/chromium-min"
 import { marked } from "marked"
 import fs from "fs/promises"
 import path from "path"
@@ -154,12 +154,14 @@ export async function POST(request: Request) {
 
       // Configure browser based on environment
       if (process.env.NODE_ENV === "development") {
-        // For local development
-        const puppeteerPkg = await import('puppeteer')
-        executablePath = puppeteerPkg.executablePath()
+        // For local development, you'll need to have Chrome installed
+        // or provide a path to a Chromium executable.
+        executablePath = "/usr/bin/google-chrome" // Example for Linux
       } else {
-        // For Vercel production (AWS Lambda)
-        executablePath = await chromium.executablePath()
+        // For Vercel production
+        executablePath = await chromium.executablePath(
+          `https://github.com/Sparticuz/chromium/releases/download/v126.0.0/chromium-v126.0.0-pack.tar`,
+        )
         browserArgs = chromium.args
       }
 
