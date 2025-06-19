@@ -160,16 +160,7 @@ export async function POST(request: Request) {
       } else {
         // For Vercel production (AWS Lambda)
         executablePath = await chromium.executablePath()
-        browserArgs = [
-          ...chromium.args,
-          "--disable-gpu",
-          "--disable-dev-shm-usage",
-          "--disable-setuid-sandbox",
-          "--no-first-run",
-          "--no-sandbox",
-          "--no-zygote",
-          "--single-process",
-        ]
+        browserArgs = chromium.args
       }
 
       console.log(`Using Chromium executable at: ${executablePath}`)

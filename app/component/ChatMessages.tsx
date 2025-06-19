@@ -348,7 +348,7 @@ const ChatMessages = memo(function ChatMessages({
         {messages.map(renderMessage)}
 
         {isLoading && <LoadingIndicator isExa={isExa} modelName={modelName} />}
-        
+
         <div ref={messagesEndRef} />
       </div>
     </div>
