@@ -158,9 +158,18 @@ export async function POST(request: Request) {
         const puppeteerPkg = await import('puppeteer')
         executablePath = puppeteerPkg.executablePath()
       } else {
-        // For Vercel production
+        // For Vercel production (AWS Lambda)
         executablePath = await chromium.executablePath()
-        browserArgs = chromium.args
+        browserArgs = [
+          ...chromium.args,
+          "--disable-gpu",
+          "--disable-dev-shm-usage",
+          "--disable-setuid-sandbox",
+          "--no-first-run",
+          "--no-sandbox",
+          "--no-zygote",
+          "--single-process",
+        ]
       }
 
       console.log(`Using Chromium executable at: ${executablePath}`)
@@ -169,6 +178,11 @@ export async function POST(request: Request) {
         args: browserArgs,
         executablePath: executablePath,
         headless: true,
+        defaultViewport: {
+          width: 1280,
+          height: 720,
+          deviceScaleFactor: 1,
+        },
       })
 
       const page = await browser.newPage()
