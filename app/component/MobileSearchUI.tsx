@@ -248,7 +248,7 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
             
             <div className="flex items-center justify-between px-2 py-2 border-t border-[var(--secondary-darkest)]">
               <div className="flex items-center gap-2">
-                <QueryEnhancer input={input} setInput={setInput} isLoading={isLoading} />
+                <QueryEnhancer input={input} setInput={setInput} isLoading={isLoading} isMobile={true} />
                 {isGeminiModel && (
                   <button
                     type="button"

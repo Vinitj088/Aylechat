@@ -6,6 +6,31 @@ import { Send, Plus, FileUp, X, Paperclip, Film, Tv } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ModelSelector from './ModelSelector';
 import QueryEnhancer from './QueryEnhancer';
+import { useQueryEnhancer } from '@/context/QueryEnhancerContext';
+
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Ensure window is defined (for SSR safety)
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const checkDevice = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener('resize', checkDevice);
+    checkDevice(); // Initial check on mount
+
+    return () => {
+      window.removeEventListener('resize', checkDevice);
+    };
+  }, []);
+
+  return isMobile;
+};
 
 // Function to prefetch API endpoints
 const prefetchAPI = async (modelId: string) => {
@@ -99,6 +124,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   const lastModelRef = useRef<string>(selectedModel);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const activeFilesContainerRef = useRef<HTMLDivElement>(null);
+  const { enhancerMode } = useQueryEnhancer();
+  const isMobile = useIsMobile();
   // State for command mode
   const [commandMode, setCommandMode] = useState<CommandMode>('none');
 
@@ -455,23 +482,26 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
               placeholder={getPlaceholder()}
               rows={1}
               className={cn(
-                "w-full p-3 pr-[110px] resize-none min-h-[50px] max-h-[120px]",
+                "w-full p-3 resize-none min-h-[50px] max-h-[120px]",
                 "bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] rounded-md",
                 "focus:outline-none focus:ring-1 focus:ring-[var(--brand-default)] focus:border-[var(--brand-default)]",
                 "placeholder:text-[var(--text-light-subtle)] text-[var(--text-light-default)] font-medium shadow-sm dark:focus:ring-0 dark:focus:outline-none",
-                commandMode !== 'none' && "pl-9",
+                commandMode !== 'none' ? "pl-9" : "pl-3",
+                enhancerMode === 'manual' 
+                  ? (isMobile ? 'pr-[95px]' : 'pr-[140px]') 
+                  : 'pr-[90px]',
                 "scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]"
               )}
               disabled={isLoading}
             />
             
-            <div className="absolute right-14 top-1/2 -translate-y-1/2 h-9 flex items-center">
+            <div className="absolute right-2 bottom-2 flex items-center gap-1.5">
               {isGeminiModel && (
                 <button
                   type="button"
                   onClick={handleFileButtonClick}
                   disabled={isLoading}
-                  className="mr-1 p-2 text-[var(--text-light-muted)] hover:text-[var(--brand-default)] rounded-full hover:bg-[var(--secondary-faint)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 text-[var(--text-light-muted)] hover:text-[var(--brand-default)] rounded-full hover:bg-[var(--secondary-faint)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FileUp className="h-4 w-4" />
                   <input
@@ -489,20 +519,21 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                 input={input} 
                 setInput={(value: string) => handleInputChange(value)} 
                 isLoading={isLoading} 
+                isMobile={isMobile}
               />
+
+              <Button
+                type="submit"
+                size="icon"
+                disabled={(!input.trim() && attachments.length === 0) || isLoading}
+                className="h-9 w-9 flex-shrink-0
+                bg-[var(--brand-dark)] hover:bg-[var(--brand-muted)] text-white
+                disabled:opacity-50 disabled:cursor-not-allowed font-medium
+                rounded-md transition-all duration-200"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
             </div>
-            
-            <Button
-              type="submit"
-              size="icon"
-              disabled={(!input.trim() && attachments.length === 0) || isLoading}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9
-              bg-[var(--brand-dark)] hover:bg-[var(--brand-muted)] text-white
-              disabled:opacity-50 disabled:cursor-not-allowed font-medium
-              rounded-md transition-all duration-200"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
           </div>
           <div className="mt-1 text-[10px] text-[var(--text-light-muted)] text-center">
             Press <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Shift</kbd> + <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Enter</kbd> for new line

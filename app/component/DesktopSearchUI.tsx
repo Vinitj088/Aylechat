@@ -176,7 +176,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
           
           <div className="flex items-center justify-between px-2 py-2 border-t border-[var(--secondary-darkest)]">
             <div className="flex items-center gap-2">
-              <QueryEnhancer input={input} setInput={setInput} isLoading={isLoading} />
+              <QueryEnhancer input={input} setInput={setInput} isLoading={isLoading} isMobile={false} />
               <span className="text-sm text-[var(--text-light-muted)]">Enhance Query</span>
             </div>
             

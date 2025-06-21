@@ -375,12 +375,24 @@ export const fetchResponse = async (
   assistantMessage: Message,
   attachments?: File[],
   activeFiles?: Array<{ name: string; type: string; uri: string }>,
-  onFileUploaded?: (fileInfo: { name: string; type: string; uri: string }) => void
+  onFileUploaded?: (fileInfo: { name: string; type: string; uri: string }) => void,
+  enhancerMode: 'auto' | 'manual' = 'auto'
 ) => {
   const trimmedInput = input.trim();
   let command: '/movies' | '/tv' | '/weather' | null = null;
   let commandQuery: string | null = null;
   let finalInput = trimmedInput; // Use a new variable for potentially modified input
+
+  // --- Automatically enhance query for non-commands/URLs ---
+  if (enhancerMode === 'auto' && !finalInput.startsWith('/') && !finalInput.match(URL_REGEX) && selectedModel !== 'exa') {
+    const enhanced = await enhanceQuery(finalInput);
+    if (enhanced.trim().toLowerCase() !== finalInput.toLowerCase()) {
+      console.log(`Query auto-corrected from "${finalInput}" to "${enhanced}"`);
+      finalInput = enhanced; // Use the enhanced query
+      toast.info(`Auto enhanced query: "${enhanced}"`);
+    }
+  }
+  // --- End auto-enhancement ---
 
   // --- Modify URL Detection and Scraping Logic ---
   const detectedUrls = trimmedInput.match(URL_REGEX);

@@ -31,6 +31,7 @@ import { useThreadCache } from '@/context/ThreadCacheContext';
 import { cn } from '@/lib/utils';
 import { useSidebarPin } from '../context/SidebarPinContext';
 import useIsMobile from './hooks/useIsMobile';
+import { QueryEnhancerProvider, useQueryEnhancer } from '@/context/QueryEnhancerContext';
 
 // Helper function to get provider description
 const getProviderDescription = (providerName: string | undefined): string => {
@@ -108,6 +109,7 @@ function PageContent() {
   const [retriedMessageId, setRetriedMessageId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
+  const { enhancerMode } = useQueryEnhancer();
 
   const isAuthenticated = !!user;
 
@@ -582,7 +584,8 @@ function PageContent() {
         assistantMessage, // Pass the placeholder message
         attachments,
         activeChatFiles,
-        handleFileUploaded
+        handleFileUploaded,
+        enhancerMode
       );
 
       // Update messages state with the final, completed assistant message
@@ -1118,7 +1121,9 @@ function PageContent() {
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <PageContent />
+      <QueryEnhancerProvider>
+        <PageContent />
+      </QueryEnhancerProvider>
     </Suspense>
   );
 }

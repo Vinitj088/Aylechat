@@ -20,8 +20,9 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { useThreadCache } from '@/context/ThreadCacheContext';
 import { cn } from '@/lib/utils';
 import { useSidebarPin } from '../../../context/SidebarPinContext';
+import { QueryEnhancerProvider, useQueryEnhancer } from '@/context/QueryEnhancerContext';
 
-export default function ChatThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
+function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +46,6 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const abortControllerRef = useRef<AbortController | null>(null);
   const { user, session } = useAuth();
   const router = useRouter();
-  const threadId = React.use(params).threadId;
   const chatInputRef = useRef<ChatInputHandle>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
@@ -54,6 +54,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const [quotedText, setQuotedText] = useState('');
   const [retriedMessageId, setRetriedMessageId] = useState<string | null>(null);
   const { pinned, setPinned } = useSidebarPin();
+  const { enhancerMode } = useQueryEnhancer();
 
   const isAuthenticated = !!user;
 
@@ -423,7 +424,8 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
           assistantMessage, // Pass the placeholder ID/role
           files,
           activeChatFiles,
-          handleFileUploaded
+          handleFileUploaded,
+          enhancerMode,
         );
 
         // REMOVED: content = response.content;
@@ -767,4 +769,13 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     </main>
     </div>
   );
+}
+
+export default function ChatThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
+  const { threadId } = React.use(params);
+  return (
+    <QueryEnhancerProvider>
+      <ChatThreadPageContent threadId={threadId} />
+    </QueryEnhancerProvider>
+  )
 } 
