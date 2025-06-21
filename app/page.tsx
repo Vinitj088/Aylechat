@@ -197,12 +197,13 @@ function PageContent() {
         toolCallType: 'native',
         searchMode: true
       },
-      ...xaiModels,
+      
       ...googleModels,
       ...cerebrasModels,
       ...openRouterModels,
       ...groqModels,
       ...togetherModels,
+      ...xaiModels
     ]);
     
     // Get search params
@@ -965,7 +966,7 @@ function PageContent() {
   const guestModels = models.filter(
     (model) =>
       model.id === 'gemini-2.0-flash' ||
-      model.id === 'gemini-2.5-flash-preview-05-20' ||
+      model.id === 'gemini-2.5-flash' ||
       model.providerId === 'cerebras'
   );
 

@@ -76,12 +76,13 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         toolCallType: 'native',
         searchMode: true
       },
-      ...xaiModels,
+      
       ...googleModels,
       ...cerebrasModels,
       ...openRouterModels,
       ...groqModels,
       ...togetherModels,
+      ...xaiModels
     ]);
   }, []);
 
