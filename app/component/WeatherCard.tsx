@@ -49,11 +49,11 @@ const WeatherCard = ({ data }: { data: any }) => {
   const displayLocation = locationName.charAt(0).toUpperCase() + locationName.slice(1);
 
   return (
-    <div className="w-full bg-white/50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-700/50 rounded-lg p-5 my-2 backdrop-blur-sm">
+    <div className="w-full bg-white/50 dark:bg-[var(--secondary-default)] border border-zinc-200 dark:border-zinc-700/50 rounded-lg p-5 my-2 backdrop-blur-sm">
       {/* Top Section: Location and Emoji */}
       <div className="flex justify-between items-center mb-4">
         <div>
-          <p className="text-xl font-bold text-zinc-800 dark:text-zinc-100">
+          <p className="text-xl font-bold text-[var(--primary-default)] dark:text-zinc-100">
             {displayLocation}
           </p>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
