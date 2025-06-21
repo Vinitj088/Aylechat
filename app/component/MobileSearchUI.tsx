@@ -73,6 +73,14 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [isRounded, setIsRounded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("roundedCorners");
+      setIsRounded(stored === "on");
+    }
+  }, []);
 
   const disableInput = isGuest && guestMessageCount >= guestMessageLimit;
 
@@ -206,7 +214,7 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
         </div>
         
         {/* Search box */}
-        <div className="border border-[var(--brand-default)] rounded-lg bg-white dark:bg-[var(--secondary-darker)] shadow-sm overflow-hidden mb-6">
+        <div className={`border ${isRounded ? 'border-2' : ''} border-[var(--brand-default)] rounded-lg bg-white dark:bg-[var(--secondary-darker)] shadow-sm overflow-hidden mb-6`}>
           <form onSubmit={handleSubmit} className="relative">
             <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--secondary-darkest)]">
               <svg className="w-5 h-5 text-[var(--text-light-muted)]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
