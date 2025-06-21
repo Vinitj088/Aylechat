@@ -107,6 +107,7 @@ ${history}
 
 Rules:
 - **Crucial Rule**: Use the conversation history to resolve pronouns or ambiguous references (e.g., "there," "that movie").
+- **CRITICAL**: You MUST only use a tool command from the "Available Tools" list. If no tool in the list is appropriate, you MUST respond with {"tool": null}. Do NOT invent a tool.
 - Only use a tool if the user is asking for specific, current information. For example, use the weather tool for "what is the weather *right now* in Paris?", but NOT for "is Paris *usually* cold in winter?". The latter is a general knowledge question.
 - ONLY respond with the JSON object. Do not include any other text, explanations, or markdown.
 - If the user's question is general, conceptual, historical, or a statement to be verified, respond with {"tool": null}.
@@ -158,8 +159,15 @@ Response: {"tool": null}
     const toolJson = JSON.parse(jsonMatch[0]);
 
     if (toolJson.tool && toolJson.query && toolJson.text) {
-      console.log('Tool suggestion analysis result:', toolJson);
-      return { command: toolJson.tool, query: toolJson.query, text: toolJson.text };
+      // Validate that the tool is one of the available tools
+      const isToolValid = availableTools.some(t => t.command === toolJson.tool);
+      if (isToolValid) {
+        console.log('Tool suggestion analysis result:', toolJson);
+        return { command: toolJson.tool, query: toolJson.query, text: toolJson.text };
+      } else {
+        console.warn(`Model suggested an unavailable tool: '${toolJson.tool}'. Ignoring suggestion.`);
+        return null;
+      }
     }
 
     return null;
