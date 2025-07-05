@@ -11,7 +11,6 @@ import modelsData from '../../../models.json';
 import { AuthDialog } from '@/components/AuthDialog';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { ChatThread } from '@/lib/redis';
 import { toast } from 'sonner';
 import QueryEnhancer from '../../component/QueryEnhancer';
 import React from 'react';
@@ -21,6 +20,18 @@ import { useThreadCache } from '@/context/ThreadCacheContext';
 import { cn } from '@/lib/utils';
 import { useSidebarPin } from '../../../context/SidebarPinContext';
 import { QueryEnhancerProvider, useQueryEnhancer } from '@/context/QueryEnhancerContext';
+
+// Use a local ChatThread type matching the InstantDB schema:
+type ChatThread = {
+  id: string;
+  title: string;
+  messages: Message[];
+  model?: string;
+  createdAt: string;
+  updatedAt: string;
+  isPublic?: boolean;
+  shareId?: string;
+};
 
 function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -404,7 +415,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
             );
             await updateThreadInDb(finalMessages);
             // Update the thread in the cache directly, filter out 'system' messages
-            updateThread(threadId, { messages: finalMessages.filter(m => m.role === 'user' || m.role === 'assistant') as import('@/lib/redis').Message[] });
+            updateThread(threadId, { messages: finalMessages.filter(m => m.role === 'user' || m.role === 'assistant') as Message[] });
           } catch (updateError) {
             console.error('Error saving completed thread (image gen):', updateError);
           }
@@ -442,7 +453,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
             );
             await updateThreadInDb(finalMessages);
             // Update the thread in the cache directly, filter out 'system' messages
-            updateThread(threadId, { messages: finalMessages.filter(m => m.role === 'user' || m.role === 'assistant') as import('@/lib/redis').Message[] });
+            updateThread(threadId, { messages: finalMessages.filter(m => m.role === 'user' || m.role === 'assistant') as Message[] });
           } catch (updateError) {
             console.error('Error saving completed thread (text gen):', updateError);
           }
@@ -509,6 +520,10 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     if (!isAuthenticated || !user || !threadId) {
       return false;
     }
+    // Filter out invalid messages before sending to backend
+    const validMessages = updatedMessages.filter(
+      m => m.role && m.content && typeof m.content === 'string' && m.content.trim() !== ''
+    );
     try {
       const timestamp = Date.now();
       const response = await fetch(`/api/chat/threads/${threadId}?t=${timestamp}`, {
@@ -520,7 +535,20 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         },
         credentials: 'include',
         body: JSON.stringify({
-          messages: updatedMessages,
+          messages: validMessages.map(m => ({
+            ...m,
+            id: m.id || crypto.randomUUID(),
+            role: m.role,
+            content: m.content,
+            citations: m.citations,
+            completed: m.completed,
+            images: m.images,
+            attachments: m.attachments,
+            startTime: m.startTime,
+            endTime: m.endTime,
+            tps: m.tps,
+            createdAt: m.createdAt || new Date().toISOString(),
+          })),
           model: selectedModel
         })
       });
@@ -534,8 +562,6 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       }
       const result = await response.json();
       if (result.success) {
-        // Only trigger sidebar refresh if a thread was created or deleted
-        // setRefreshSidebar(prev => prev + 1); // REMOVE THIS
         return true;
       }
       return false;

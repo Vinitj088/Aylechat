@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 // Import models instead of using require()
 import modelsConfig from '../../models.json';
 import { availableTools, Tool } from '../tools';
+import { InstantDBService } from '@/lib/instantdb';
 
 // --- Add URL Regex ---
 // Basic regex to find potential URLs. Can be refined for more complex cases.

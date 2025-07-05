@@ -772,6 +772,10 @@ function PageContent() {
       openAuthDialog();
       return null;
     }
+    // Filter out invalid messages before sending to backend
+    const validMessages = threadContent.messages.filter(
+      m => m.role && m.content && typeof m.content === 'string' && m.content.trim() !== ''
+    );
     try {
       const method = currentThreadId ? 'PUT' : 'POST';
       const endpoint = currentThreadId 
@@ -789,6 +793,20 @@ function PageContent() {
         credentials: 'include',
         body: JSON.stringify({
           ...threadContent,
+          messages: validMessages.map(m => ({
+            ...m,
+            id: m.id || crypto.randomUUID(),
+            role: m.role,
+            content: m.content,
+            citations: m.citations,
+            completed: m.completed,
+            images: m.images,
+            attachments: m.attachments,
+            startTime: m.startTime,
+            endTime: m.endTime,
+            tps: m.tps,
+            createdAt: m.createdAt || new Date().toISOString(),
+          })),
           model: selectedModel
         })
       });
@@ -804,7 +822,6 @@ function PageContent() {
         if (!currentThreadId) {
           setCurrentThreadId(result.thread.id);
           window.history.pushState({}, '', `/chat/${result.thread.id}`);
-          // Add the new thread to the cache instantly
           addThread(result.thread);
         }
         return result.thread.id;
@@ -812,8 +829,6 @@ function PageContent() {
       return null;
     } catch (error: any) {
       console.error('Error saving thread:', error);
-      
-      // Check if it's an auth error
       if (
         (error.message && error.message.toLowerCase().includes('unauthorized')) ||
         (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
@@ -822,7 +837,6 @@ function PageContent() {
       } else {
         toast.error('Error saving conversation');
       }
-      
       return null;
     }
   };

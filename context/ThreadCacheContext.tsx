@@ -1,14 +1,26 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
-import { ChatThread } from '@/lib/redis';
 import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
 import { getAssetPath } from '@/app/utils';
+import { Message } from '@/app/types';
 
 // Constants for caching
 const CACHE_KEY = 'exachat_thread_cache';
 const CACHE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+// Use a local ChatThread type matching the InstantDB schema:
+type ChatThread = {
+  id: string;
+  title: string;
+  messages: Message[];
+  model?: string;
+  createdAt: string;
+  updatedAt: string;
+  isPublic?: boolean;
+  shareId?: string;
+};
 
 interface ThreadCache {
   threads: ChatThread[];

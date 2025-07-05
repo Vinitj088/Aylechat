@@ -1,8 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 // Uncomment the following line if using an older Node.js version without built-in fetch
 // import fetch from 'node-fetch';
-// Import the actual redis client instance instead of the service class
-import { redis } from '../../lib/redis';
 
 // --- Constants ---
 const CACHE_VALIDITY_PREFIX = 'scrape_validity:'; // Key to check if scrape is recent
@@ -41,6 +39,9 @@ function isValidHttpUrl(string: string): boolean {
   return url.protocol === "http:" || url.protocol === "https:";
 }
 
+// Use a simple in-memory cache for validity (non-persistent, resets on server restart):
+const scrapeValidityCache = new Map<string, number>();
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ScrapeCacheValidResponse | ScrapeCacheRefreshedResponse | ScrapeErrorResponse>
@@ -65,9 +66,7 @@ export default async function handler(
 
   // --- Check Cache Validity --- 
   try {
-    // Use EXISTS for efficiency - we only care if the key is present
-    // Call exists on the imported redis client instance
-    const isValid = await redis.exists(validityKey);
+    const isValid = scrapeValidityCache.has(validityKey) && (Date.now() - scrapeValidityCache.get(validityKey)!) < CACHE_TTL_SECONDS * 1000;
     if (isValid) {
       console.log(`Backend: Cache validity confirmed for URL: ${urlToScrape}`);
       // Tell frontend the cache is valid, it should have the data locally
@@ -75,7 +74,7 @@ export default async function handler(
     }
     console.log(`Backend: Cache validity expired or not found for URL: ${urlToScrape}`);
   } catch (error) {
-    console.error('Redis EXISTS error while checking cache validity:', error);
+    console.error('Error checking cache validity:', error);
     // Proceed to scrape, but log the error
   }
 
@@ -117,15 +116,8 @@ export default async function handler(
       console.log(`Backend: Successfully scraped markdown. Length: ${markdownContent.length}. Setting cache validity.`);
       
       // Set the validity key in Redis with TTL
-      try {
-        // Store a simple value like '1' - we only care about its existence and TTL
-        // Call set on the imported redis client instance
-        await redis.set(validityKey, '1', { ex: CACHE_TTL_SECONDS }); 
-        console.log(`Backend: Successfully set validity key for ${urlToScrape} with TTL ${CACHE_TTL_SECONDS}s.`);
-      } catch (error) {
-        console.error('Redis SET error while setting validity key:', error);
-        // Log the error, but still return the content to the user this time
-      }
+      scrapeValidityCache.set(validityKey, Date.now());
+      console.log(`Backend: Successfully set validity key for ${urlToScrape} with TTL ${CACHE_TTL_SECONDS}s.`);
 
       // Send the newly scraped content to the frontend
       return res.status(200).json({ 
