@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { RedisService } from '@/lib/redis';
-import { AuthError } from '@supabase/supabase-js';
+import { InstantDBService } from '@/lib/instantdb';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,8 +45,8 @@ export async function GET(
     
     const userId = user.id;
     
-    // Get the thread from Redis
-    const thread = await RedisService.getChatThread(userId, threadId);
+    // Get the thread from InstantDBService
+    const thread = await InstantDBService.getChatThread(userId, threadId);
     
     if (!thread) {
       return NextResponse.json({ 
@@ -116,7 +115,7 @@ export async function PUT(
     const userId = user.id;
     
     // Get the existing thread first
-    const existingThread = await RedisService.getChatThread(userId, threadId);
+    const existingThread = await InstantDBService.getChatThread(userId, threadId);
     
     if (!existingThread) {
       return NextResponse.json({ 
@@ -125,8 +124,8 @@ export async function PUT(
       }, { status: 404 });
     }
     
-    // Update the thread in Redis
-    const updatedThread = await RedisService.updateChatThread(
+    // Update the thread in InstantDBService
+    const updatedThread = await InstantDBService.updateChatThread(
       userId,
       threadId,
       {
@@ -191,8 +190,8 @@ export async function DELETE(
     
     const userId = user.id;
     
-    // Delete the thread from Redis
-    const success = await RedisService.deleteChatThread(userId, threadId);
+    // Delete the thread from InstantDBService
+    const success = await InstantDBService.deleteChatThread(userId, threadId);
     
     if (!success) {
       return NextResponse.json({ 

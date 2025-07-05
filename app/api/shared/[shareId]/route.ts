@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RedisService } from '@/lib/redis';
+import { InstantDBService } from '@/lib/instantdb';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,8 +25,8 @@ export async function GET(
       }, { status: 400 });
     }
     
-    // Get the shared thread from Redis
-    const thread = await RedisService.getSharedThread(shareId);
+    // Get the shared thread from InstantDBService
+    const thread = await InstantDBService.getSharedThread(shareId);
     
     if (!thread) {
       return NextResponse.json({ 
