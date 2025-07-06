@@ -6,7 +6,7 @@ export default function BorderRadiusInitializer() {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("roundedCorners");
       if (stored === "on") {
-        document.documentElement.style.setProperty("--border-radius-default", "0.5rem");
+        document.documentElement.style.setProperty("--border-radius-default", "0.75rem");
       } else {
         document.documentElement.style.setProperty("--border-radius-default", "0px");
       }
