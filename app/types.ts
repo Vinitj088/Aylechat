@@ -45,11 +45,7 @@ export interface Model {
 // Define model types
 export type ModelType = 'exa' | string;
 
-export interface UserPreferences {
-  theme?: string;
-  layout?: string;
-  // other user-specific preferences
-}
+ 
 
 // New type for Movie/TV Show data from TMDB
 export interface MediaData {

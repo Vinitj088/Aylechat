@@ -570,7 +570,18 @@ function PageContent() {
                 .update({
                   role: message.role,
                   content: message.content,
-                  createdAt: now.toISOString(),
+                  createdAt: message.createdAt ? (typeof message.createdAt === 'string' ? message.createdAt : message.createdAt.toISOString()) : undefined,
+                  citations: message.citations,
+                  completed: message.completed,
+                  startTime: message.startTime,
+                  endTime: message.endTime,
+                  tps: message.tps,
+                  mediaData: message.mediaData,
+                  weatherData: message.weatherData,
+                  images: message.images,
+                  attachments: message.attachments,
+                  provider: message.provider,
+                  quotedText: message.quotedText,
                 })
                 .link({ thread: threadId })
             )
@@ -636,7 +647,18 @@ function PageContent() {
               .update({
                 role: message.role,
                 content: message.content,
-                createdAt: now.toISOString(),
+                createdAt: message.createdAt ? (typeof message.createdAt === 'string' ? message.createdAt : message.createdAt.toISOString()) : undefined,
+                citations: message.citations,
+                completed: message.completed,
+                startTime: message.startTime,
+                endTime: message.endTime,
+                tps: message.tps,
+                mediaData: message.mediaData,
+                weatherData: message.weatherData,
+                images: message.images,
+                attachments: message.attachments,
+                provider: message.provider,
+                quotedText: message.quotedText,
               })
               .link({ thread: threadId })
           )
@@ -657,7 +679,18 @@ function PageContent() {
               .update({
                 role: message.role,
                 content: message.content,
-                createdAt: now.toISOString(),
+                createdAt: message.createdAt ? (typeof message.createdAt === 'string' ? message.createdAt : message.createdAt.toISOString()) : undefined,
+                citations: message.citations,
+                completed: message.completed,
+                startTime: message.startTime,
+                endTime: message.endTime,
+                tps: message.tps,
+                mediaData: message.mediaData,
+                weatherData: message.weatherData,
+                images: message.images,
+                attachments: message.attachments,
+                provider: message.provider,
+                quotedText: message.quotedText,
               })
               .link({ thread: currentThreadId })
           )

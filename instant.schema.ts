@@ -1,41 +1,71 @@
-import { i } from '@instantdb/react';
+// Docs: https://www.instantdb.com/docs/modeling-data
+
+import { i } from "@instantdb/react";
 
 const _schema = i.schema({
   entities: {
-    $users: i.entity({
-      email: i.string().unique().indexed(),
+    $files: i.entity({
+      path: i.string().unique().indexed(),
+      url: i.string(),
     }),
-    threads: i.entity({
-      title: i.string(),
-      model: i.string(),
-      createdAt: i.date().indexed(),
-      updatedAt: i.date().indexed(),
-      isPublic: i.boolean().indexed(),
-      shareId: i.string().unique(),
+    $users: i.entity({
+      email: i.string().unique().indexed().optional(),
     }),
     messages: i.entity({
-      role: i.string(),
-      content: i.string(),
-      createdAt: i.date().indexed(),
+      content: i.string().optional(),
+      createdAt: i.date().indexed().optional(),
+      role: i.string().optional(),
+      citations: i.json().optional(),
+      completed: i.boolean().optional(),
+      startTime: i.number().optional(),
+      endTime: i.number().optional(),
+      tps: i.number().optional(),
+      mediaData: i.json().optional(),
+      weatherData: i.json().optional(),
+      images: i.json().optional(),
+      attachments: i.json().optional(),
+      provider: i.string().optional(),
+      quotedText: i.string().optional(),
     }),
-    scrapedUrls: i.entity({
-      url: i.string().unique(),
-      markdownContent: i.string(),
-      scrapedAt: i.date().indexed(),
+    threads: i.entity({
+      createdAt: i.date().indexed().optional(),
+      isPublic: i.boolean().indexed().optional(),
+      model: i.string().optional(),
+      shareId: i.string().unique().indexed().optional(),
+      title: i.string().optional(),
+      updatedAt: i.date().indexed().optional(),
     }),
   },
   links: {
-    threadUser: {
-      forward: { on: 'threads', has: 'one', label: 'user' },
-      reverse: { on: '$users', has: 'many', label: 'threads' },
+    messagesThread: {
+      forward: {
+        on: "messages",
+        has: "one",
+        label: "thread",
+      },
+      reverse: {
+        on: "threads",
+        has: "many",
+        label: "messages",
+      },
     },
-    messageThread: {
-      forward: { on: 'messages', has: 'one', label: 'thread', onDelete: 'cascade' },
-      reverse: { on: 'threads', has: 'many', label: 'messages' },
+    threadsUser: {
+      forward: {
+        on: "threads",
+        has: "one",
+        label: "user",
+      },
+      reverse: {
+        on: "$users",
+        has: "many",
+        label: "threads",
+      },
     },
   },
+  rooms: {},
 });
 
+// This helps Typescript display nicer intellisense
 type _AppSchema = typeof _schema;
 interface AppSchema extends _AppSchema {}
 const schema: AppSchema = _schema;

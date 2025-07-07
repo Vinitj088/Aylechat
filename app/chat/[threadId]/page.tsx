@@ -34,6 +34,17 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const dbMessages: Message[] = (thread?.messages || []).map((msg: any) => ({
     ...msg,
     role: (msg.role === 'user' || msg.role === 'assistant' || msg.role === 'system') ? msg.role : 'user',
+    citations: msg.citations,
+    completed: msg.completed,
+    startTime: msg.startTime,
+    endTime: msg.endTime,
+    tps: msg.tps,
+    mediaData: msg.mediaData,
+    weatherData: msg.weatherData,
+    images: msg.images,
+    attachments: msg.attachments,
+    provider: msg.provider,
+    quotedText: msg.quotedText,
   }));
 
   // --- Local state for optimistic UI ---
@@ -211,14 +222,36 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       // Persist both messages to InstantDB
       await db.transact([
         db.tx.messages[userMessage.id].update({
-          role: 'user',
+          role: userMessage.role,
           content: userMessage.content,
-          createdAt: userMessage.createdAt?.toISOString(),
+          createdAt: userMessage.createdAt ? (typeof userMessage.createdAt === 'string' ? userMessage.createdAt : userMessage.createdAt.toISOString()) : undefined,
+          citations: userMessage.citations,
+          completed: userMessage.completed,
+          startTime: userMessage.startTime,
+          endTime: userMessage.endTime,
+          tps: userMessage.tps,
+          mediaData: userMessage.mediaData,
+          weatherData: userMessage.weatherData,
+          images: userMessage.images,
+          attachments: userMessage.attachments,
+          provider: userMessage.provider,
+          quotedText: userMessage.quotedText,
         }).link({ thread: threadId }),
         db.tx.messages[assistantMessage.id].update({
-          role: 'assistant',
+          role: assistantMessage.role,
           content: completedAssistantMessage.content,
           createdAt: new Date().toISOString(),
+          citations: completedAssistantMessage.citations,
+          completed: completedAssistantMessage.completed,
+          startTime: completedAssistantMessage.startTime,
+          endTime: completedAssistantMessage.endTime,
+          tps: completedAssistantMessage.tps,
+          mediaData: completedAssistantMessage.mediaData,
+          weatherData: completedAssistantMessage.weatherData,
+          images: completedAssistantMessage.images,
+          attachments: completedAssistantMessage.attachments,
+          provider: completedAssistantMessage.provider,
+          quotedText: completedAssistantMessage.quotedText,
         }).link({ thread: threadId }),
         db.tx.threads[threadId].update({ updatedAt: new Date().toISOString() }),
       ]);
@@ -230,6 +263,17 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         db.tx.messages[assistantMessage.id].update({
           content: 'Sorry, something went wrong.',
           createdAt: new Date().toISOString(),
+          citations: assistantMessage.citations,
+          completed: assistantMessage.completed,
+          startTime: assistantMessage.startTime,
+          endTime: assistantMessage.endTime,
+          tps: assistantMessage.tps,
+          mediaData: assistantMessage.mediaData,
+          weatherData: assistantMessage.weatherData,
+          images: assistantMessage.images,
+          attachments: assistantMessage.attachments,
+          provider: assistantMessage.provider,
+          quotedText: assistantMessage.quotedText,
         })
       ]);
     } finally {
