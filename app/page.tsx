@@ -27,11 +27,12 @@ import { Button } from "@/components/ui/button";
 import { prefetchAll } from './api/prefetch';
 import { FileUp, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { useThreadCache } from '@/context/ThreadCacheContext';
-import { cn } from '@/lib/utils';
 import { useSidebarPin } from '../context/SidebarPinContext';
 import useIsMobile from './hooks/useIsMobile';
 import { QueryEnhancerProvider, useQueryEnhancer } from '@/context/QueryEnhancerContext';
+import { db } from '@/lib/db';
+import { id } from '@instantdb/react';
+import { cn } from '@/lib/utils';
 
 // Helper function to get provider description
 const getProviderDescription = (providerName: string | undefined): string => {
@@ -98,7 +99,6 @@ function PageContent() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
-  const { addThread } = useThreadCache();
   const GUEST_MESSAGE_LIMIT = 3;
   const GUEST_MESSAGE_KEY = 'guestMessageCount';
   const [guestMessageCount, setGuestMessageCount] = useState(0);
@@ -552,16 +552,32 @@ function PageContent() {
         // Create or update the thread with image data
         if (isFirstMessage) {
           // For first message, create a new thread with image data
-          const threadId = await createOrUpdateThread({
-            messages: finalMessages,
-            title: threadTitle
-          });
-          
-          if (threadId) {
-            setCurrentThreadId(threadId);
-            // Update the URL to the new thread without forcing a reload
-            window.history.pushState({}, '', `/chat/${threadId}`);
-          }
+          const threadId = id();
+          const now = new Date();
+          const messageIds = finalMessages.map(() => id());
+          const transactions = [
+            db.tx.threads[threadId]
+              .update({
+                title: threadTitle,
+                model: selectedModel,
+                createdAt: now.toISOString(),
+                updatedAt: now.toISOString(),
+                isPublic: false,
+              })
+              .link({ user: user.id, messages: messageIds }),
+            ...finalMessages.map((message, i) => 
+              db.tx.messages[messageIds[i]]
+                .update({
+                  role: message.role,
+                  content: message.content,
+                  createdAt: now.toISOString(),
+                })
+                .link({ thread: threadId })
+            )
+          ];
+          await db.transact(transactions);
+          setCurrentThreadId(threadId);
+          window.history.pushState({}, '', `/chat/${threadId}`);
         }
         
         // Reset loading state
@@ -602,34 +618,51 @@ function PageContent() {
 
       // Create or update the thread only after we have the complete response
       if (isFirstMessage) {
-        // For first message, create a new thread
-        const threadId = await createOrUpdateThread({
-          messages: finalMessagesForThread,
-          title: threadTitle
-        });
-        
-        if (threadId) {
-          setCurrentThreadId(threadId);
-          // Update the URL to the new thread without forcing a reload
-          window.history.pushState({}, '', `/chat/${threadId}`);
-        }
+        const threadId = id();
+        const now = new Date();
+        const messageIds = finalMessagesForThread.map(() => id());
+        const transactions = [
+          db.tx.threads[threadId]
+            .update({
+              title: threadTitle,
+              model: selectedModel,
+              createdAt: now.toISOString(),
+              updatedAt: now.toISOString(),
+              isPublic: false,
+            })
+            .link({ user: user.id, messages: messageIds }),
+          ...finalMessagesForThread.map((message, i) => 
+            db.tx.messages[messageIds[i]]
+              .update({
+                role: message.role,
+                content: message.content,
+                createdAt: now.toISOString(),
+              })
+              .link({ thread: threadId })
+          )
+        ];
+        await db.transact(transactions);
+        setCurrentThreadId(threadId);
+        window.history.pushState({}, '', `/chat/${threadId}`);
       } else if (currentThreadId) {
-        // For subsequent messages, update the existing thread
-        await createOrUpdateThread({
-          messages: finalMessagesForThread
-        });
-      } else {
-        // If we somehow don't have a thread ID, create a new thread
-        const threadId = await createOrUpdateThread({
-          messages: finalMessagesForThread,
-          title: threadTitle
-        });
-        
-        if (threadId) {
-          setCurrentThreadId(threadId);
-          // Update the URL to the new thread without forcing a reload
-          window.history.pushState({}, '', `/chat/${threadId}`);
-        }
+        const now = new Date();
+        const messageIds = finalMessagesForThread.map(() => id());
+        const transactions = [
+          db.tx.threads[currentThreadId]
+            .update({
+              updatedAt: now.toISOString(),
+            }),
+          ...finalMessagesForThread.slice(messages.length).map((message, i) => 
+            db.tx.messages[messageIds[i]]
+              .update({
+                role: message.role,
+                content: message.content,
+                createdAt: now.toISOString(),
+              })
+              .link({ thread: currentThreadId })
+          )
+        ];
+        await db.transact(transactions);
       }
       
       // Reset loading state after successful response
@@ -764,66 +797,6 @@ function PageContent() {
         description: error.message || 'Please try again later',
         duration: 5000,
       });
-    }
-  };
-
-  const createOrUpdateThread = async (threadContent: { messages: Message[], title?: string }) => {
-    if (!isAuthenticated || !user) {
-      openAuthDialog();
-      return null;
-    }
-    try {
-      const method = currentThreadId ? 'PUT' : 'POST';
-      const endpoint = currentThreadId 
-        ? `/api/chat/threads/${currentThreadId}` 
-        : '/api/chat/threads';
-      const timestamp = Date.now();
-      const response = await fetch(`${endpoint}?t=${timestamp}`, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          ...threadContent,
-          model: selectedModel
-        })
-      });
-      if (!response.ok) {
-        if (response.status === 401) {
-          openAuthDialog();
-          return null;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const result = await response.json();
-      if (result.success && result.thread) {
-        if (!currentThreadId) {
-          setCurrentThreadId(result.thread.id);
-          window.history.pushState({}, '', `/chat/${result.thread.id}`);
-          // Add the new thread to the cache instantly
-          addThread(result.thread);
-        }
-        return result.thread.id;
-      }
-      return null;
-    } catch (error: any) {
-      console.error('Error saving thread:', error);
-      
-      // Check if it's an auth error
-      if (
-        (error.message && error.message.toLowerCase().includes('unauthorized')) ||
-        (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
-      ) {
-        await handleRequestError(error);
-      } else {
-        toast.error('Error saving conversation');
-      }
-      
-      return null;
     }
   };
 
@@ -982,6 +955,13 @@ function PageContent() {
     return () => window.removeEventListener('resize', handleResize);
   }, [pinned, setPinned]);
 
+  // Always sort messages by createdAt ascending before rendering
+  const sortedMessages = [...messages].sort((a, b) => {
+    const aDate = typeof a.createdAt === 'string' ? a.createdAt : a.createdAt?.toISOString?.() || '';
+    const bDate = typeof b.createdAt === 'string' ? b.createdAt : b.createdAt?.toISOString?.() || '';
+    return new Date(aDate).getTime() - new Date(bDate).getTime();
+  });
+
   return (
     <div className={cn(
       pinned ? "ayle-grid-layout" : "",
@@ -1067,7 +1047,7 @@ function PageContent() {
         ) : (
           <>
             <ChatMessages 
-              messages={messages} 
+              messages={sortedMessages}
               isLoading={isLoading}
               selectedModel={selectedModel}
               selectedModelObj={selectedModelObj}
@@ -1127,4 +1107,3 @@ export default function Page() {
     </Suspense>
   );
 }
- 

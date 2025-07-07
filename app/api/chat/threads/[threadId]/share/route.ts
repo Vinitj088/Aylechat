@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
-import { RedisService } from '@/lib/redis';
+import { init, id } from '@instantdb/admin';
+import schema from '@/instant.schema';
+
+const db = init({
+  appId: process.env.NEXT_PUBLIC_INSTANT_APP_ID!,
+  adminToken: process.env.INSTANTDB_ADMIN_TOKEN!,
+  schema,
+});
 
 export const dynamic = 'force-dynamic';
 
@@ -26,44 +32,38 @@ export async function POST(
       }, { status: 400 });
     }
     
-    // Get user from Supabase auth
-    const supabase = createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    // Check if we have a valid user
-    if (error || !user) {
-      console.error('Auth error:', error?.message || 'No user found');
-      return NextResponse.json(
-        { 
-          error: 'Unauthorized', 
-          message: error?.message || 'Authentication required',
-          authRequired: true 
-        },
-        { status: 401 }
-      );
+    // Fetch the thread
+    const data = await db.query({
+      threads: { $: { where: { id: threadId } } }
+    });
+    const thread = data.threads?.[0];
+    if (!thread) {
+      return NextResponse.json({ success: false, error: 'Thread not found' }, { status: 404 });
     }
     
-    const userId = user.id;
-    
-    // Make the thread shareable
-    const result = await RedisService.makeThreadShareable(userId, threadId);
-    
-    if (!result) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Failed to share thread or thread not found' 
-      }, { status: 404 });
+    // Generate shareId if needed
+    let shareId = thread.shareId;
+    let isNewShare = false;
+    if (!shareId) {
+      shareId = id();
+      isNewShare = true;
     }
+    
+    await db.transact([
+      db.tx.threads[threadId].update({
+        isPublic: true,
+        shareId,
+      })
+    ]);
     
     // Return the shareId and full URL for sharing
-    const shareUrl = `${req.nextUrl.origin}/shared/${result.shareId}`;
+    const shareUrl = `${req.nextUrl.origin}/shared/${shareId}`;
     
     return NextResponse.json({
       success: true,
-      shareId: result.shareId,
+      shareId,
       shareUrl,
-      thread: result.thread,
-      isNewShare: !result.thread.isPublic || !result.thread.shareId
+      isNewShare
     });
     
   } catch (error: any) {

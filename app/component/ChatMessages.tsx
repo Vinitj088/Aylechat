@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import MediaCard from "@/components/MediaCard"
 import WeatherCard from "./WeatherCard"
+import React from "react"
 
 interface ChatMessagesProps {
   messages: Message[]
@@ -336,6 +337,33 @@ const ChatMessages = memo(function ChatMessages({
     [currentThreadId, onQuote, onRetry, messages, threadTitle],
   )
 
+  // Instead of rendering all messages in a flat list, render user+assistant pairs
+  const renderPairedMessages = () => {
+    const pairs = [];
+    let i = 0;
+    while (i < messages.length) {
+      const userMsg = messages[i];
+      const nextMsg = messages[i + 1];
+      if (userMsg.role === 'user' && nextMsg && nextMsg.role === 'assistant') {
+        pairs.push(
+          <React.Fragment key={userMsg.id + '-' + nextMsg.id}>
+            {renderMessage(userMsg)}
+            {renderMessage(nextMsg)}
+          </React.Fragment>
+        );
+        i += 2;
+      } else {
+        pairs.push(
+          <React.Fragment key={userMsg.id}>
+            {renderMessage(userMsg)}
+          </React.Fragment>
+        );
+        i += 1;
+      }
+    }
+    return pairs;
+  };
+
   // Scroll to bottom only on initial mount (when thread is opened), with no animation
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -351,10 +379,8 @@ const ChatMessages = memo(function ChatMessages({
       style={{ paddingBottom: `${(bottomPadding ?? 0) + 150}px` }}
     >
       <div className="w-full max-w-full md:max-w-4xl mx-auto px-2 md:px-4 py-6 space-y-6">
-        {messages.map(renderMessage)}
-
+        {renderPairedMessages()}
         {isLoading && <LoadingIndicator isExa={isExa} modelName={modelName} />}
-
         <div ref={messagesEndRef} />
       </div>
     </div>

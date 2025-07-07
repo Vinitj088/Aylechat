@@ -1,24 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { RedisService } from '@/lib/redis';
-import { AuthError } from '@supabase/supabase-js';
+import { db } from '@/lib/db';
+import { id } from '@instantdb/react';
 
 export const dynamic = 'force-dynamic';
 
 // Define the route context type
 type RouteContext = {
-  params: Promise<{
+  params: {
     threadId: string
-  }>
+  }
 };
 
 // GET a specific thread
 export async function GET(
   req: NextRequest,
-  context: RouteContext
+  context: { params: { threadId: string } }
 ) {
   try {
-    const { threadId } = await context.params;
+    const { threadId } = context.params;
     
     if (!threadId) {
       return NextResponse.json({ 
@@ -44,21 +44,10 @@ export async function GET(
       );
     }
     
-    const userId = user.id;
-    
-    // Get the thread from Redis
-    const thread = await RedisService.getChatThread(userId, threadId);
-    
-    if (!thread) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Thread not found' 
-      }, { status: 404 });
-    }
-    
+    // Client will fetch data using useQuery. This endpoint is likely not needed.
     return NextResponse.json({
       success: true,
-      thread
+      thread: null
     });
     
   } catch (error: any) {
@@ -73,10 +62,10 @@ export async function GET(
 // PUT/UPDATE a specific thread
 export async function PUT(
   req: NextRequest,
-  context: RouteContext
+  context: { params: { threadId: string } }
 ) {
   try {
-    const { threadId } = await context.params;
+    const { threadId } = context.params;
     
     if (!threadId) {
       return NextResponse.json({ 
@@ -113,35 +102,36 @@ export async function PUT(
       );
     }
     
-    const userId = user.id;
-    
-    // Get the existing thread first
-    const existingThread = await RedisService.getChatThread(userId, threadId);
-    
-    if (!existingThread) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Thread not found' 
-      }, { status: 404 });
-    }
-    
-    // Update the thread in Redis
-    const updatedThread = await RedisService.updateChatThread(
-      userId,
-      threadId,
-      {
-        messages,
-        title: title || existingThread.title,
-        model: model || existingThread.model
-      }
-    );
-    
-    if (!updatedThread) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Failed to update thread' 
-      }, { status: 500 });
-    }
+    const now = new Date();
+    const messageIds = messages.map(() => id());
+
+    const transactions = [
+      db.tx.threads[threadId]
+        .update({
+          title,
+          model,
+          updatedAt: now.toISOString(),
+        }),
+      ...messages.map((message, i) => 
+        db.tx.messages[messageIds[i]]
+          .update({
+            role: message.role,
+            content: message.content,
+            createdAt: now.toISOString(),
+          })
+          .link({ thread: threadId })
+      )
+    ];
+
+    await db.transact(transactions);
+
+    const updatedThread = {
+      id: threadId,
+      title,
+      messages,
+      model,
+      updatedAt: now.toISOString(),
+    };
     
     return NextResponse.json({
       success: true,
@@ -160,10 +150,10 @@ export async function PUT(
 // DELETE a specific thread
 export async function DELETE(
   req: NextRequest,
-  context: RouteContext
+  context: { params: { threadId: string } }
 ) {
   try {
-    const { threadId } = await context.params;
+    const { threadId } = context.params;
     
     if (!threadId) {
       return NextResponse.json({ 
@@ -189,17 +179,7 @@ export async function DELETE(
       );
     }
     
-    const userId = user.id;
-    
-    // Delete the thread from Redis
-    const success = await RedisService.deleteChatThread(userId, threadId);
-    
-    if (!success) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Failed to delete thread' 
-      }, { status: 500 });
-    }
+    await db.transact(db.tx.threads[threadId].delete());
     
     return NextResponse.json({
       success: true,
@@ -213,4 +193,5 @@ export async function DELETE(
       error: error.message || 'Failed to delete thread' 
     }, { status: 500 });
   }
-} 
+}
+ 

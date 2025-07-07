@@ -267,11 +267,10 @@ export const enhanceQuery = async (query: string): Promise<string> => {
 };
 
 // --- Add function to call backend scraper ---
-// Updated to handle hybrid caching (Redis validity + localStorage content)
+// Updated to handle hybrid caching (instantdb validity + localStorage content)
 const scrapeUrlContent = async (url: string, abortController: AbortController): Promise<string | null> => {
-  console.log(`[Scrape] Checking validity/content for URL: ${url}`);
+  console.log(`[Scrape] Checking/getting content for URL: ${url}`);
   const scrapeApiEndpoint = getAssetPath('/api/scrape');
-  const localStorageKey = `scrape_content:${url}`; // Key for storing markdown in localStorage
 
   try {
     // Call backend to check cache validity or trigger scrape
@@ -286,9 +285,6 @@ const scrapeUrlContent = async (url: string, abortController: AbortController): 
       body: JSON.stringify({ urlToScrape: url }),
     });
 
-    // --- Handle Backend Response --- 
-
-    // Handle non-OK responses (e.g., 4xx, 5xx)
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: 'Failed to parse scrape error response' }));
       console.error(`[Scrape] Backend scrape request failed (${response.status}):`, errorData);
@@ -296,56 +292,23 @@ const scrapeUrlContent = async (url: string, abortController: AbortController): 
         description: `Could not get content for the URL. Error: ${errorData.message || response.statusText}`,
         duration: 5000,
       });
-      // Clear potentially stale local storage on failure
-      localStorage.removeItem(localStorageKey);
       return null;
     }
 
-    // Handle OK responses (200)
     const result = await response.json();
 
     if (result.success) {
-      if (result.cacheStatus === 'valid') {
-        console.log('[Scrape] Backend confirms cache is valid. Checking localStorage...');
-        const localData = localStorage.getItem(localStorageKey);
-        if (localData) {
-          console.log('[Scrape] Found valid content in localStorage.');
-          toast.info('Using Cached URL Content', {
-             description: 'Using previously scraped content for this URL.',
-             duration: 2000,
-          });
-          return localData;
-        } else {
-          // This is an edge case: backend says valid, but client lost data.
-          // We could trigger a refresh, but for simplicity, we'll proceed without content.
-          console.warn('[Scrape] Backend confirmed cache validity, but no content found in localStorage. Proceeding without scraped data.');
-          toast.warning('URL Content Missing', {
-            description: 'Could not find cached content locally. You might need to resubmit.',
-            duration: 4000,
-          });
-          return null;
-        }
-      } else if (result.cacheStatus === 'refreshed' && result.markdownContent) {
-        console.log(`[Scrape] Received refreshed content. Length: ${result.markdownContent.length}. Storing in localStorage.`);
-        localStorage.setItem(localStorageKey, result.markdownContent);
-        toast.success('URL Content Scraped', {
-          description: 'Fresh content from the URL will be used.',
-          duration: 3000,
-        });
-        return result.markdownContent;
-      } else {
-        // Should not happen if success is true, but handle defensively
-        console.warn('[Scrape] Backend response format unexpected (success=true, but invalid cacheStatus or missing content).', result);
-        localStorage.removeItem(localStorageKey); // Clear potentially bad state
-        return null;
-      }
-    } else { // result.success === false
+      toast.success('URL Content Scraped', {
+        description: 'Fresh content from the URL will be used.',
+        duration: 3000,
+      });
+      return result.markdownContent;
+    } else {
       console.warn('[Scrape] Backend indicated scraping process failed or yielded no content.', result.message);
       toast.warning('URL Scraping Issue', {
         description: result.message || 'Scraping completed but no content was returned.',
         duration: 5000,
       });
-      localStorage.removeItem(localStorageKey);
       return null;
     }
 
@@ -359,7 +322,6 @@ const scrapeUrlContent = async (url: string, abortController: AbortController): 
       description: `An error occurred while trying to scrape the URL: ${error instanceof Error ? error.message : 'Unknown error'}`,
       duration: 5000,
     });
-    localStorage.removeItem(localStorageKey); // Clear local storage on error
     return null;
   }
 };

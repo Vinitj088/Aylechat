@@ -2,16 +2,14 @@
 
 import { ReactNode } from 'react';
 import { AuthProvider } from '@/context/AuthContext';
-import { ThreadCacheProvider } from '@/context/ThreadCacheContext';
-import { ThemeProvider as NextThemesProvider } from 'next-themes';
+ import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import { AuthDialog } from '@/components/AuthDialog';
 import { Toaster } from '@/components/ui/sonner';
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
-      <ThreadCacheProvider>
-        <NextThemesProvider 
+         <NextThemesProvider 
           attribute="class" 
           defaultTheme="light"
           enableSystem={false}
@@ -20,7 +18,6 @@ export function Providers({ children }: { children: ReactNode }) {
           <AuthDialog />
           <Toaster />
         </NextThemesProvider>
-      </ThreadCacheProvider>
-    </AuthProvider>
+     </AuthProvider>
   );
 }

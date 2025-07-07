@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@google/genai": "^0.10.0",
+    "@instantdb/admin": "^0.20.5",
+    "@instantdb/react": "^0.20.5",
     "@lobehub/icons": "^1.91.0",
     "@radix-ui/react-alert-dialog": "^1.1.7",
     "@radix-ui/react-dialog": "^1.1.6",

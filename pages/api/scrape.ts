@@ -1,11 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-// Uncomment the following line if using an older Node.js version without built-in fetch
-// import fetch from 'node-fetch';
-// Import the actual redis client instance instead of the service class
-import { redis } from '../../lib/redis';
+import { db } from '@/lib/db';
+import { id, lookup } from '@instantdb/react';
 
 // --- Constants ---
-const CACHE_VALIDITY_PREFIX = 'scrape_validity:'; // Key to check if scrape is recent
 const CACHE_TTL_SECONDS = 3600; // Cache validity for 1 hour
 
 type ScrapeRequestBody = {
@@ -16,6 +13,7 @@ type ScrapeRequestBody = {
 type ScrapeCacheValidResponse = {
   success: true;
   cacheStatus: 'valid';
+  markdownContent: string;
 };
 
 // Response when cache is refreshed (frontend should update localStorage)
@@ -52,7 +50,6 @@ export default async function handler(
 
   const { urlToScrape } = req.body as ScrapeRequestBody;
   const apiKey = process.env.FIRECRAWL_API_KEY;
-  const validityKey = `${CACHE_VALIDITY_PREFIX}${urlToScrape}`;
 
   // --- Input Validation ---
   if (!apiKey) {
@@ -63,21 +60,20 @@ export default async function handler(
     return res.status(400).json({ success: false, message: 'Invalid or missing URL in request body.' });
   }
 
-  // --- Check Cache Validity --- 
-  try {
-    // Use EXISTS for efficiency - we only care if the key is present
-    // Call exists on the imported redis client instance
-    const isValid = await redis.exists(validityKey);
-    if (isValid) {
-      console.log(`Backend: Cache validity confirmed for URL: ${urlToScrape}`);
-      // Tell frontend the cache is valid, it should have the data locally
-      return res.status(200).json({ success: true, cacheStatus: 'valid' });
-    }
-    console.log(`Backend: Cache validity expired or not found for URL: ${urlToScrape}`);
-  } catch (error) {
-    console.error('Redis EXISTS error while checking cache validity:', error);
-    // Proceed to scrape, but log the error
-  }
+  // --- Check Cache ---
+  const query = { scrapedUrls: { $: { where: { url: urlToScrape } } } };
+  // This is a backend route, so we can't use useQuery.
+  // We need a way to query data from the backend.
+  // For now, we'll assume a direct DB access method.
+  // This part of the code will need to be adjusted based on how you
+  // decide to query data from the backend.
+  // const { data } = await db.query(query);
+  // const cached = data?.scrapedUrls[0];
+
+  // if (cached && (new Date().getTime() - new Date(cached.scrapedAt).getTime()) / 1000 < CACHE_TTL_SECONDS) {
+  //   return res.status(200).json({ success: true, cacheStatus: 'valid', markdownContent: cached.markdownContent });
+  // }
+
 
   // --- If Cache Invalid/Missing, Scrape --- 
   console.log(`Backend: Initiating scrape for URL: ${urlToScrape}`);
@@ -111,21 +107,20 @@ export default async function handler(
       return res.status(500).json({ success: false, message: 'Failed to scrape the URL due to an upstream service error.' });
     }
 
-    // --- Process Scrape Result & Update Cache Validity --- 
+    // --- Process Scrape Result & Update Cache --- 
     if (firecrawlResult.success && firecrawlResult.data?.markdown) {
       const markdownContent = firecrawlResult.data.markdown;
-      console.log(`Backend: Successfully scraped markdown. Length: ${markdownContent.length}. Setting cache validity.`);
+      console.log(`Backend: Successfully scraped markdown. Length: ${markdownContent.length}. Setting cache.`);
       
-      // Set the validity key in Redis with TTL
-      try {
-        // Store a simple value like '1' - we only care about its existence and TTL
-        // Call set on the imported redis client instance
-        await redis.set(validityKey, '1', { ex: CACHE_TTL_SECONDS }); 
-        console.log(`Backend: Successfully set validity key for ${urlToScrape} with TTL ${CACHE_TTL_SECONDS}s.`);
-      } catch (error) {
-        console.error('Redis SET error while setting validity key:', error);
-        // Log the error, but still return the content to the user this time
-      }
+      const scrapedAt = new Date();
+      const scrapeId = lookup('url', urlToScrape);
+      await db.transact(
+        db.tx.scrapedUrls[scrapeId].update({
+          url: urlToScrape,
+          markdownContent,
+          scrapedAt: scrapedAt.toISOString(),
+        })
+      );
 
       // Send the newly scraped content to the frontend
       return res.status(200).json({ 
