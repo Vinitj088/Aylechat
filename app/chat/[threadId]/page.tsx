@@ -52,19 +52,8 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
-  const [models, setModels] = useState<Model[]>([
-    {
-      id: 'exa',
-      name: 'Exa Search',
-      provider: 'Exa',
-      providerId: 'exa',
-      enabled: true,
-      toolCallType: 'native',
-      searchMode: true
-    }
-  ]);
+  const [models, setModels] = useState<Model[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { user, isLoading: authLoading, openAuthDialog } = useAuth();
@@ -82,18 +71,14 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
   // Sync local messages state with DB on thread load/change
   useEffect(() => {
-    setMessages(dbMessages);
-  }, [threadId, data]);
+    if (!isThreadLoading) {
+      setMessages(dbMessages);
+    }
+  }, [threadId, data, isThreadLoading]);
 
   useEffect(() => {
     // Add models from different providers
-    const groqModels = modelsData.models.filter(model => model.providerId === 'groq');
-    const googleModels = modelsData.models.filter(model => model.providerId === 'google');
-    const openRouterModels = modelsData.models.filter(model => model.providerId === 'openrouter');
-    const cerebrasModels = modelsData.models.filter(model => model.providerId === 'cerebras');
-    const xaiModels = modelsData.models.filter(model => model.providerId === 'xai');
-    const togetherModels = modelsData.models.filter(model => model.providerId === 'together');
-    setModels([
+    const allModels = [
       {
         id: 'exa',
         name: 'Exa Search',
@@ -103,13 +88,9 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         toolCallType: 'native',
         searchMode: true
       },
-      ...googleModels,
-      ...cerebrasModels,
-      ...openRouterModels,
-      ...groqModels,
-      ...togetherModels,
-      ...xaiModels
-    ]);
+      ...modelsData.models.filter(model => ['groq', 'google', 'openrouter', 'cerebras', 'xai', 'together'].includes(model.providerId))
+    ];
+    setModels(allModels);
   }, []);
 
   useEffect(() => {
@@ -177,12 +158,14 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     e.preventDefault();
     if ((!input.trim() && (!files || files.length === 0)) || isLoading) return;
     if (!isAuthenticated) {
-      toast.error('Please sign in to chat');
+      openAuthDialog();
       return;
     }
     const fullInput = quotedText ? `> ${quotedText.replace(/\n/g, '\n> ')}\n\n${input.trim()}` : input.trim();
+    const userMessageId = id();
+    const assistantMessageId = id();
     const userMessage: Message = {
-      id: id(),
+      id: userMessageId,
       role: 'user',
       content: fullInput,
       createdAt: new Date(),
@@ -190,10 +173,10 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       ...(files && files.length > 0 ? { attachments: files.map(file => ({ name: file.name, type: file.type, size: file.size })) } : {})
     };
     const assistantMessage: Message = {
-      id: id(),
+      id: assistantMessageId,
       role: 'assistant',
       content: '...',
-      createdAt: new Date(Date.now() + 1000), // Add 1 second instead of 1ms
+      createdAt: new Date(Date.now() + 1000),
     };
     setMessages(prev => [...prev, userMessage, assistantMessage]);
     setInput('');
@@ -221,7 +204,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       ));
       // Persist both messages to InstantDB
       await db.transact([
-        db.tx.messages[userMessage.id].update({
+        db.tx.messages[userMessageId].update({
           role: userMessage.role,
           content: userMessage.content,
           createdAt: userMessage.createdAt ? (typeof userMessage.createdAt === 'string' ? userMessage.createdAt : userMessage.createdAt.toISOString()) : undefined,
@@ -237,8 +220,8 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
           provider: userMessage.provider,
           quotedText: userMessage.quotedText,
         }).link({ thread: threadId }),
-        db.tx.messages[assistantMessage.id].update({
-          role: assistantMessage.role,
+        db.tx.messages[assistantMessageId].update({
+          role: 'assistant',
           content: completedAssistantMessage.content,
           createdAt: new Date().toISOString(),
           citations: completedAssistantMessage.citations,
@@ -256,24 +239,14 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         db.tx.threads[threadId].update({ updatedAt: new Date().toISOString() }),
       ]);
     } catch (error: any) {
+      const errorMessage = error.message || 'Sorry, something went wrong.';
       setMessages(prev => prev.map(msg =>
-        msg.id === assistantMessage.id ? { ...msg, content: 'Sorry, something went wrong.' } : msg
+        msg.id === assistantMessage.id ? { ...msg, content: errorMessage } : msg
       ));
       await db.transact([
-        db.tx.messages[assistantMessage.id].update({
-          content: 'Sorry, something went wrong.',
+        db.tx.messages[assistantMessageId].update({
+          content: errorMessage,
           createdAt: new Date().toISOString(),
-          citations: assistantMessage.citations,
-          completed: assistantMessage.completed,
-          startTime: assistantMessage.startTime,
-          endTime: assistantMessage.endTime,
-          tps: assistantMessage.tps,
-          mediaData: assistantMessage.mediaData,
-          weatherData: assistantMessage.weatherData,
-          images: assistantMessage.images,
-          attachments: assistantMessage.attachments,
-          provider: assistantMessage.provider,
-          quotedText: assistantMessage.quotedText,
         })
       ]);
     } finally {
@@ -316,12 +289,12 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
   // Always sort messages by createdAt ascending before rendering
   const sortedMessages = [...messages].sort((a, b) => {
-    const aDate = typeof a.createdAt === 'string' ? a.createdAt : a.createdAt?.toISOString?.() || '';
-    const bDate = typeof b.createdAt === 'string' ? b.createdAt : b.createdAt?.toISOString?.() || '';
-    return new Date(aDate).getTime() - new Date(bDate).getTime();
+    const aDate = new Date(a.createdAt || 0).getTime();
+    const bDate = new Date(b.createdAt || 0).getTime();
+    return aDate - bDate;
   });
 
-  if (isThreadLoading) {
+  if (isThreadLoading || authLoading) {
     return (
       <div className={cn(
         pinned ? "ayle-grid-layout" : "",
@@ -360,7 +333,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         <Sidebar
           isOpen={pinned || isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
-          onSignInClick={() => setShowAuthDialog(true)}
+          onSignInClick={openAuthDialog}
             refreshTrigger={refreshSidebar}
             pinned={pinned}
             setPinned={setPinned}
@@ -374,7 +347,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
             input={input}
             handleInputChange={handleInputChange}
             handleSubmit={(e) => handleSubmit(e, attachments)}
-            isLoading={isLoading}
+            isLoading={true} // Show loading state
             selectedModel={selectedModel}
             handleModelChange={handleModelChange}
             models={models}
@@ -435,7 +408,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       <Sidebar
         isOpen={pinned || isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        onSignInClick={() => setShowAuthDialog(true)}
+        onSignInClick={openAuthDialog}
         refreshTrigger={refreshSidebar}
           pinned={pinned}
           setPinned={setPinned}
@@ -476,8 +449,6 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
       {/* Auth Dialog */}
       <AuthDialog
-        isOpen={showAuthDialog}
-        onClose={() => setShowAuthDialog(false)}
         onSuccess={() => {
           setRefreshSidebar(prev => prev + 1);
         }}
@@ -495,7 +466,9 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const { threadId } = React.use(params);
   return (
     <QueryEnhancerProvider>
-      <ChatThreadPageContent threadId={threadId} />
+      <Suspense fallback={<div>Loading...</div>}>
+        <ChatThreadPageContent threadId={threadId} />
+      </Suspense>
     </QueryEnhancerProvider>
   )
 } 

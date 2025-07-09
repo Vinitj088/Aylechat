@@ -192,6 +192,7 @@ function PageContent() {
               id: crypto.randomUUID(),
               role: 'user',
               content: decodedQuery,
+              createdAt: new Date(),
               ...(quotedText && quotedText.trim().length > 0 ? { quotedText } : {})
             };
 
@@ -199,6 +200,7 @@ function PageContent() {
               id: `ai-${Date.now()}`,
               role: 'assistant',
               content: '...',
+              createdAt: new Date(Date.now() + 1000),
               provider: selectedModelObj?.provider,
             };
 
@@ -292,6 +294,7 @@ function PageContent() {
         id: crypto.randomUUID(),
         role: 'user',
         content: input, // Only the user's input, not the quoted text
+        createdAt: new Date(),
         ...(quotedText && quotedText.trim().length > 0 ? { quotedText } : {})
       };
       if (attachments.length > 0) {
@@ -308,7 +311,8 @@ function PageContent() {
       const assistantMessage: Message = {
         id: `ai-${Date.now()}`,
         role: 'assistant',
-        content: '...'
+        content: '...',
+        createdAt: new Date(Date.now() + 1000)
       };
       setMessages(prev => [...prev, userMessage, assistantMessage]);
       setGuestMessageCount(count => {
@@ -357,6 +361,7 @@ function PageContent() {
       id: crypto.randomUUID(),
       role: 'user',
       content: input, // Only the user's input, not the quoted text
+      createdAt: new Date(),
       ...(quotedText && quotedText.trim().length > 0 ? { quotedText } : {})
     };
 
@@ -375,6 +380,7 @@ function PageContent() {
       id: `ai-${Date.now()}`,
       role: 'assistant',
       content: '...',
+      createdAt: new Date(Date.now() + 1000),
       provider: selectedModelObj?.provider,
     };
 
