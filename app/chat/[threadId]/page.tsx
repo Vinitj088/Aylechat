@@ -67,7 +67,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { user, session } = useAuth();
+  const { user, isLoading: authLoading, openAuthDialog } = useAuth();
   const router = useRouter();
   const chatInputRef = useRef<ChatInputHandle>(null);
   const [attachments, setAttachments] = useState<File[]>([]);

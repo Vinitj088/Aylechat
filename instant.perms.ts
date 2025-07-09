@@ -3,22 +3,35 @@
 import type { InstantRules } from "@instantdb/react";
 
 const rules = {
-  /**
-   * Welcome to Instant's permission system!
-   * Right now your rules are empty. To start filling them in, check out the docs:
-   * https://www.instantdb.com/docs/permissions
-   *
-   * Here's an example to give you a feel:
-   * posts: {
-   *   allow: {
-   *     view: "true",
-   *     create: "isOwner",
-   *     update: "isOwner",
-   *     delete: "isOwner",
-   *   },
-   *   bind: ["isOwner", "auth.id != null && auth.id == data.ownerId"],
-   * },
-   */
+  threads: {
+    allow: {
+      view: "isOwner",
+      create: "isLoggedIn",
+      update: "isOwner",
+      delete: "isOwner",
+    },
+    bind: [
+      "isLoggedIn",
+      "auth.id != null",
+      "isOwner",
+      "isLoggedIn && auth.id in data.ref('user.id')",
+    ],
+  },
+  messages: {
+    allow: {
+      view: "isThreadOwner",
+      create: "isLoggedIn",
+      // TODO: should users be able to update/delete messages?
+      update: "false",
+      delete: "false",
+    },
+    bind: [
+      "isLoggedIn",
+      "auth.id != null",
+      "isThreadOwner",
+      "isLoggedIn && auth.id in data.ref('thread.user.id')",
+    ],
+  },
 } satisfies InstantRules;
 
 export default rules;

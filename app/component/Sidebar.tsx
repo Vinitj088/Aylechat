@@ -6,8 +6,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
-import { getAssetPath } from "../utils"
-import { X, Trash2, LogOut, Clock, User, AlertTriangle, Settings, Pin, PinOff } from "lucide-react"
+import { X, Trash2, LogOut, Clock, User, AlertTriangle, Pin, PinOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   AlertDialog,
@@ -342,7 +341,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-fainter)] text-[var(--brand-default)] mr-2">
                     <User className="h-3.5 w-3.5" />
                   </div>
-                  <span className="font-medium">{user.user_metadata?.name || user.email}</span>
+                  <span className="font-medium">{user.email}</span>
                 </Link>
                 <button
                   onClick={handleSignOut}

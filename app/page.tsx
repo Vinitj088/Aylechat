@@ -12,7 +12,6 @@ import { fetchResponse } from './api/apiService';
 import modelsData from '../models.json';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { AuthDialog } from '@/components/AuthDialog';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import {
@@ -92,7 +91,7 @@ function PageContent() {
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { user, session, isLoading: authLoading, openAuthDialog } = useAuth();
+  const { user, isLoading: authLoading, openAuthDialog } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const chatInputRef = useRef<ChatInputHandle>(null);
@@ -121,63 +120,7 @@ function PageContent() {
     });
   }, []);
 
-  // Check URL parameters for auth dialog control
-  useEffect(() => {
-    // Add null check for searchParams before accessing it
-    if (!searchParams) return;
-
-    const authRequired = searchParams.get('authRequired');
-    const expired = searchParams.get('expired');
-    const error = searchParams.get('error');
-    const sessionError = searchParams.get('session_error');
-    const cookieError = searchParams.get('cookie_error');
-    
-    // Show auth dialog if any of these params are present
-    if (authRequired === 'true' || expired === 'true' || error || sessionError || cookieError) {
-      if (authRequired === 'true' || expired === 'true' || error) {
-          openAuthDialog();
-      }
-      
-      // Show toast message if session expired
-      if (expired === 'true') {
-        toast.error('Your session has expired. Please sign in again.');
-      }
-      // Show toast message if there was an error
-      if (error) {
-        toast.error('Authentication error. Please sign in again.');
-      }
-      
-      // Handle session/cookie errors with toast + sign in action
-      if (sessionError === 'true' || cookieError === 'true') {
-          toast.error('Session issue detected', {
-            description: 'Please sign in again to get a fresh session',
-            duration: 6000,
-            action: {
-              label: 'Sign In',
-              onClick: () => {
-                openAuthDialog();
-              }
-            }
-          });
-      }
-      
-      // Clean URL by removing query parameters without reloading the page
-      const url = new URL(window.location.href);
-      url.searchParams.delete('authRequired');
-      url.searchParams.delete('expired');
-      url.searchParams.delete('error');
-      url.searchParams.delete('session_error');
-      url.searchParams.delete('cookie_error');
-      window.history.replaceState({}, '', url);
-    }
-  }, [searchParams, openAuthDialog]);
-
-  // Check for authRequired query param (redundant with above, can be simplified later if needed)
-  useEffect(() => {
-    if (searchParams && searchParams.get('authRequired') === 'true') {
-      openAuthDialog();
-    }
-  }, [searchParams, openAuthDialog]);
+  
 
   // Load models and set initially selected model
   useEffect(() => {
@@ -217,13 +160,7 @@ function PageContent() {
     }
   }, []);
 
-  // Handle showing the auth dialog if opened via URL param
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('signIn') === 'true' || urlParams.get('auth') === 'true') {
-      openAuthDialog();
-    }
-  }, [openAuthDialog]);
+  
   
   // Handle initial URL search parameters for search engine functionality
   useEffect(() => {
@@ -668,7 +605,7 @@ function PageContent() {
         window.history.pushState({}, '', `/chat/${threadId}`);
       } else if (currentThreadId) {
         const now = new Date();
-        const messageIds = finalMessagesForThread.map(() => id());
+        const messageIds = finalMessagesForThread.slice(messages.length).map(() => id());
         const transactions = [
           db.tx.threads[currentThreadId]
             .update({
@@ -713,8 +650,6 @@ function PageContent() {
         (error.message && error.message.toLowerCase().includes('unauthorized')) ||
         (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
       ) {
-        await handleRequestError(error);
-        
         // Update the message with auth error info
         updatedMessages[assistantMessageIndex] = {
           ...updatedMessages[assistantMessageIndex],
@@ -801,37 +736,7 @@ function PageContent() {
     }
   }, [isAuthenticated]);
 
-  // Error handler callback function
-  const handleRequestError = async (error: Error) => {
-    // Check if the error is an authentication error
-    if (
-      error.message.includes('authentication') || 
-      error.message.includes('Authentication') || 
-      error.message.includes('auth') || 
-      error.message.includes('Auth') ||
-      error.message.includes('401') ||
-      error.message.includes('Unauthorized')
-    ) {
-      // Handle authentication errors by showing the auth dialog
-      openAuthDialog();
-    } else if (error.message.includes('Rate limit')) {
-      // Handle rate limit errors
-      // This is a custom error with timeout info from the API service
-      // @ts-ignore - We're adding custom props to the error
-      const waitTime = error.waitTime || 30;
-      
-      toast.error('RATE LIMIT', {
-        description: `Please wait ${waitTime} seconds before trying again`,
-        duration: 5000,
-      });
-    } else {
-      // Handle other errors - show a toast
-      toast.error('Error Processing Request', {
-        description: error.message || 'Please try again later',
-        duration: 5000,
-      });
-    }
-  };
+  
 
   // Derived variables
   const isExa = selectedModel === 'exa';
