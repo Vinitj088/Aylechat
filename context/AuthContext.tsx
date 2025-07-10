@@ -85,6 +85,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ]);
         
         console.log("Profile created successfully with firstName:", defaultFirstName);
+        // --- WELCOME THREAD LOGIC ---
+        // Check if user has any threads
+        const { data: threadsData } = await db.queryOnce({
+          threads: { $: { where: { 'user.id': user.id } } }
+        });
+        if (!threadsData?.threads?.length) {
+          const threadId = id();
+          const messageId = id();
+          const now = new Date();
+          const welcomeTitle = '👋 Welcome to Aylechat!';
+          const welcomeContent = `# 👋 Welcome to Aylechat!
+
+Welcome to **Aylechat** — your all-in-one AI chat playground! ✨
+
+## 🚀 Getting Started
+- **Model Selector**: At the top, pick from a variety of AI models to suit your needs.
+- **Sidebar**: Hover on the right edge to open the sidebar. 📚 Pin it with the top-right 📌 pin button for quick access!
+- **Theme Toggle**: Change between light & dark mode with the 🌗 button in the bottom left.
+
+## 🤖 Model Guide
+- **Exa Search** 🔎: For web-powered, up-to-date search tasks.
+- **Google Models** 📎: Best for file attachments, document Q&A, and general tasks.
+- **Cerebras** ⚡: Lightning-fast responses for everyday chats.
+- **Groq & OpenRouter** 🧩: Versatile, with a wide variety of models to try.
+- **Fllux 1 Schnell** 🖼️: Generate images from your prompts!
+
+## 🛠️ Power Tools
+- **Query Enhancer** 🪄: Auto-enhance your prompts for better results. Set to 'Auto' for magic, or 'Manual' to control enhancements yourself.
+- **Seamless Model Switching** 🔄: Switch between models anytime, even in the same chat!
+- **Attach Files & Active Files** 📁: Upload files and reference them in your conversation. Active files are always at your fingertips.
+
+## 💡 Pro Tips
+- **/weather <your weather query>** ☀️: Get real-time weather info.
+- **/movies <movie name + query>** 🎬: Fetch the latest movie data.
+- **/tv <show name + query>** 📺: Get up-to-date TV show info.
+- **Quote & Ask** 📝: Select any assistant response text to quote and ask follow-up questions.
+- **Export PDF** 📄: Export your chat as a PDF. To export up to a specific message, click the export button next to that message.
+- **Share Chats** 🌍: Share your conversations publicly with a link.
+- **Settings & Appearance** 🎨: Click your username at the bottom of the sidebar to open settings and customize your experience.
+
+---
+
+Enjoy exploring Aylechat! If you ever get lost, just start a new chat or revisit this thread. You can delete this thread anytime. Happy chatting! 😄`;
+          await db.transact([
+            tx.threads[threadId]
+              .update({
+                title: welcomeTitle,
+                model: 'gemini-2.0-flash',
+                createdAt: now.toISOString(),
+                updatedAt: now.toISOString(),
+                isPublic: false,
+              })
+              .link({ user: user.id, messages: [messageId] }),
+            tx.messages[messageId]
+              .update({
+                role: 'assistant',
+                content: welcomeContent,
+                createdAt: now.toISOString(),
+                completed: true,
+              })
+              .link({ thread: threadId })
+          ]);
+          console.log('Welcome thread created for new user:', user.id);
+        }
+        // --- END WELCOME THREAD LOGIC ---
       }
     } catch (err: any) {
       console.error("Failed to ensure profile:", err);
