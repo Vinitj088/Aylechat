@@ -70,6 +70,17 @@ const profile = profileData?.profiles?.[0];
   const threads = data?.threads || [];
 
 
+  // Prefetch threads to make navigation faster
+  useEffect(() => {
+    if (threads && threads.length > 0) {
+      threads.forEach(thread => {
+        // Prefetching the top 20 threads as per the discussion
+        router.prefetch(`/chat/${thread.id}`);
+      });
+    }
+  }, [threads, router]);
+
+
   // Detect mobile device
   useEffect(() => {
     const checkMobile = () => {
