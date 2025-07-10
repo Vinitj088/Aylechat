@@ -11,62 +11,39 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // On mount, read from localStorage and apply
+  // On mount, read from localStorage to set the initial state of the toggles
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Rounded corners
       const storedRounded = localStorage.getItem('roundedCorners');
-      if (storedRounded === 'off') {
-        setRounded(false);
-        document.documentElement.style.setProperty('--border-radius-default', '0px');
-      } else {
-        setRounded(true);
-        document.documentElement.style.setProperty('--border-radius-default', '0.75rem');
-      }
+      setRounded(storedRounded === 'on');
 
-      // Font theme
       const storedFontTheme = localStorage.getItem('fontTheme');
-      if (storedFontTheme === 'alternative') {
-        setFontTheme('alternative');
-        document.documentElement.style.setProperty("--font-body", "var(--font-sentient)");
-        document.documentElement.style.setProperty("--font-heading", "var(--font-ppeditorial)");
-      } else {
-        setFontTheme('default');
-        document.documentElement.style.setProperty("--font-body", "var(--font-geist-sans)");
-        document.documentElement.style.setProperty("--font-heading", "var(--font-space-grotesk)");
-      }
-
+      setFontTheme(storedFontTheme === 'alternative' ? 'alternative' : 'default');
+      
       setLoading(false);
     }
   }, []);
 
-  // When toggled, update localStorage and CSS variable
+  // When toggled, update state, localStorage, and the CSS variable
   const handleToggle = () => {
-    const newValue = !rounded;
-    setRounded(newValue);
-    if (typeof window !== 'undefined') {
-      if (newValue) {
-        localStorage.setItem('roundedCorners', 'on');
-        document.documentElement.style.setProperty('--border-radius-default', '0.5rem');
-      } else {
-        localStorage.setItem('roundedCorners', 'off');
-        document.documentElement.style.setProperty('--border-radius-default', '0px');
-      }
-    }
+    setRounded(prev => {
+      const newValue = !prev;
+      localStorage.setItem('roundedCorners', newValue ? 'on' : 'off');
+      document.documentElement.style.setProperty('--border-radius-default', newValue ? '0.75rem' : '0px');
+      return newValue;
+    });
   };
 
   const handleFontChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const newFontTheme = event.target.value;
     setFontTheme(newFontTheme);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('fontTheme', newFontTheme);
-      if (newFontTheme === 'alternative') {
-        document.documentElement.style.setProperty("--font-body", "var(--font-sentient)");
-        document.documentElement.style.setProperty("--font-heading", "var(--font-ppeditorial)");
-      } else {
-        document.documentElement.style.setProperty("--font-body", "var(--font-geist-sans)");
-        document.documentElement.style.setProperty("--font-heading", "var(--font-space-grotesk)");
-      }
+    localStorage.setItem('fontTheme', newFontTheme);
+    if (newFontTheme === 'alternative') {
+      document.documentElement.style.setProperty("--font-body", "var(--font-sentient)");
+      document.documentElement.style.setProperty("--font-heading", "var(--font-ppeditorial)");
+    } else {
+      document.documentElement.style.setProperty("--font-body", "var(--font-geist-sans)");
+      document.documentElement.style.setProperty("--font-heading", "var(--font-space-grotesk)");
     }
   };
 

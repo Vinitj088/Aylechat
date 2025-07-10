@@ -269,25 +269,47 @@ export const enhanceQuery = async (query: string): Promise<string> => {
 // --- Add function to call backend scraper ---
 // Updated to handle hybrid caching (instantdb validity + localStorage content)
 const scrapeUrlContent = async (url: string, abortController: AbortController): Promise<string | null> => {
-  console.log(`[Scrape] Checking/getting content for URL: ${url}`);
+  const cacheKey = `scrape_cache_${url}`;
+  const now = Date.now();
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+  // 1. Check localStorage for a cached version
+  try {
+    const cachedItem = localStorage.getItem(cacheKey);
+    if (cachedItem) {
+      const { timestamp, markdownContent } = JSON.parse(cachedItem);
+      if (now - timestamp < ONE_DAY_MS) {
+        console.log(`[Scrape Cache] HIT for URL: ${url}`);
+        toast.success('URL Content Loaded from Cache', {
+          description: 'Using recently scraped content for this URL.',
+          duration: 3000,
+        });
+        return markdownContent;
+      } else {
+        console.log(`[Scrape Cache] STALE for URL: ${url}`);
+        localStorage.removeItem(cacheKey); // Remove stale item
+      }
+    }
+  } catch (e) {
+    console.error("[Scrape Cache] Error reading from localStorage:", e);
+  }
+
+  // 2. If cache miss or stale, fetch from the API
+  console.log(`[Scrape Cache] MISS for URL: ${url}. Fetching from API.`);
   const scrapeApiEndpoint = getAssetPath('/api/scrape');
 
   try {
-    // Call backend to check cache validity or trigger scrape
     const response = await fetch(scrapeApiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
       },
       signal: abortController.signal,
-      credentials: 'include',
       body: JSON.stringify({ urlToScrape: url }),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: 'Failed to parse scrape error response' }));
-      console.error(`[Scrape] Backend scrape request failed (${response.status}):`, errorData);
       toast.warning('URL Scraping Failed', {
         description: `Could not get content for the URL. Error: ${errorData.message || response.statusText}`,
         duration: 5000,
@@ -297,14 +319,25 @@ const scrapeUrlContent = async (url: string, abortController: AbortController): 
 
     const result = await response.json();
 
-    if (result.success) {
+    if (result.success && result.markdownContent) {
+      // 3. Store the new data in localStorage
+      try {
+        const newItem = {
+          timestamp: now,
+          markdownContent: result.markdownContent,
+        };
+        localStorage.setItem(cacheKey, JSON.stringify(newItem));
+        console.log(`[Scrape Cache] SET for URL: ${url}`);
+      } catch (e) {
+        console.error("[Scrape Cache] Error writing to localStorage:", e);
+      }
+
       toast.success('URL Content Scraped', {
         description: 'Fresh content from the URL will be used.',
         duration: 3000,
       });
       return result.markdownContent;
     } else {
-      console.warn('[Scrape] Backend indicated scraping process failed or yielded no content.', result.message);
       toast.warning('URL Scraping Issue', {
         description: result.message || 'Scraping completed but no content was returned.',
         duration: 5000,

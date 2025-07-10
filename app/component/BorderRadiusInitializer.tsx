@@ -5,10 +5,11 @@ export default function BorderRadiusInitializer() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("roundedCorners");
-      if (stored === "on") {
-        document.documentElement.style.setProperty("--border-radius-default", "0.75rem");
-      } else {
+      // Explicitly check for "off" to set radius to 0, otherwise default to rounded.
+      if (stored === "off") {
         document.documentElement.style.setProperty("--border-radius-default", "0px");
+      } else {
+        document.documentElement.style.setProperty("--border-radius-default", "0.75rem");
       }
     }
   }, []);

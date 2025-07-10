@@ -1,25 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { db } from '@/lib/db';
-import { id, lookup } from '@instantdb/react';
-
-// --- Constants ---
-const CACHE_TTL_SECONDS = 3600; // Cache validity for 1 hour
 
 type ScrapeRequestBody = {
   urlToScrape: string;
 };
 
-// Response when cache is valid (frontend should use localStorage)
-type ScrapeCacheValidResponse = {
+type ScrapeSuccessResponse = {
   success: true;
-  cacheStatus: 'valid';
-  markdownContent: string;
-};
-
-// Response when cache is refreshed (frontend should update localStorage)
-type ScrapeCacheRefreshedResponse = {
-  success: true;
-  cacheStatus: 'refreshed';
   markdownContent: string;
 };
 
@@ -28,7 +14,6 @@ type ScrapeErrorResponse = {
   message: string;
 };
 
-// Simple URL validation (can be made more robust)
 function isValidHttpUrl(string: string): boolean {
   let url;
   try {
@@ -41,7 +26,7 @@ function isValidHttpUrl(string: string): boolean {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<ScrapeCacheValidResponse | ScrapeCacheRefreshedResponse | ScrapeErrorResponse>
+  res: NextApiResponse<ScrapeSuccessResponse | ScrapeErrorResponse>
 ) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
@@ -51,7 +36,6 @@ export default async function handler(
   const { urlToScrape } = req.body as ScrapeRequestBody;
   const apiKey = process.env.FIRECRAWL_API_KEY;
 
-  // --- Input Validation ---
   if (!apiKey) {
     console.error('FIRECRAWL_API_KEY environment variable not set.');
     return res.status(500).json({ success: false, message: 'Server configuration error: Missing API key.' });
@@ -60,22 +44,6 @@ export default async function handler(
     return res.status(400).json({ success: false, message: 'Invalid or missing URL in request body.' });
   }
 
-  // --- Check Cache ---
-  const query = { scrapedUrls: { $: { where: { url: urlToScrape } } } };
-  // This is a backend route, so we can't use useQuery.
-  // We need a way to query data from the backend.
-  // For now, we'll assume a direct DB access method.
-  // This part of the code will need to be adjusted based on how you
-  // decide to query data from the backend.
-  // const { data } = await db.query(query);
-  // const cached = data?.scrapedUrls[0];
-
-  // if (cached && (new Date().getTime() - new Date(cached.scrapedAt).getTime()) / 1000 < CACHE_TTL_SECONDS) {
-  //   return res.status(200).json({ success: true, cacheStatus: 'valid', markdownContent: cached.markdownContent });
-  // }
-
-
-  // --- If Cache Invalid/Missing, Scrape --- 
   console.log(`Backend: Initiating scrape for URL: ${urlToScrape}`);
   const firecrawlApiUrl = 'https://api.firecrawl.dev/v1/scrape';
   try {
@@ -88,7 +56,7 @@ export default async function handler(
       },
       body: JSON.stringify({
         url: urlToScrape,
-        formats: ['markdown'],
+        formats: ['markdown'] // Always request markdown output
       }),
     });
 
@@ -107,30 +75,13 @@ export default async function handler(
       return res.status(500).json({ success: false, message: 'Failed to scrape the URL due to an upstream service error.' });
     }
 
-    // --- Process Scrape Result & Update Cache --- 
     if (firecrawlResult.success && firecrawlResult.data?.markdown) {
       const markdownContent = firecrawlResult.data.markdown;
-      console.log(`Backend: Successfully scraped markdown. Length: ${markdownContent.length}. Setting cache.`);
-      
-      const scrapedAt = new Date();
-      const scrapeId = lookup('url', urlToScrape);
-      await db.transact(
-        db.tx.scrapedUrls[scrapeId].update({
-          url: urlToScrape,
-          markdownContent,
-          scrapedAt: scrapedAt.toISOString(),
-        })
-      );
-
-      // Send the newly scraped content to the frontend
       return res.status(200).json({ 
         success: true, 
-        cacheStatus: 'refreshed', 
         markdownContent: markdownContent 
       });
-
     } else {
-      console.warn('Firecrawl API response indicates success=false or missing markdown content.', firecrawlResult);
       const clientMessage = firecrawlResult.message || 'Scraping process completed, but no markdown content was extracted.';
       return res.status(200).json({ success: false, message: clientMessage });
     }
