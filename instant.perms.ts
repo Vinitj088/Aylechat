@@ -15,17 +15,19 @@ const rules = {
     allow: {
       view: "true",
       create: "isLoggedIn",
-      update: "isLoggedIn",
+      update: "isOwner",
       delete: "false",
     },
     bind: [
       "isLoggedIn",
       "auth.id != null",
+      "isOwner",
+      "isLoggedIn && auth.id in data.ref('user.id')",
     ],
   },
   threads: {
     allow: {
-      view: "isOwner",
+      view: "isOwner || data.isPublic",
       create: "isLoggedIn",
       update: "isOwner",
       delete: "isOwner",
@@ -39,7 +41,7 @@ const rules = {
   },
   messages: {
     allow: {
-      view: "isThreadOwner",
+      view: "isThreadOwner || data.ref('thread.isPublic')[0] == true",
       create: "isLoggedIn",
       // TODO: should users be able to update/delete messages?
       update: "false",

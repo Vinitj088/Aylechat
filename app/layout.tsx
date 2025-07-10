@@ -5,7 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Providers } from './providers';
 import Script from 'next/script';
 import { Geist, Space_Grotesk } from 'next/font/google';
-import { Sentient, MagnetBold, gebukRegular } from './fonts';
+import { Sentient, MagnetBold, gebukRegular, ppeditorial } from './fonts';
 import BorderRadiusInitializer from './component/BorderRadiusInitializer';
 import { SidebarPinProvider } from '../context/SidebarPinContext';
 import FontInitializer from './component/FontInitializer';
@@ -34,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${spaceGrotesk.variable} ${Sentient.variable} ${MagnetBold.variable} ${gebukRegular.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${GeistSans.variable} ${spaceGrotesk.variable} ${Sentient.variable} ${MagnetBold.variable} ${gebukRegular.variable} ${ppeditorial.variable}`} suppressHydrationWarning>
       <head>
         <Script id="sw-register" strategy="beforeInteractive">
           {`

@@ -1,42 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Message } from '../../types';
 import Header from '../../component/Header';
 import ChatMessages from '../../component/ChatMessages';
-import { useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import React from 'react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { db } from '@/lib/db';
 
-export default function SharedThreadPage({ params }: { params: { shareId: string } }) {
-  const shareId = params.shareId;
+export default function SharedThreadPage() {
+  const params = useParams() ?? {};
+  const shareId = (params as Record<string, string>).shareId;
+
   const { data, isLoading, error } = db.useQuery({
     threads: {
-      $: { where: { shareId: shareId, isPublic: true } },
-      messages: {},
-    },
+      $: { where: { shareId: shareId } },
+      messages: { $: { order: { createdAt: 'asc' } } }
+    }
   });
-  const thread = data?.threads[0];
-  const messages = thread?.messages || [];
 
-  // Map messages to ensure role is typed correctly for Message
-  const safeMessages: Message[] = (messages || []).map((msg: any) => ({
-    ...msg,
-    role: (msg.role === 'user' || msg.role === 'assistant' || msg.role === 'system') ? msg.role : 'user',
-  }));
+  const thread = data?.threads?.[0];
+  const messages = thread?.messages || [];
 
   // Render loading state
   if (isLoading) {
     return (
       <main className="flex min-h-screen flex-col">
-        {/* Header - Mobile only */}
         <div className="md:hidden">
           <Header toggleSidebar={() => {}} />
         </div>
-        {/* Fixed Ayle Logo - Desktop only */}
         <Link
           href="/"
           className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
@@ -64,7 +58,6 @@ export default function SharedThreadPage({ params }: { params: { shareId: string
             <div className="text-gray-600 font-medium">Loading shared conversation...</div>
           </div>
         </div>
-        {/* Fixed Theme Toggle - Desktop only */}
         <div className="hidden md:block fixed bottom-4 left-4 z-50">
           <ThemeToggle />
         </div>
@@ -76,11 +69,9 @@ export default function SharedThreadPage({ params }: { params: { shareId: string
   if (error || !thread) {
     return (
       <main className="flex min-h-screen flex-col">
-        {/* Header - Mobile only */}
         <div className="md:hidden">
           <Header toggleSidebar={() => {}} />
         </div>
-        {/* Fixed Ayle Logo - Desktop only */}
         <Link
           href="/"
           className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
@@ -111,7 +102,6 @@ export default function SharedThreadPage({ params }: { params: { shareId: string
             </Button>
           </div>
         </div>
-        {/* Fixed Theme Toggle - Desktop only */}
         <div className="hidden md:block fixed bottom-4 left-4 z-50">
           <ThemeToggle />
         </div>
@@ -131,11 +121,9 @@ export default function SharedThreadPage({ params }: { params: { shareId: string
 
   return (
     <main className="flex min-h-screen flex-col">
-      {/* Header - Mobile only */}
       <div className="md:hidden">
         <Header toggleSidebar={() => {}} />
       </div>
-      {/* Fixed Ayle Logo - Desktop only */}
       <Link
         href="/"
         className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
@@ -172,20 +160,20 @@ export default function SharedThreadPage({ params }: { params: { shareId: string
           </div>
         </div>
         <ChatMessages
-          messages={safeMessages}
+          messages={messages as Message[]}
           isLoading={false}
           selectedModel={thread.model || 'exa'}
           selectedModelObj={selectedModelObj}
           isExa={thread.model === 'exa'}
           currentThreadId={shareId}
-          threadTitle={thread.title}
+          isSharedPage={true}
         />
       </div>
-      {/* Fixed Theme Toggle - Desktop only */}
       <div className="hidden md:block fixed bottom-4 left-4 z-50">
         <ThemeToggle />
       </div>
     </main>
   );
 }
+
  

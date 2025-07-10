@@ -11,6 +11,8 @@ import {
   TooltipProvider, 
   TooltipTrigger 
 } from "@/components/ui/tooltip";
+import { db } from '@/lib/db';
+import { id } from '@instantdb/react';
 
 interface ShareButtonProps {
   threadId: string | null | undefined;
@@ -26,25 +28,13 @@ export default function ShareButton({ threadId }: ShareButtonProps) {
     
     try {
       setIsSharing(true);
-      
-      const response = await fetch(`/api/chat/threads/${threadId}/share`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        setShareUrl(data.shareUrl);
-        setDialogOpen(true);
-      } else {
-        toast.error('Failed to share conversation', {
-          description: data.error || 'Please try again later',
-          duration: 5000
-        });
-      }
+      const shareId = id();
+      await db.transact(
+        db.tx.threads[threadId].update({ isPublic: true, shareId: shareId })
+      );
+      const url = `${window.location.origin}/shared/${shareId}`;
+      setShareUrl(url);
+      setDialogOpen(true);
     } catch (err) {
       console.error('Error sharing thread:', err);
       toast.error('Failed to share conversation', {

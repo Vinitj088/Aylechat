@@ -24,6 +24,7 @@ interface ChatMessagesProps {
   bottomPadding?: number
   onQuote?: (text: string) => void
   onRetry?: (message: Message) => void
+  isSharedPage?: boolean
 }
 
 // Memoized message component to prevent unnecessary re-renders
@@ -36,6 +37,7 @@ const ChatMessage = memo(
     onQuote,
     onRetry,
     threadTitle,
+    isSharedPage,
   }: {
     message: Message
     messages: Message[]
@@ -44,6 +46,7 @@ const ChatMessage = memo(
     threadTitle?: string
     onQuote?: (text: string) => void
     onRetry?: (message: Message) => void
+    isSharedPage?: boolean
   }) => {
     const [copySuccess, setCopySuccess] = useState(false)
     const [isExporting, setIsExporting] = useState(false)
@@ -195,7 +198,7 @@ const ChatMessage = memo(
               </div>
               {message.citations && message.citations.length > 0 && <Citation citations={message.citations} />}
               {/* Action row for assistant (share/copy) - always visible on mobile, hover on desktop */}
-              {!isUser && message.content && message.content.length > 0 && (
+              {!isUser && !isSharedPage && message.content && message.content.length > 0 && (
                 <div className="mt-2 flex items-center justify-end gap-2 pt-2 border-0 px-1 md:px-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
                   <div className="flex items-center space-x-1 sm:space-x-2">
                     <ShareButton threadId={threadId} />
@@ -260,7 +263,7 @@ const ChatMessage = memo(
               )}
             </div>
             {/* Retry button below the user message bubble - always visible on mobile, hover on desktop */}
-            {isUser && message.content && message.content.length > 0 && (
+            {isUser && !isSharedPage && message.content && message.content.length > 0 && (
               <div className="flex justify-end w-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 mt-1">
                 <Button
                   variant="ghost"
@@ -310,6 +313,7 @@ const ChatMessages = memo(function ChatMessages({
   bottomPadding,
   onQuote,
   onRetry,
+  isSharedPage,
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [messageCount, setMessageCount] = useState(0)
@@ -331,10 +335,11 @@ const ChatMessages = memo(function ChatMessages({
           onQuote={onQuote}
           onRetry={onRetry}
           threadTitle={threadTitle}
+          isSharedPage={isSharedPage}
         />
       )
     },
-    [currentThreadId, onQuote, onRetry, messages, threadTitle],
+    [currentThreadId, onQuote, onRetry, messages, threadTitle, isSharedPage],
   )
 
   // Instead of rendering all messages in a flat list, render user+assistant pairs

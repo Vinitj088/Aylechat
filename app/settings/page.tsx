@@ -21,7 +21,7 @@ export default function SettingsPage() {
         document.documentElement.style.setProperty('--border-radius-default', '0px');
       } else {
         setRounded(true);
-        document.documentElement.style.setProperty('--border-radius-default', '0.5rem');
+        document.documentElement.style.setProperty('--border-radius-default', '0.75rem');
       }
 
       // Font theme
@@ -29,7 +29,7 @@ export default function SettingsPage() {
       if (storedFontTheme === 'alternative') {
         setFontTheme('alternative');
         document.documentElement.style.setProperty("--font-body", "var(--font-sentient)");
-        document.documentElement.style.setProperty("--font-heading", "var(--font-magnet-bold)");
+        document.documentElement.style.setProperty("--font-heading", "var(--font-ppeditorial)");
       } else {
         setFontTheme('default');
         document.documentElement.style.setProperty("--font-body", "var(--font-geist-sans)");
@@ -62,7 +62,7 @@ export default function SettingsPage() {
       localStorage.setItem('fontTheme', newFontTheme);
       if (newFontTheme === 'alternative') {
         document.documentElement.style.setProperty("--font-body", "var(--font-sentient)");
-        document.documentElement.style.setProperty("--font-heading", "var(--font-magnet-bold)");
+        document.documentElement.style.setProperty("--font-heading", "var(--font-ppeditorial)");
       } else {
         document.documentElement.style.setProperty("--font-body", "var(--font-geist-sans)");
         document.documentElement.style.setProperty("--font-heading", "var(--font-space-grotesk)");
