@@ -1,8 +1,8 @@
 {
   "models": [
     {
-      "id": "mistralai/mistral-small-3.1-24b-instruct:free",
-      "name": "Mistral Small 3.1 24B",
+      "id": "mistralai/mistral-small-3.2-24b-instruct:free",
+      "name": "Mistral Small 3.2 24B",
       "provider": "OpenRouter",
       "providerId": "openrouter",
       "avatarType": "mistral",

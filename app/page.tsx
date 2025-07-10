@@ -12,7 +12,6 @@ import { fetchResponse } from './api/apiService';
 import modelsData from '../models.json';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { AuthDialog } from '@/components/AuthDialog';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import {
@@ -27,11 +26,12 @@ import { Button } from "@/components/ui/button";
 import { prefetchAll } from './api/prefetch';
 import { FileUp, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { useThreadCache } from '@/context/ThreadCacheContext';
-import { cn } from '@/lib/utils';
 import { useSidebarPin } from '../context/SidebarPinContext';
 import useIsMobile from './hooks/useIsMobile';
 import { QueryEnhancerProvider, useQueryEnhancer } from '@/context/QueryEnhancerContext';
+import { db } from '@/lib/db';
+import { id } from '@instantdb/react';
+import { cn } from '@/lib/utils';
 
 // Helper function to get provider description
 const getProviderDescription = (providerName: string | undefined): string => {
@@ -91,14 +91,13 @@ function PageContent() {
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { user, session, isLoading: authLoading, openAuthDialog } = useAuth();
+  const { user, isLoading: authLoading, openAuthDialog } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const chatInputRef = useRef<ChatInputHandle>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
-  const { addThread } = useThreadCache();
   const GUEST_MESSAGE_LIMIT = 3;
   const GUEST_MESSAGE_KEY = 'guestMessageCount';
   const [guestMessageCount, setGuestMessageCount] = useState(0);
@@ -121,63 +120,7 @@ function PageContent() {
     });
   }, []);
 
-  // Check URL parameters for auth dialog control
-  useEffect(() => {
-    // Add null check for searchParams before accessing it
-    if (!searchParams) return;
-
-    const authRequired = searchParams.get('authRequired');
-    const expired = searchParams.get('expired');
-    const error = searchParams.get('error');
-    const sessionError = searchParams.get('session_error');
-    const cookieError = searchParams.get('cookie_error');
-    
-    // Show auth dialog if any of these params are present
-    if (authRequired === 'true' || expired === 'true' || error || sessionError || cookieError) {
-      if (authRequired === 'true' || expired === 'true' || error) {
-          openAuthDialog();
-      }
-      
-      // Show toast message if session expired
-      if (expired === 'true') {
-        toast.error('Your session has expired. Please sign in again.');
-      }
-      // Show toast message if there was an error
-      if (error) {
-        toast.error('Authentication error. Please sign in again.');
-      }
-      
-      // Handle session/cookie errors with toast + sign in action
-      if (sessionError === 'true' || cookieError === 'true') {
-          toast.error('Session issue detected', {
-            description: 'Please sign in again to get a fresh session',
-            duration: 6000,
-            action: {
-              label: 'Sign In',
-              onClick: () => {
-                openAuthDialog();
-              }
-            }
-          });
-      }
-      
-      // Clean URL by removing query parameters without reloading the page
-      const url = new URL(window.location.href);
-      url.searchParams.delete('authRequired');
-      url.searchParams.delete('expired');
-      url.searchParams.delete('error');
-      url.searchParams.delete('session_error');
-      url.searchParams.delete('cookie_error');
-      window.history.replaceState({}, '', url);
-    }
-  }, [searchParams, openAuthDialog]);
-
-  // Check for authRequired query param (redundant with above, can be simplified later if needed)
-  useEffect(() => {
-    if (searchParams && searchParams.get('authRequired') === 'true') {
-      openAuthDialog();
-    }
-  }, [searchParams, openAuthDialog]);
+  
 
   // Load models and set initially selected model
   useEffect(() => {
@@ -217,13 +160,7 @@ function PageContent() {
     }
   }, []);
 
-  // Handle showing the auth dialog if opened via URL param
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('signIn') === 'true' || urlParams.get('auth') === 'true') {
-      openAuthDialog();
-    }
-  }, [openAuthDialog]);
+  
   
   // Handle initial URL search parameters for search engine functionality
   useEffect(() => {
@@ -255,6 +192,7 @@ function PageContent() {
               id: crypto.randomUUID(),
               role: 'user',
               content: decodedQuery,
+              createdAt: new Date(),
               ...(quotedText && quotedText.trim().length > 0 ? { quotedText } : {})
             };
 
@@ -262,6 +200,7 @@ function PageContent() {
               id: `ai-${Date.now()}`,
               role: 'assistant',
               content: '...',
+              createdAt: new Date(Date.now() + 1000),
               provider: selectedModelObj?.provider,
             };
 
@@ -355,6 +294,7 @@ function PageContent() {
         id: crypto.randomUUID(),
         role: 'user',
         content: input, // Only the user's input, not the quoted text
+        createdAt: new Date(),
         ...(quotedText && quotedText.trim().length > 0 ? { quotedText } : {})
       };
       if (attachments.length > 0) {
@@ -371,7 +311,8 @@ function PageContent() {
       const assistantMessage: Message = {
         id: `ai-${Date.now()}`,
         role: 'assistant',
-        content: '...'
+        content: '...',
+        createdAt: new Date(Date.now() + 1000)
       };
       setMessages(prev => [...prev, userMessage, assistantMessage]);
       setGuestMessageCount(count => {
@@ -420,6 +361,7 @@ function PageContent() {
       id: crypto.randomUUID(),
       role: 'user',
       content: input, // Only the user's input, not the quoted text
+      createdAt: new Date(),
       ...(quotedText && quotedText.trim().length > 0 ? { quotedText } : {})
     };
 
@@ -438,6 +380,7 @@ function PageContent() {
       id: `ai-${Date.now()}`,
       role: 'assistant',
       content: '...',
+      createdAt: new Date(Date.now() + 1000),
       provider: selectedModelObj?.provider,
     };
 
@@ -552,16 +495,43 @@ function PageContent() {
         // Create or update the thread with image data
         if (isFirstMessage) {
           // For first message, create a new thread with image data
-          const threadId = await createOrUpdateThread({
-            messages: finalMessages,
-            title: threadTitle
-          });
-          
-          if (threadId) {
-            setCurrentThreadId(threadId);
-            // Update the URL to the new thread without forcing a reload
-            window.history.pushState({}, '', `/chat/${threadId}`);
-          }
+          const threadId = id();
+          const now = new Date();
+          const messageIds = finalMessages.map(() => id());
+          const transactions = [
+            db.tx.threads[threadId]
+              .update({
+                title: threadTitle,
+                model: selectedModel,
+                createdAt: now.toISOString(),
+                updatedAt: now.toISOString(),
+                isPublic: false,
+              })
+              .link({ user: user.id, messages: messageIds }),
+            ...finalMessages.map((message, i) => 
+              db.tx.messages[messageIds[i]]
+                .update({
+                  role: message.role,
+                  content: message.content,
+                  createdAt: message.createdAt ? (typeof message.createdAt === 'string' ? message.createdAt : message.createdAt.toISOString()) : undefined,
+                  citations: message.citations,
+                  completed: message.completed,
+                  startTime: message.startTime,
+                  endTime: message.endTime,
+                  tps: message.tps,
+                  mediaData: message.mediaData,
+                  weatherData: message.weatherData,
+                  images: message.images,
+                  attachments: message.attachments,
+                  provider: message.provider,
+                  quotedText: message.quotedText,
+                })
+                .link({ thread: threadId })
+            )
+          ];
+          await db.transact(transactions);
+          setCurrentThreadId(threadId);
+          window.history.pushState({}, '', `/chat/${threadId}`);
         }
         
         // Reset loading state
@@ -602,34 +572,73 @@ function PageContent() {
 
       // Create or update the thread only after we have the complete response
       if (isFirstMessage) {
-        // For first message, create a new thread
-        const threadId = await createOrUpdateThread({
-          messages: finalMessagesForThread,
-          title: threadTitle
-        });
-        
-        if (threadId) {
-          setCurrentThreadId(threadId);
-          // Update the URL to the new thread without forcing a reload
-          window.history.pushState({}, '', `/chat/${threadId}`);
-        }
+        const threadId = id();
+        const now = new Date();
+        const messageIds = finalMessagesForThread.map(() => id());
+        const transactions = [
+          db.tx.threads[threadId]
+            .update({
+              title: threadTitle,
+              model: selectedModel,
+              createdAt: now.toISOString(),
+              updatedAt: now.toISOString(),
+              isPublic: false,
+            })
+            .link({ user: user.id, messages: messageIds }),
+          ...finalMessagesForThread.map((message, i) => 
+            db.tx.messages[messageIds[i]]
+              .update({
+                role: message.role,
+                content: message.content,
+                createdAt: message.createdAt ? (typeof message.createdAt === 'string' ? message.createdAt : message.createdAt.toISOString()) : undefined,
+                citations: message.citations,
+                completed: message.completed,
+                startTime: message.startTime,
+                endTime: message.endTime,
+                tps: message.tps,
+                mediaData: message.mediaData,
+                weatherData: message.weatherData,
+                images: message.images,
+                attachments: message.attachments,
+                provider: message.provider,
+                quotedText: message.quotedText,
+              })
+              .link({ thread: threadId })
+          )
+        ];
+        await db.transact(transactions);
+        setCurrentThreadId(threadId);
+        window.history.pushState({}, '', `/chat/${threadId}`);
       } else if (currentThreadId) {
-        // For subsequent messages, update the existing thread
-        await createOrUpdateThread({
-          messages: finalMessagesForThread
-        });
-      } else {
-        // If we somehow don't have a thread ID, create a new thread
-        const threadId = await createOrUpdateThread({
-          messages: finalMessagesForThread,
-          title: threadTitle
-        });
-        
-        if (threadId) {
-          setCurrentThreadId(threadId);
-          // Update the URL to the new thread without forcing a reload
-          window.history.pushState({}, '', `/chat/${threadId}`);
-        }
+        const now = new Date();
+        const messageIds = finalMessagesForThread.slice(messages.length).map(() => id());
+        const transactions = [
+          db.tx.threads[currentThreadId]
+            .update({
+              updatedAt: now.toISOString(),
+            }),
+          ...finalMessagesForThread.slice(messages.length).map((message, i) => 
+            db.tx.messages[messageIds[i]]
+              .update({
+                role: message.role,
+                content: message.content,
+                createdAt: message.createdAt ? (typeof message.createdAt === 'string' ? message.createdAt : message.createdAt.toISOString()) : undefined,
+                citations: message.citations,
+                completed: message.completed,
+                startTime: message.startTime,
+                endTime: message.endTime,
+                tps: message.tps,
+                mediaData: message.mediaData,
+                weatherData: message.weatherData,
+                images: message.images,
+                attachments: message.attachments,
+                provider: message.provider,
+                quotedText: message.quotedText,
+              })
+              .link({ thread: currentThreadId })
+          )
+        ];
+        await db.transact(transactions);
       }
       
       // Reset loading state after successful response
@@ -647,8 +656,6 @@ function PageContent() {
         (error.message && error.message.toLowerCase().includes('unauthorized')) ||
         (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
       ) {
-        await handleRequestError(error);
-        
         // Update the message with auth error info
         updatedMessages[assistantMessageIndex] = {
           ...updatedMessages[assistantMessageIndex],
@@ -735,97 +742,7 @@ function PageContent() {
     }
   }, [isAuthenticated]);
 
-  // Error handler callback function
-  const handleRequestError = async (error: Error) => {
-    // Check if the error is an authentication error
-    if (
-      error.message.includes('authentication') || 
-      error.message.includes('Authentication') || 
-      error.message.includes('auth') || 
-      error.message.includes('Auth') ||
-      error.message.includes('401') ||
-      error.message.includes('Unauthorized')
-    ) {
-      // Handle authentication errors by showing the auth dialog
-      openAuthDialog();
-    } else if (error.message.includes('Rate limit')) {
-      // Handle rate limit errors
-      // This is a custom error with timeout info from the API service
-      // @ts-ignore - We're adding custom props to the error
-      const waitTime = error.waitTime || 30;
-      
-      toast.error('RATE LIMIT', {
-        description: `Please wait ${waitTime} seconds before trying again`,
-        duration: 5000,
-      });
-    } else {
-      // Handle other errors - show a toast
-      toast.error('Error Processing Request', {
-        description: error.message || 'Please try again later',
-        duration: 5000,
-      });
-    }
-  };
-
-  const createOrUpdateThread = async (threadContent: { messages: Message[], title?: string }) => {
-    if (!isAuthenticated || !user) {
-      openAuthDialog();
-      return null;
-    }
-    try {
-      const method = currentThreadId ? 'PUT' : 'POST';
-      const endpoint = currentThreadId 
-        ? `/api/chat/threads/${currentThreadId}` 
-        : '/api/chat/threads';
-      const timestamp = Date.now();
-      const response = await fetch(`${endpoint}?t=${timestamp}`, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          ...threadContent,
-          model: selectedModel
-        })
-      });
-      if (!response.ok) {
-        if (response.status === 401) {
-          openAuthDialog();
-          return null;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const result = await response.json();
-      if (result.success && result.thread) {
-        if (!currentThreadId) {
-          setCurrentThreadId(result.thread.id);
-          window.history.pushState({}, '', `/chat/${result.thread.id}`);
-          // Add the new thread to the cache instantly
-          addThread(result.thread);
-        }
-        return result.thread.id;
-      }
-      return null;
-    } catch (error: any) {
-      console.error('Error saving thread:', error);
-      
-      // Check if it's an auth error
-      if (
-        (error.message && error.message.toLowerCase().includes('unauthorized')) ||
-        (error.message && (error.message.includes('parse') || error.message.includes('JSON')))
-      ) {
-        await handleRequestError(error);
-      } else {
-        toast.error('Error saving conversation');
-      }
-      
-      return null;
-    }
-  };
+  
 
   // Derived variables
   const isExa = selectedModel === 'exa';
@@ -982,6 +899,13 @@ function PageContent() {
     return () => window.removeEventListener('resize', handleResize);
   }, [pinned, setPinned]);
 
+  // Always sort messages by createdAt ascending before rendering
+  const sortedMessages = [...messages].sort((a, b) => {
+    const aDate = typeof a.createdAt === 'string' ? a.createdAt : a.createdAt?.toISOString?.() || '';
+    const bDate = typeof b.createdAt === 'string' ? b.createdAt : b.createdAt?.toISOString?.() || '';
+    return new Date(aDate).getTime() - new Date(bDate).getTime();
+  });
+
   return (
     <div className={cn(
       pinned ? "ayle-grid-layout" : "",
@@ -1067,7 +991,7 @@ function PageContent() {
         ) : (
           <>
             <ChatMessages 
-              messages={messages} 
+              messages={sortedMessages}
               isLoading={isLoading}
               selectedModel={selectedModel}
               selectedModelObj={selectedModelObj}
@@ -1127,4 +1051,3 @@ export default function Page() {
     </Suspense>
   );
 }
- 

@@ -267,85 +267,81 @@ export const enhanceQuery = async (query: string): Promise<string> => {
 };
 
 // --- Add function to call backend scraper ---
-// Updated to handle hybrid caching (Redis validity + localStorage content)
+// Updated to handle hybrid caching (instantdb validity + localStorage content)
 const scrapeUrlContent = async (url: string, abortController: AbortController): Promise<string | null> => {
-  console.log(`[Scrape] Checking validity/content for URL: ${url}`);
+  const cacheKey = `scrape_cache_${url}`;
+  const now = Date.now();
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+  // 1. Check localStorage for a cached version
+  try {
+    const cachedItem = localStorage.getItem(cacheKey);
+    if (cachedItem) {
+      const { timestamp, markdownContent } = JSON.parse(cachedItem);
+      if (now - timestamp < ONE_DAY_MS) {
+        console.log(`[Scrape Cache] HIT for URL: ${url}`);
+        toast.success('URL Content Loaded from Cache', {
+          description: 'Using recently scraped content for this URL.',
+          duration: 3000,
+        });
+        return markdownContent;
+      } else {
+        console.log(`[Scrape Cache] STALE for URL: ${url}`);
+        localStorage.removeItem(cacheKey); // Remove stale item
+      }
+    }
+  } catch (e) {
+    console.error("[Scrape Cache] Error reading from localStorage:", e);
+  }
+
+  // 2. If cache miss or stale, fetch from the API
+  console.log(`[Scrape Cache] MISS for URL: ${url}. Fetching from API.`);
   const scrapeApiEndpoint = getAssetPath('/api/scrape');
-  const localStorageKey = `scrape_content:${url}`; // Key for storing markdown in localStorage
 
   try {
-    // Call backend to check cache validity or trigger scrape
     const response = await fetch(scrapeApiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
       },
       signal: abortController.signal,
-      credentials: 'include',
       body: JSON.stringify({ urlToScrape: url }),
     });
 
-    // --- Handle Backend Response --- 
-
-    // Handle non-OK responses (e.g., 4xx, 5xx)
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: 'Failed to parse scrape error response' }));
-      console.error(`[Scrape] Backend scrape request failed (${response.status}):`, errorData);
       toast.warning('URL Scraping Failed', {
         description: `Could not get content for the URL. Error: ${errorData.message || response.statusText}`,
         duration: 5000,
       });
-      // Clear potentially stale local storage on failure
-      localStorage.removeItem(localStorageKey);
       return null;
     }
 
-    // Handle OK responses (200)
     const result = await response.json();
 
-    if (result.success) {
-      if (result.cacheStatus === 'valid') {
-        console.log('[Scrape] Backend confirms cache is valid. Checking localStorage...');
-        const localData = localStorage.getItem(localStorageKey);
-        if (localData) {
-          console.log('[Scrape] Found valid content in localStorage.');
-          toast.info('Using Cached URL Content', {
-             description: 'Using previously scraped content for this URL.',
-             duration: 2000,
-          });
-          return localData;
-        } else {
-          // This is an edge case: backend says valid, but client lost data.
-          // We could trigger a refresh, but for simplicity, we'll proceed without content.
-          console.warn('[Scrape] Backend confirmed cache validity, but no content found in localStorage. Proceeding without scraped data.');
-          toast.warning('URL Content Missing', {
-            description: 'Could not find cached content locally. You might need to resubmit.',
-            duration: 4000,
-          });
-          return null;
-        }
-      } else if (result.cacheStatus === 'refreshed' && result.markdownContent) {
-        console.log(`[Scrape] Received refreshed content. Length: ${result.markdownContent.length}. Storing in localStorage.`);
-        localStorage.setItem(localStorageKey, result.markdownContent);
-        toast.success('URL Content Scraped', {
-          description: 'Fresh content from the URL will be used.',
-          duration: 3000,
-        });
-        return result.markdownContent;
-      } else {
-        // Should not happen if success is true, but handle defensively
-        console.warn('[Scrape] Backend response format unexpected (success=true, but invalid cacheStatus or missing content).', result);
-        localStorage.removeItem(localStorageKey); // Clear potentially bad state
-        return null;
+    if (result.success && result.markdownContent) {
+      // 3. Store the new data in localStorage
+      try {
+        const newItem = {
+          timestamp: now,
+          markdownContent: result.markdownContent,
+        };
+        localStorage.setItem(cacheKey, JSON.stringify(newItem));
+        console.log(`[Scrape Cache] SET for URL: ${url}`);
+      } catch (e) {
+        console.error("[Scrape Cache] Error writing to localStorage:", e);
       }
-    } else { // result.success === false
-      console.warn('[Scrape] Backend indicated scraping process failed or yielded no content.', result.message);
+
+      toast.success('URL Content Scraped', {
+        description: 'Fresh content from the URL will be used.',
+        duration: 3000,
+      });
+      return result.markdownContent;
+    } else {
       toast.warning('URL Scraping Issue', {
         description: result.message || 'Scraping completed but no content was returned.',
         duration: 5000,
       });
-      localStorage.removeItem(localStorageKey);
       return null;
     }
 
@@ -359,7 +355,6 @@ const scrapeUrlContent = async (url: string, abortController: AbortController): 
       description: `An error occurred while trying to scrape the URL: ${error instanceof Error ? error.message : 'Unknown error'}`,
       duration: 5000,
     });
-    localStorage.removeItem(localStorageKey); // Clear local storage on error
     return null;
   }
 };

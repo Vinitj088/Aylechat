@@ -19,4 +19,9 @@ export const Sentient = localFont({
   variable: '--font-sentient',
 });
 
+export const ppeditorial = localFont ({
+  src: './fonts/PPEditorialNew-Regular.otf',
+  display: 'swap',
+  variable: '--font-ppeditorial',
+});
 

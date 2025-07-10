@@ -1,308 +1,220 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { Session, User, AuthError } from '@supabase/supabase-js';
-import { createClient } from '@/utils/supabase/client';
-import { useRouter } from 'next/navigation';
+import { createContext, useContext, useState, ReactNode, useCallback, useEffect, useRef } from 'react';
+import { User, tx, id } from '@instantdb/react';
+import { db } from '@/lib/db';
 import { toast } from 'sonner';
-import { signIn as serverSignIn, signUp as serverSignUp, signOut as serverSignOut, resetPassword as serverResetPassword, updatePassword as serverUpdatePassword } from '@/app/auth/actions';
 
 interface AuthContextType {
-  session: Session | null;
   user: User | null;
   isLoading: boolean;
-  isAnonymous: boolean;
-  signIn: (email: string, password: string) => Promise<{
-    error: AuthError | null;
-    success: boolean;
-  }>;
-  signUp: (email: string, password: string, name: string) => Promise<{
-    error: AuthError | null;
-    success: boolean;
-  }>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string, redirectTo?: string) => Promise<{
-    error: AuthError | null;
-    success: boolean;
-  }>;
-  updatePassword: (password: string) => Promise<{
-    error: AuthError | null;
-    success: boolean;
-  }>;
+  sendMagicCode: (email: string) => Promise<void>;
+  signInWithMagicCode: (email: string, code: string) => Promise<void>;
+  signInWithIdToken: (params: {
+    clientName: string;
+    idToken: string;
+    nonce: string;
+  }) => Promise<void>;
+  updateUserProfile: (profile: { firstName: string }) => Promise<void>;
   openAuthDialog: () => void;
   closeAuthDialog: () => void;
   isAuthDialogOpen: boolean;
-  refreshSession: () => Promise<boolean>;
-  signInWithGoogle: () => Promise<{ error: AuthError | null }>;
+  ensureUserProfile: (firstName?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, isLoading, error } = db.useAuth();
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-  const router = useRouter();
-  const supabase = createClient();
+  const profileOperationInProgress = useRef(new Set<string>());
 
-  // Helper to extract is_anonymous from user or session
-  const getIsAnonymous = (user: User | null, session: Session | null): boolean => {
-    if (user && typeof user.is_anonymous === 'boolean') {
-      return user.is_anonymous;
+  if (error) {
+    console.error("Auth Error:", error);
+    toast.error("Authentication error", { description: error.message });
+  }
+
+  // Centralized profile creation/update function
+  const ensureUserProfile = useCallback(async (firstName?: string) => {
+    if (!user || profileOperationInProgress.current.has(user.id)) {
+      return;
     }
-    // Fallback: try to decode JWT if available
-    if (session && session.access_token) {
-      try {
-        const payload = JSON.parse(atob(session.access_token.split('.')[1]));
-        if (typeof payload.is_anonymous === 'boolean') {
-          return payload.is_anonymous;
-        }
-      } catch (e) {
-        // Ignore decoding errors
-      }
-    }
-    return false;
-  };
 
-  const isAnonymous = getIsAnonymous(user, session);
-
-  const refreshSession = async (): Promise<boolean> => {
     try {
-      const { data, error } = await supabase.auth.refreshSession();
+      // Mark as in progress to prevent concurrent attempts
+      profileOperationInProgress.current.add(user.id);
       
-      if (error) {
-        console.error('Error refreshing session:', error);
-        return false;
-      }
+      console.log("Ensuring profile for user:", user.id, "with firstName:", firstName);
       
-      setSession(data.session);
-      setUser(data.session?.user || null);
-      return !!data.session;
-    } catch (error) {
-      console.error('Unexpected error refreshing session:', error);
-      return false;
-    }
-  };
-
-  useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      setIsLoading(true);
+      // Small delay to reduce race conditions
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error getting session:', error);
-        }
-        
-        setSession(session);
-        setUser(session?.user || null);
-      } catch (error) {
-        console.error('Unexpected error during getSession:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    getInitialSession();
-
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user || null);
-        setIsLoading(false);
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [supabase.auth]);
-  
-  // Set up periodic health check
-  useEffect(() => {
-    const refreshInterval = 45 * 60 * 1000; // 45 minutes
-    const healthCheckInterval = setInterval(async () => {
-      if (user) {
-        await refreshSession();
-      }
-    }, refreshInterval);
-    
-    return () => {
-      clearInterval(healthCheckInterval);
-    };
-  }, [user]);
-
-  const signIn = async (email: string, password: string) => {
-    try {
-      // Create a FormData object to work with server actions
-      const formData = new FormData();
-      formData.append('email', email);
-      formData.append('password', password);
-      
-      // Use server action for authentication
-      const result = await serverSignIn(formData);
-      
-      if (result.error) {
-        return { error: { message: result.error } as AuthError, success: false };
-      }
-      
-      // Refresh client-side session
-      await refreshSession();
-      
-      setIsAuthDialogOpen(false);
-      router.refresh();
-      return { error: null, success: true };
-    } catch (error) {
-      console.error('Unexpected error during sign in:', error);
-      return { error: error as AuthError, success: false };
-    }
-  };
-
-  const signUp = async (email: string, password: string, name: string) => {
-    try {
-      // Create a FormData object to work with server actions
-      const formData = new FormData();
-      formData.append('email', email);
-      formData.append('password', password);
-      formData.append('name', name);
-      
-      // Use server action for sign up
-      const result = await serverSignUp(formData);
-      
-      if (result.error) {
-        return { error: { message: result.error } as AuthError, success: false };
-      }
-      
-      return { error: null, success: true };
-    } catch (error) {
-      console.error('Unexpected error during sign up:', error);
-      return { error: error as AuthError, success: false };
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      // Use server action for sign out
-      const result = await serverSignOut();
-      
-      if (result.error) {
-        toast.error('Failed to sign out. Please try again.');
-        return;
-      }
-      
-      // Clear client-side state
-      setSession(null);
-      setUser(null);
-      
-      // Force a router refresh after sign out
-      router.refresh();
-    } catch (error) {
-      console.error('Error signing out:', error);
-      toast.error('Failed to sign out. Please try again.');
-    }
-  };
-
-  const openAuthDialog = () => {
-    setIsAuthDialogOpen(true);
-  };
-
-  const closeAuthDialog = () => {
-    setIsAuthDialogOpen(false);
-  };
-
-  const resetPassword = async (email: string, redirectTo?: string) => {
-    try {
-      const formData = new FormData();
-      formData.append('email', email);
-      
-      // Use current site URL if not provided
-      const defaultRedirectUrl = window.location.origin + '/auth/update-password';
-      const finalRedirectTo = redirectTo || defaultRedirectUrl;
-      
-      formData.append('redirectTo', finalRedirectTo);
-      
-      const result = await serverResetPassword(formData);
-      
-      if (result.error) {
-        return { error: { message: result.error } as AuthError, success: false };
-      }
-      
-      return { error: null, success: true };
-    } catch (error) {
-      console.error('Unexpected error during password reset:', error);
-      return { error: error as AuthError, success: false };
-    }
-  };
-
-  const updatePassword = async (password: string) => {
-    try {
-      const formData = new FormData();
-      formData.append('password', password);
-      
-      const result = await serverUpdatePassword(formData);
-      
-      if (result.error) {
-        return { error: { message: result.error } as AuthError, success: false };
-      }
-      
-      // Refresh session after password update
-      await refreshSession();
-      
-      return { error: null, success: true };
-    } catch (error) {
-      console.error('Unexpected error during password update:', error);
-      return { error: error as AuthError, success: false };
-    }
-  };
-
-  // Add Google Sign-In function
-  const signInWithGoogle = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          // Optional: Specify where to redirect after successful sign-in
-          // redirectTo: `${window.location.origin}/auth/callback`,
-          // Optional: Add scopes if needed
-          // scopes: 'https://www.googleapis.com/auth/calendar.readonly',
-        },
+      // Always query for existing profile first
+      const { data } = await db.queryOnce({
+        profiles: { $: { where: { userId: user.id } } }
       });
       
-      if (error) {
-        console.error('Google Sign-In Error:', error);
-        toast.error(error.message || 'Failed to sign in with Google.');
-        return { error };
+      if (data?.profiles?.length) {
+        // Profile exists - update if firstName is provided
+        const existingProfile = data.profiles[0];
+        console.log("Found existing profile:", existingProfile.id);
+        
+        if (firstName && existingProfile.firstName !== firstName) {
+          console.log("Updating existing profile firstName to:", firstName);
+          await db.transact(
+            tx.profiles[existingProfile.id].update({
+              firstName: firstName
+            })
+          );
+          console.log("Profile updated successfully");
+        }
+      } else {
+        // No profile exists - create one
+        console.log("No profile found, creating new profile");
+        
+        const defaultFirstName = firstName || user.email?.split('@')[0] || 'User';
+        const profileId = id();
+        
+        await db.transact([
+          tx.profiles[profileId].update({
+            userId: user.id,
+            firstName: defaultFirstName
+          }),
+          tx.profiles[profileId].link({ user: user.id })
+        ]);
+        
+        console.log("Profile created successfully with firstName:", defaultFirstName);
+      }
+    } catch (err: any) {
+      console.error("Failed to ensure profile:", err);
+      
+      // Check if it's a unique constraint error (profile already exists)
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "message" in err &&
+        typeof err.message === "string" &&
+        (err.message.includes('unique attribute') || 
+         err.message.includes('userId'))
+      ) {
+        console.log("Profile already exists (unique constraint), trying to update instead");
+        
+        // Query again to get the existing profile
+        try {
+          const { data } = await db.queryOnce({
+            profiles: { $: { where: { userId: user.id } } }
+          });
+          
+          if (data?.profiles?.length && firstName) {
+            const existingProfile = data.profiles[0];
+            await db.transact(
+              tx.profiles[existingProfile.id].update({
+                firstName: firstName
+              })
+            );
+            console.log("Profile updated successfully after unique constraint error");
+          }
+        } catch (retryErr) {
+          console.error("Failed to update profile after unique constraint error:", retryErr);
+          throw retryErr;
+        }
+      } else {
+        throw err;
+      }
+    } finally {
+      // Always remove from in-progress set
+      profileOperationInProgress.current.delete(user.id);
+    }
+  }, [user]);
+
+  // Auto-create profile when user signs in (with default firstName)
+  useEffect(() => {
+    if (user && !profileOperationInProgress.current.has(user.id)) {
+      // Add a small delay before running to let the auth state settle
+      const timer = setTimeout(() => {
+        ensureUserProfile();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [user?.id, ensureUserProfile]);
+
+  const sendMagicCode = useCallback(async (email: string) => {
+    await db.auth.sendMagicCode({ email });
+  }, []);
+
+  const signInWithMagicCode = useCallback(async (email: string, code: string) => {
+    await db.auth.signInWithMagicCode({ email, code });
+  }, []);
+
+  const signInWithIdToken = useCallback(
+    async (params: { clientName: string; idToken: string; nonce: string }) => {
+      await db.auth.signInWithIdToken(params);
+    },
+    []
+  );
+
+  const updateUserProfile = useCallback(async (profile: { firstName: string }) => {
+    if (!user) {
+      toast.error("Not signed in", { description: "You must be signed in to update your profile." });
+      return;
+    }
+    
+    try {
+      await ensureUserProfile(profile.firstName);
+      toast.success("Profile updated!");
+    } catch (err: any) {
+      console.error("Failed to update profile:", err);
+      
+      // Better error message formatting
+      let errorMessage = "An error occurred while updating your profile";
+      if (err && typeof err === "object") {
+        if (err.message && typeof err.message === "string") {
+          errorMessage = err.message;
+        } else if (err.toString && typeof err.toString === "function") {
+          errorMessage = err.toString();
+        }
+      } else if (typeof err === "string") {
+        errorMessage = err;
       }
       
-      // No need to return success here, the redirect handles it.
-      // The onAuthStateChange listener will pick up the session.
-      return { error: null };
-    } catch (error) {
-      console.error('Unexpected error during Google sign in:', error);
-      toast.error('An unexpected error occurred during Google sign-in.');
-      return { error: error as AuthError };
+      toast.error("Profile update failed", { 
+        description: errorMessage
+      });
+      throw err;
     }
-  };
+  }, [user, ensureUserProfile]);
+
+  const signOut = useCallback(async () => {
+    // Clear the profile operation tracking when signing out
+    if (user) {
+      profileOperationInProgress.current.delete(user.id);
+    }
+    
+    await db.auth.signOut();
+    toast.success("Signed out successfully");
+  }, [user]);
+
+  const openAuthDialog = useCallback(() => {
+    setIsAuthDialogOpen(true);
+  }, []);
+
+  const closeAuthDialog = useCallback(() => {
+    setIsAuthDialogOpen(false);
+  }, []);
 
   const value = {
-    session,
-    user,
+    user: user ?? null,
     isLoading,
-    isAnonymous,
-    signIn,
-    signUp,
     signOut,
-    resetPassword,
-    updatePassword,
+    sendMagicCode,
+    signInWithMagicCode,
+    signInWithIdToken,
+    updateUserProfile,
     openAuthDialog,
     closeAuthDialog,
     isAuthDialogOpen,
-    refreshSession,
-    signInWithGoogle,
+    ensureUserProfile,
   };
 
   return (
@@ -318,4 +230,4 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}; 
+};

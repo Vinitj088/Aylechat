@@ -11,46 +11,57 @@ import modelsData from '../../../models.json';
 import { AuthDialog } from '@/components/AuthDialog';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { ChatThread } from '@/lib/redis';
 import { toast } from 'sonner';
 import QueryEnhancer from '../../component/QueryEnhancer';
 import React from 'react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { useThreadCache } from '@/context/ThreadCacheContext';
 import { cn } from '@/lib/utils';
 import { useSidebarPin } from '../../../context/SidebarPinContext';
 import { QueryEnhancerProvider, useQueryEnhancer } from '@/context/QueryEnhancerContext';
+import { db } from '@/lib/db';
+import { id } from '@instantdb/react';
 
 function ChatThreadPageContent({ threadId }: { threadId: string }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { data, isLoading: isThreadLoading, error } = db.useQuery({
+    threads: {
+      $: { where: { id: threadId } },
+      messages: {},
+    },
+  });
+  const thread = data?.threads[0];
+  // Map messages to ensure role is typed correctly for Message
+  const dbMessages: Message[] = (thread?.messages || []).map((msg: any) => ({
+    ...msg,
+    role: (msg.role === 'user' || msg.role === 'assistant' || msg.role === 'system') ? msg.role : 'user',
+    citations: msg.citations,
+    completed: msg.completed,
+    startTime: msg.startTime,
+    endTime: msg.endTime,
+    tps: msg.tps,
+    mediaData: msg.mediaData,
+    weatherData: msg.weatherData,
+    images: msg.images,
+    attachments: msg.attachments,
+    provider: msg.provider,
+    quotedText: msg.quotedText,
+  }));
+
+  // --- Local state for optimistic UI ---
+  const [messages, setMessages] = useState<Message[]>(dbMessages);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isThreadLoading, setIsThreadLoading] = useState(true);
   const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
-  const [models, setModels] = useState<Model[]>([
-    {
-      id: 'exa',
-      name: 'Exa Search',
-      provider: 'Exa',
-      providerId: 'exa',
-      enabled: true,
-      toolCallType: 'native',
-      searchMode: true
-    }
-  ]);
+  const [models, setModels] = useState<Model[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const [thread, setThread] = useState<ChatThread | null>(null);
   const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { user, session } = useAuth();
+  const { user, isLoading: authLoading, openAuthDialog } = useAuth();
   const router = useRouter();
   const chatInputRef = useRef<ChatInputHandle>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
-  const { threads: cachedThreads, updateThread } = useThreadCache();
   const [quotedText, setQuotedText] = useState('');
   const [retriedMessageId, setRetriedMessageId] = useState<string | null>(null);
   const { pinned, setPinned } = useSidebarPin();
@@ -58,16 +69,16 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
   const isAuthenticated = !!user;
 
+  // Sync local messages state with DB on thread load/change
+  useEffect(() => {
+    if (!isThreadLoading) {
+      setMessages(dbMessages);
+    }
+  }, [threadId, data, isThreadLoading]);
+
   useEffect(() => {
     // Add models from different providers
-    const groqModels = modelsData.models.filter(model => model.providerId === 'groq');
-    const googleModels = modelsData.models.filter(model => model.providerId === 'google');
-    const openRouterModels = modelsData.models.filter(model => model.providerId === 'openrouter');
-    const cerebrasModels = modelsData.models.filter(model => model.providerId === 'cerebras');
-    const xaiModels = modelsData.models.filter(model => model.providerId === 'xai');
-    const togetherModels = modelsData.models.filter(model => model.providerId === 'together');
-    // Replace the model list instead of appending
-    setModels([
+    const allModels = [
       {
         id: 'exa',
         name: 'Exa Search',
@@ -77,74 +88,20 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         toolCallType: 'native',
         searchMode: true
       },
-      
-      ...googleModels,
-      ...cerebrasModels,
-      ...openRouterModels,
-      ...groqModels,
-      ...togetherModels,
-      ...xaiModels
-    ]);
+      ...modelsData.models.filter(model => ['groq', 'google', 'openrouter', 'cerebras', 'xai', 'together'].includes(model.providerId))
+    ];
+    setModels(allModels);
   }, []);
 
   useEffect(() => {
-    // Try to use cached thread first
-    const cachedThread = cachedThreads.find(t => t.id === threadId);
-    if (cachedThread) {
-      setThread(cachedThread);
-      setMessages(cachedThread.messages || []);
-      if (cachedThread.model) {
-        setSelectedModel(cachedThread.model as ModelType);
-      }
-      setIsThreadLoading(false);
-      return;
+    if (thread) {
+      setSelectedModel(thread.model as ModelType);
     }
-    // If not in cache, fetch from API
-    const fetchThread = async () => {
-      try {
-        setIsThreadLoading(true);
-        const timestamp = Date.now();
-        const response = await fetch(`/api/chat/threads/${threadId}?t=${timestamp}`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Content-Type': 'application/json'
-          }
-        });
-        if (!response.ok) {
-          if (response.status === 404 || response.status === 401) {
-            setIsThreadLoading(false);
-            return;
-          }
-          throw new Error(`Error ${response.status}: ${response.statusText}`);
-        }
-        const data = await response.json();
-        if (data.success && data.thread) {
-          setThread(data.thread);
-          setMessages(data.thread.messages || []);
-          if (data.thread.model) {
-            setSelectedModel(data.thread.model as ModelType);
-          }
-        } else {
-          console.error('Failed to load thread:', data.error);
-        }
-      } catch (error) {
-        console.error('Error loading thread:', error);
-      } finally {
-        setIsThreadLoading(false);
-      }
-    };
-    if (threadId) {
-      fetchThread();
-    }
-  }, [threadId, thread, cachedThreads]);
+  }, [thread]);
 
   // Step 5: Callback to handle file uploaded event from backend
   const handleFileUploaded = useCallback((fileInfo: { name: string; type: string; uri: string }) => {
-    console.log('Adding uploaded file to active session:', fileInfo);
     setActiveChatFiles(prev => {
-      // Avoid adding duplicates based on URI
       if (!prev.some(f => f.uri === fileInfo.uri)) {
         return [...prev, fileInfo];
       }
@@ -152,21 +109,16 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     });
   }, []);
 
-  // Step 5: Function to remove an active file reference
   const removeActiveFile = useCallback((uri: string) => {
     setActiveChatFiles(prev => prev.filter(f => f.uri !== uri));
   }, []);
 
-  // Step 2: Callback for ChatInput to report its active files height
   const handleActiveFilesHeightChange = useCallback((height: number) => {
-    // console.log('Reported active files height:', height); // Debug log
-    setChatInputHeightOffset(height > 0 ? height + 8 : 0); // Add some padding if height > 0
+    setChatInputHeightOffset(height > 0 ? height + 8 : 0);
   }, []);
 
-  // Add global keyboard shortcut for focusing the chat input
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Skip if we're in an input field or textarea already
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
@@ -175,20 +127,16 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       ) {
         return;
       }
-
-      // Focus chat input when "/" is pressed
       if (e.key === '/' && !isLoading) {
         e.preventDefault();
         chatInputRef.current?.focus();
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLoading]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement> | string) => {
-    // Check if e is a string or an event object
     const value = typeof e === 'string' ? e : e.target.value;
     setInput(value);
   };
@@ -205,290 +153,105 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     }
   };
 
+  // --- MAIN SUBMIT HANDLER (Optimistic UI) ---
   const handleSubmit = async (e: React.FormEvent, files?: File[]) => {
     e.preventDefault();
     if ((!input.trim() && (!files || files.length === 0)) || isLoading) return;
-
-    // Block requests if user is not authenticated with just a toast
     if (!isAuthenticated) {
-      toast.error('Please sign in to chat', {
-        description: 'You can sign in using the sidebar or homepage'
-      });
+      openAuthDialog();
       return;
     }
-
-    // Debug log for attachments
-    if (files && files.length > 0) {
-      console.log(`Processing ${files.length} attachment(s) for message:`,
-        files.map(file => ({
-          name: file.name,
-          type: file.type,
-          size: file.size
-        }))
-      );
-    }
-
-    const fullInput = quotedText && quotedText.trim().length > 0
-      ? `> ${quotedText.replace(/\n/g, '\n> ')}\n\n${input.trim()}`
-      : input.trim();
-
-    // Create new user message
+    const fullInput = quotedText ? `> ${quotedText.replace(/\n/g, '\n> ')}\n\n${input.trim()}` : input.trim();
+    const userMessageId = id();
+    const assistantMessageId = id();
     const userMessage: Message = {
-      id: crypto.randomUUID(),
+      id: userMessageId,
       role: 'user',
-      content: input.trim(), // Only the user's input, not the quoted text
-      ...(quotedText && quotedText.trim().length > 0 ? { quotedText } : {})
+      content: fullInput,
+      createdAt: new Date(),
+      ...(quotedText ? { quotedText } : {}),
+      ...(files && files.length > 0 ? { attachments: files.map(file => ({ name: file.name, type: file.type, size: file.size })) } : {})
     };
-
-    // Process attachments if any
-    if (files && files.length > 0) {
-      // Create simplified attachment info for display (no base64)
-      userMessage.attachments = files.map(file => ({
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        // data: '' // Removed: data is now optional in FileAttachment type
-      }));
-      console.log(`Added info for ${files.length} attachments to user message`);
-    }
-
-    // Create placeholder for assistant response
     const assistantMessage: Message = {
-      id: crypto.randomUUID(),
+      id: assistantMessageId,
       role: 'assistant',
-      content: '',
-      provider: selectedModelObj?.provider
+      content: '...',
+      createdAt: new Date(Date.now() + 1000),
     };
-
-    // Update UI right away
+    setMessages(prev => [...prev, userMessage, assistantMessage]);
     setInput('');
     setQuotedText('');
     setIsLoading(true);
-    const updatedMessages = [...messages, userMessage, assistantMessage];
-    setMessages(updatedMessages);
-
-    // After new user+assistant pair is added, remove old retried pair if needed
-    if (retriedMessageId) {
-      setMessages(prev => {
-        const idx = prev.findIndex(m => m.id === retriedMessageId);
-        if (idx === -1) return prev;
-        // Remove user and next assistant (if any)
-        const newMessages = prev.slice(0, idx);
-        if (prev[idx + 1] && prev[idx + 1].role === 'assistant') {
-          return newMessages.concat(prev.slice(idx + 2));
-        }
-        return newMessages.concat(prev.slice(idx + 1));
-      });
-      setRetriedMessageId(null);
-    }
-
-    // Cancel any previous requests
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // Create new abort controller for this request
     abortControllerRef.current = new AbortController();
-
-    // Find the selected model object to check its capabilities
-    const modelObj = models.find(m => m.id === selectedModel);
-    const isImageGenerationModel = modelObj?.imageGenerationMode === true;
-
     try {
-      // Check if it's a new thread or existing thread
-      // const isNewThread = !threadId || threadId === 'new'; // We don't need this check here anymore
-
-      // REMOVED: Update thread immediately - we now wait for the response
-      // if (user && isAuthenticated) {
-      //   await updateThread(updatedMessages); 
-      // }
-
-      if (isImageGenerationModel) {
-        console.log("Using image generation model:", modelObj?.name, "Provider:", modelObj?.providerId);
-
-        // Determine the API endpoint based on the provider
-        let apiEndpoint = '/api/gemini'; // Default for Gemini models
-
-        if (modelObj?.providerId === 'together') {
-          apiEndpoint = '/api/together';
-          console.log("Using Together AI endpoint for image generation");
-        }
-
-        // Handle image generation model
-        const response = await fetch(apiEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            query: userMessage.content,
-            model: selectedModel,
-            prompt: userMessage.content, // Add prompt parameter for Together AI
-            messages: updatedMessages.slice(0, -1) // Exclude the empty assistant message
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Response error: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        // Debug the response
-        console.log('Image generation client response:', {
-          hasText: !!data.text,
-          textLength: data.text?.length || 0,
-          hasImages: !!data.images,
-          imagesCount: data.images?.length || 0
-        });
-
-        // Verify images array is valid
-        if (data.images && Array.isArray(data.images)) {
-          console.log(`Received ${data.images.length} images from API`);
-        } else {
-          console.error('No valid images array in response:', data);
-          data.images = []; // Ensure we have a valid array
-        }
-
-        // Process images for storage - if we have URLs, we can optimize storage
-        const optimizedImages = data.images.map((img: { mimeType: string; data: string; url?: string }) => {
-          // If the image has a URL, we can store just the URL and mime type
-          if (img.url) {
-            return {
-              mimeType: img.mimeType,
-              data: img.url,  // Store the URL in the data field for backward compatibility
-              url: img.url    // Also keep the URL field
-            };
-          }
-          // Otherwise keep the original image data
-          return img;
-        });
-
-        // Update the assistant message with text and images
-        const completedAssistantMessage: Message = {
-          ...assistantMessage,
-          content: data.text || 'Here is the generated image:',
-          images: optimizedImages || [],
-          completed: true,
-          provider: selectedModelObj?.provider
-        };
-
-        // Debug the message being added
-        console.log('Adding assistant message with images:', {
-          messageId: completedAssistantMessage.id,
-          hasImages: !!completedAssistantMessage.images,
-          imagesCount: completedAssistantMessage.images?.length || 0,
-          hasUrls: completedAssistantMessage.images?.some(img => !!img.url) || false
-        });
-
-        // Update messages state with completed response
-        setMessages(prevMessages => {
-          const updatedMessages = prevMessages.map(msg =>
-            msg.id === assistantMessage.id
-              ? completedAssistantMessage
-              : msg
-          );
-          return updatedMessages;
-        });
-
-        // Update the thread again with the completed response
-        if (user && isAuthenticated) {
-          try {
-            // Construct final messages using the completedAssistantMessage from image gen
-            const finalMessages = updatedMessages.map(msg =>
-              msg.id === assistantMessage.id
-                ? completedAssistantMessage // Use the object with image data
-                : msg
-            );
-            await updateThreadInDb(finalMessages);
-            // Update the thread in the cache directly, filter out 'system' messages
-            updateThread(threadId, { messages: finalMessages.filter(m => m.role === 'user' || m.role === 'assistant') as import('@/lib/redis').Message[] });
-          } catch (updateError) {
-            console.error('Error saving completed thread (image gen):', updateError);
-          }
-        }
-      } else {
-        // Standard text model processing
-        // REMOVED: let content = "";
-        // REMOVED: let citations: any[] = [];
-
-        // Fetch the model response - it now returns the complete assistant message
-        const completedAssistantMessage = await fetchResponse(
-          fullInput,
-          updatedMessages.slice(0, -1), // Pass messages before placeholder
-          selectedModel,
-          abortControllerRef.current,
-          setMessages, // Still needed for live UI updates during stream
-          assistantMessage, // Pass the placeholder ID/role
-          files,
-          activeChatFiles,
-          handleFileUploaded,
-          enhancerMode,
-        );
-
-        // REMOVED: content = response.content;
-        // REMOVED: citations = response.citations || [];
-
-        // Update the thread again with the completed response
-        if (user && isAuthenticated) {
-          try {
-            // Construct final messages using the returned completedAssistantMessage
-            const finalMessages = updatedMessages.map(msg =>
-              msg.id === assistantMessage.id
-                ? completedAssistantMessage // Use the object returned by fetchResponse
-                : msg
-            );
-            await updateThreadInDb(finalMessages);
-            // Update the thread in the cache directly, filter out 'system' messages
-            updateThread(threadId, { messages: finalMessages.filter(m => m.role === 'user' || m.role === 'assistant') as import('@/lib/redis').Message[] });
-          } catch (updateError) {
-            console.error('Error saving completed thread (text gen):', updateError);
-          }
-        }
-      }
+      const completedAssistantMessage = await fetchResponse(
+        fullInput,
+        [...messages, userMessage],
+        selectedModel,
+        abortControllerRef.current,
+        (updatedMessages: Message[]) => {
+          // Optionally stream updates
+          setMessages(updatedMessages);
+        },
+        assistantMessage,
+        files,
+        activeChatFiles,
+        handleFileUploaded,
+        enhancerMode,
+      );
+      setMessages(prev => prev.map(msg =>
+        msg.id === assistantMessage.id ? { ...completedAssistantMessage, id: assistantMessage.id } : msg
+      ));
+      // Persist both messages to InstantDB
+      await db.transact([
+        db.tx.messages[userMessageId].update({
+          role: userMessage.role,
+          content: userMessage.content,
+          createdAt: userMessage.createdAt ? (typeof userMessage.createdAt === 'string' ? userMessage.createdAt : userMessage.createdAt.toISOString()) : undefined,
+          citations: userMessage.citations,
+          completed: userMessage.completed,
+          startTime: userMessage.startTime,
+          endTime: userMessage.endTime,
+          tps: userMessage.tps,
+          mediaData: userMessage.mediaData,
+          weatherData: userMessage.weatherData,
+          images: userMessage.images,
+          attachments: userMessage.attachments,
+          provider: userMessage.provider,
+          quotedText: userMessage.quotedText,
+        }).link({ thread: threadId }),
+        db.tx.messages[assistantMessageId].update({
+          role: 'assistant',
+          content: completedAssistantMessage.content,
+          createdAt: new Date().toISOString(),
+          citations: completedAssistantMessage.citations,
+          completed: completedAssistantMessage.completed,
+          startTime: completedAssistantMessage.startTime,
+          endTime: completedAssistantMessage.endTime,
+          tps: completedAssistantMessage.tps,
+          mediaData: completedAssistantMessage.mediaData,
+          weatherData: completedAssistantMessage.weatherData,
+          images: completedAssistantMessage.images,
+          attachments: completedAssistantMessage.attachments,
+          provider: completedAssistantMessage.provider,
+          quotedText: completedAssistantMessage.quotedText,
+        }).link({ thread: threadId }),
+        db.tx.threads[threadId].update({ updatedAt: new Date().toISOString() }),
+      ]);
     } catch (error: any) {
-      console.error("Error in submission:", error);
-
-      // Handle authentication errors
-      if (error.message && (
-        error.message.includes('authentication') ||
-        error.message.includes('Authentication') ||
-        error.message.includes('Unauthorized') ||
-        error.message.includes('401') ||
-        error.message.includes('session')
-      )) {
-        // Show the auth dialog first to let the user sign in
-        setShowAuthDialog(true);
-
-        // Set the error message in the assistant message
-        setMessages(prevMessages =>
-          prevMessages.map(msg =>
-            msg.id === assistantMessage.id
-              ? { ...msg, content: "I couldn't complete your request because your session expired. Please sign in again.", completed: true }
-              : msg
-          )
-        );
-      } else {
-        // Handle other errors
-        setMessages(prevMessages =>
-          prevMessages.map(msg =>
-            msg.id === assistantMessage.id
-              ? { ...msg, content: "I'm sorry, there was an error processing your request. Please try again.", completed: true }
-              : msg
-          )
-        );
-
-        // Show error toast
-        toast.error(error.message || 'Error processing request');
-      }
+      const errorMessage = error.message || 'Sorry, something went wrong.';
+      setMessages(prev => prev.map(msg =>
+        msg.id === assistantMessage.id ? { ...msg, content: errorMessage } : msg
+      ));
+      await db.transact([
+        db.tx.messages[assistantMessageId].update({
+          content: errorMessage,
+          createdAt: new Date().toISOString(),
+        })
+      ]);
     } finally {
-      // Clear the abort controller reference
-      abortControllerRef.current = null;
-
-      // Always ensure loading is stopped, regardless of outcome
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -504,57 +267,12 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   // Get the provider name for the selected model
   const selectedModelObj = models.find(model => model.id === selectedModel);
 
-  // Update thread in database (renamed to avoid confusion)
-  const updateThreadInDb = async (updatedMessages: Message[]) => {
-    if (!isAuthenticated || !user || !threadId) {
-      return false;
-    }
-    try {
-      const timestamp = Date.now();
-      const response = await fetch(`/api/chat/threads/${threadId}?t=${timestamp}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          messages: updatedMessages,
-          model: selectedModel
-        })
-      });
-      if (!response.ok) {
-        if (response.status === 401) {
-          setShowAuthDialog(true);
-          setIsThreadLoading(false);
-          return;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const result = await response.json();
-      if (result.success) {
-        // Only trigger sidebar refresh if a thread was created or deleted
-        // setRefreshSidebar(prev => prev + 1); // REMOVE THIS
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Error updating thread:', error);
-      return false;
-    }
-  };
-
   // Retry logic: fill input, remove old user+assistant pair, focus input
   const handleRetryMessage = useCallback((message: Message) => {
     if (message.role !== 'user') return;
     setInput(message.content || '');
     setQuotedText(message.quotedText || '');
-    setMessages(prev => {
-      const idx = prev.findIndex(m => m.id === message.id);
-      if (idx === -1) return prev;
-      return prev.slice(0, idx);
-    });
+    // This part needs to be adapted for InstantDB
     setTimeout(() => {
       chatInputRef.current?.focus();
     }, 100);
@@ -569,7 +287,14 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     return () => window.removeEventListener('resize', handleResize);
   }, [pinned, setPinned]);
 
-  if (isThreadLoading) {
+  // Always sort messages by createdAt ascending before rendering
+  const sortedMessages = [...messages].sort((a, b) => {
+    const aDate = new Date(a.createdAt || 0).getTime();
+    const bDate = new Date(b.createdAt || 0).getTime();
+    return aDate - bDate;
+  });
+
+  if (isThreadLoading || authLoading) {
     return (
       <div className={cn(
         pinned ? "ayle-grid-layout" : "",
@@ -608,7 +333,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         <Sidebar
           isOpen={pinned || isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
-          onSignInClick={() => setShowAuthDialog(true)}
+          onSignInClick={openAuthDialog}
             refreshTrigger={refreshSidebar}
             pinned={pinned}
             setPinned={setPinned}
@@ -622,7 +347,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
             input={input}
             handleInputChange={handleInputChange}
             handleSubmit={(e) => handleSubmit(e, attachments)}
-            isLoading={isLoading}
+            isLoading={true} // Show loading state
             selectedModel={selectedModel}
             handleModelChange={handleModelChange}
             models={models}
@@ -683,14 +408,14 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       <Sidebar
         isOpen={pinned || isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        onSignInClick={() => setShowAuthDialog(true)}
+        onSignInClick={openAuthDialog}
         refreshTrigger={refreshSidebar}
           pinned={pinned}
           setPinned={setPinned}
       />
 
       <ChatMessages
-        messages={messages}
+        messages={sortedMessages}
         isLoading={isLoading}
         selectedModel={selectedModel}
         selectedModelObj={selectedModelObj}
@@ -724,42 +449,8 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
       {/* Auth Dialog */}
       <AuthDialog
-        isOpen={showAuthDialog}
-        onClose={() => setShowAuthDialog(false)}
         onSuccess={() => {
           setRefreshSidebar(prev => prev + 1);
-          // Reload the thread data
-          if (threadId) {
-            setIsThreadLoading(true);
-            const fetchData = async () => {
-              try {
-                // Add a timestamp to ensure we don't get a cached response
-                const timestamp = Date.now();
-                const response = await fetch(`/api/chat/threads/${threadId}?t=${timestamp}`, {
-                  cache: 'no-store',
-                  credentials: 'include'
-                });
-
-                if (!response.ok) {
-                  throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                if (data.thread) {
-                  setThread(data.thread);
-                  setMessages(data.thread.messages || []);
-                  setSelectedModel(data.thread.model || 'exa');
-                }
-              } catch (error) {
-                console.error('Error fetching thread:', error);
-                toast.error('Failed to load chat. Please try again.');
-              } finally {
-                setIsThreadLoading(false);
-              }
-            };
-
-            fetchData();
-          }
         }}
       />
       {/* Fixed Theme Toggle - Desktop only, only for lg and up */}
@@ -775,7 +466,9 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const { threadId } = React.use(params);
   return (
     <QueryEnhancerProvider>
-      <ChatThreadPageContent threadId={threadId} />
+      <Suspense fallback={<div>Loading...</div>}>
+        <ChatThreadPageContent threadId={threadId} />
+      </Suspense>
     </QueryEnhancerProvider>
   )
 } 

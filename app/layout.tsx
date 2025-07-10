@@ -5,7 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Providers } from './providers';
 import Script from 'next/script';
 import { Geist, Space_Grotesk } from 'next/font/google';
-import { Sentient, MagnetBold, gebukRegular } from './fonts';
+import { Sentient, MagnetBold, gebukRegular, ppeditorial } from './fonts';
 import BorderRadiusInitializer from './component/BorderRadiusInitializer';
 import { SidebarPinProvider } from '../context/SidebarPinContext';
 import FontInitializer from './component/FontInitializer';
@@ -34,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${spaceGrotesk.variable} ${Sentient.variable} ${MagnetBold.variable} ${gebukRegular.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${GeistSans.variable} ${spaceGrotesk.variable} ${Sentient.variable} ${MagnetBold.variable} ${gebukRegular.variable} ${ppeditorial.variable}`} suppressHydrationWarning>
       <head>
         <Script id="sw-register" strategy="beforeInteractive">
           {`
@@ -49,6 +49,11 @@ export default function RootLayout({
             }
           `}
         </Script>
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
       </head>
       <body className={GeistSans.className}>
         <Providers>

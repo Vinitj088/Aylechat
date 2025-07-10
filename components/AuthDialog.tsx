@@ -1,97 +1,206 @@
-'use client';
-
-import { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
 import { FcGoogle } from 'react-icons/fc';
 
-// Update the component to accept props
 interface AuthDialogProps {
   isOpen?: boolean;
   onClose?: () => void;
   onSuccess?: () => void;
 }
 
-export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
-  const [isSignIn, setIsSignIn] = useState(true);
-  const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const router = useRouter();
-  
-  const { 
-    signIn, 
-    signUp, 
-    isAuthDialogOpen, 
-    closeAuthDialog, 
-    resetPassword,
-    signInWithGoogle
+// Declare global google type
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: any) => void;
+          prompt: () => void;
+          renderButton: (element: HTMLElement, options: any) => void;
+        };
+      };
+    };
+  }
+}
+
+function AuthDialogContent({ isOpen, onClose, onSuccess }: AuthDialogProps) {
+  const {
+    user,
+    isAuthDialogOpen,
+    closeAuthDialog,
+    sendMagicCode,
+    signInWithMagicCode,
+    signInWithIdToken,
+    ensureUserProfile,
   } = useAuth();
+  
+  const [sentEmail, setSentEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isProcessingProfile, setIsProcessingProfile] = useState(false);
+  const hasProcessedProfile = useRef(false);
+  const [nonce, setNonce] = useState('');
 
-  // Determine if dialog should be open based on prop or context
-  const shouldBeOpen = isOpen !== undefined ? isOpen : isAuthDialogOpen;
-  // Use provided onClose or fallback to context
-  const handleClose = onClose || closeAuthDialog;
+  useEffect(() => {
+    setNonce(crypto.randomUUID());
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleClose = useCallback(() => {
+    if (onClose) {
+      onClose();
+    } else {
+      closeAuthDialog();
+    }
+    // Reset state on close
+    setSentEmail("");
+    setFirstName("");
     setError(null);
-    setSuccessMessage(null);
+    setIsLoading(false);
+    hasProcessedProfile.current = false;
+    setIsProcessingProfile(false);
+  }, [onClose, closeAuthDialog]);
+  
+  useEffect(() => {
+    if (user && (firstName || sentEmail === 'google') && !hasProcessedProfile.current && !isProcessingProfile) {
+      hasProcessedProfile.current = true;
+      setIsProcessingProfile(true);
+      
+      ensureUserProfile(firstName)
+        .then(() => {
+          toast.success("Welcome! Your profile has been set up.");
+          if (onSuccess) onSuccess();
+          handleClose();
+        })
+        .catch((err) => {
+          console.error("Failed to set up profile:", err);
+          toast.error("Profile setup failed", { 
+            description: "Your account was created but we couldn't set up your profile. You can update it later." 
+          });
+          // Still close the dialog since the user is signed in
+          if (onSuccess) onSuccess();
+          handleClose();
+        })
+        .finally(() => {
+          setIsProcessingProfile(false);
+        });
+    }
+  }, [user, firstName, sentEmail, ensureUserProfile, onSuccess, handleClose, isProcessingProfile]);
+
+  const shouldBeOpen = isOpen !== undefined ? isOpen : isAuthDialogOpen;
+
+  const handleEmailSubmit = async (email: string, fName: string) => {
     setIsLoading(true);
-    
+    setError(null);
     try {
-      if (isForgotPassword) {
-        // Handle forgot password flow
-        const result = await resetPassword(email);
-        if (result.error) {
-          setError(result.error.message);
-        } else {
-          setSuccessMessage(`Password reset email sent to ${email}. Please check your inbox.`);
-          toast.success('Password reset email sent!');
-        }
-      } else if (isSignIn) {
-        const { error, success } = await signIn(email, password);
-        if (error) {
-          setError(error.message);
-        } else if (success) {
-          setSuccessMessage('Signed in successfully!');
-          setTimeout(() => {
-            handleClose();
-            // Call onSuccess if provided
-            if (onSuccess) onSuccess();
-          }, 1500);
-        }
-      } else {
-        const { error, success } = await signUp(email, password, name);
-        if (error) {
-          setError(error.message);
-        } else if (success) {
-          setSuccessMessage('Signed up successfully! You can now sign in with your new account.');
-          setTimeout(() => {
-            // Switch to sign in mode after successful signup
-            setIsSignIn(true);
-          }, 2000);
-        }
-      }
-    } catch (err) {
-      setError('An unexpected error occurred');
-      console.error(err);
+      await sendMagicCode(email);
+      setSentEmail(email);
+      setFirstName(fName);
+      toast.success(`A login code has been sent to ${email}`);
+    } catch (err: any) {
+      const errorMessage = err.body?.message || "Failed to send magic code. Please try again.";
+      setError(errorMessage);
+      toast.error("Login Error", { description: errorMessage });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle back button for forgot password flow
-  const handleBack = () => {
-    setIsForgotPassword(false);
+  const handleCodeSubmit = async (code: string) => {
+    setIsLoading(true);
     setError(null);
-    setSuccessMessage(null);
+    try {
+      await signInWithMagicCode(sentEmail, code);
+      toast.success("Signed in successfully!");
+      // Don't set loading to false here, let the profile processing effect handle it
+    } catch (err: any) {
+      const errorMessage = err.body?.message || "Invalid code. Please try again.";
+      setError(errorMessage);
+      toast.error("Login Error", { description: errorMessage });
+      setIsLoading(false);
+    }
   };
+
+  const handleGoogleSuccess = async (response: any) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!response.credential) {
+        throw new Error("No credential returned from Google");
+      }
+      
+      await signInWithIdToken({
+        clientName: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_NAME!,
+        idToken: response.credential,
+        nonce: nonce,
+      });
+      
+      setSentEmail('google'); // Mark as google sign in to trigger profile creation
+      toast.success("Signed in with Google successfully!");
+    } catch (err: any) {
+      console.error("Google sign-in error:", err);
+      const errorMessage = err.body?.message || err.message || "Google sign-in failed. Please try again.";
+      setError(errorMessage);
+      toast.error("Login Error", { description: errorMessage });
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = () => {
+    if (window.google && window.google.accounts) {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+          callback: async (response: any) => {
+            if (response.credential) {
+              setIsLoading(true);
+              setError(null);
+              try {
+                await signInWithIdToken({
+                  clientName: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_NAME || 'Google',
+                  idToken: response.credential,
+                  nonce,
+                });
+                setSentEmail('google'); // Mark as google sign in to trigger profile creation
+                toast.success('Signed in with Google successfully!');
+              } catch (err: any) {
+                setError('Google sign-in failed.');
+                toast.error('Login Error', { description: err.body?.message || err.message || 'Google sign-in failed. Please try again.' });
+              } finally {
+                setIsLoading(false);
+              }
+            } else {
+              setError('No credential returned from Google.');
+              toast.error('Google sign-in unavailable', { description: 'No credential returned from Google.' });
+            }
+          },
+          nonce: nonce,
+          theme: 'filled_black', // Set dark theme for Google popup/button
+
+        });
+        window.google.accounts.id.prompt();
+      } catch (err) {
+        setError('Google sign-in initialization failed.');
+        toast.error('Google sign-in unavailable', { description: 'Google sign-in initialization failed.' });
+      }
+    } else {
+      setError('Google sign-in is not available. Please try again later.');
+      toast.error('Google sign-in unavailable', { description: 'Google sign-in is not available. Please try again later.' });
+    }
+  };
+
+  // Initialize Google Sign-In when component mounts
+  useEffect(() => {
+    if (shouldBeOpen && window.google && window.google.accounts) {
+      window.google.accounts.id.initialize({
+        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+        callback: handleGoogleSuccess,
+        nonce: nonce,
+      });
+    }
+  }, [shouldBeOpen, nonce]);
 
   if (!shouldBeOpen) {
     return null;
@@ -99,13 +208,10 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="fixed inset-0 bg-black/40 dark:bg-black/60" onClick={handleClose}></div>
       <div className="bg-[var(--secondary-faint)] dark:bg-[var(--secondary-default)] border-2 border-[var(--secondary-darkest)] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] rounded-none p-6 max-w-md w-full relative z-10">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-[var(--text-light-default)]">
-            {isForgotPassword 
-              ? 'Reset Password'
-              : isSignIn ? 'Sign In' : 'Sign Up'}
+            {!sentEmail ? "Sign In or Sign Up" : "Enter Your Code"}
           </h2>
           <button 
             onClick={handleClose}
@@ -123,158 +229,181 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
           </div>
         )}
 
-        {successMessage && (
-          <div className="bg-green-100 dark:bg-green-900/30 border-2 border-green-400 dark:border-green-500 text-green-700 dark:text-green-300 px-4 py-3 mb-4">
-            {successMessage}
+        {isProcessingProfile && (
+          <div className="bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-400 dark:border-blue-500 text-blue-700 dark:text-blue-300 px-4 py-3 mb-4">
+            Setting up your profile...
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          {isForgotPassword ? (
-            <>
-              <p className="text-[var(--text-light-default)] mb-4">
-                Enter your email address and we&apos;ll send you a link to reset your password.
-              </p>
-              <div className="mb-6">
-                <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="email">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
-                  required
-                />
-              </div>
-              <div className="flex items-center justify-between mb-4">
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="text-sm font-medium text-[var(--brand-default)] hover:underline"
-                >
-                  Back to Sign In
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className={`px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
-                    isLoading ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  {isLoading ? 'Sending...' : 'Send Reset Link'}
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              {!isSignIn && (
-                <div className="mb-4">
-                  <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="name">
-                    Name
-                  </label>
-                  <input
-                    id="name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
-                    required
-                  />
-                </div>
-              )}
-              <div className="mb-4">
-                <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="email">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
-                  required
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="password">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
-                  required
-                  minLength={6}
-                />
-                {isSignIn && (
-                  <div className="mt-1 text-right">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsForgotPassword(true);
-                        setError(null);
-                        setSuccessMessage(null);
-                      }}
-                      className="text-xs font-medium text-[var(--brand-default)] hover:underline"
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-between mb-4">
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className={`px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
-                    isLoading ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  {isLoading 
-                    ? 'Loading...' 
-                    : isSignIn 
-                      ? 'Sign In' 
-                      : 'Sign Up'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSignIn(!isSignIn);
-                    setError(null);
-                    setSuccessMessage(null);
-                  }}
-                  className="text-sm font-medium text-[var(--brand-default)] hover:underline"
-                >
-                  {isSignIn ? 'Need an account?' : 'Already have an account?'}
-                </button>
-              </div>
-
-              {/* Google Sign-In Button and Divider */}
-              <div className="relative flex items-center my-6">
-                <div className="flex-grow border-t border-[var(--secondary-darkest)]"></div>
-                <span className="flex-shrink mx-4 text-xs text-[var(--text-light-muted)]">OR</span>
-                <div className="flex-grow border-t border-[var(--secondary-darkest)]"></div>
-              </div>
-
-              <button
-                type="button"
-                onClick={signInWithGoogle}
-                disabled={isLoading}
-                className={`w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-[var(--text-light-default)] bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
-                  isLoading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                <FcGoogle className="mr-2 h-4 w-4" />
-                Sign in with Google
-              </button>
-            </>
-          )}
-        </form>
+        {!sentEmail ? (
+          <EmailStep 
+            onSubmit={handleEmailSubmit} 
+            onGoogleSignIn={handleGoogleSignIn}
+            isLoading={isLoading}
+          />
+        ) : (
+          <CodeStep
+            sentEmail={sentEmail}
+            onSubmit={handleCodeSubmit}
+            isLoading={isLoading || isProcessingProfile}
+            onBack={() => setSentEmail("")}
+          />
+        )}
       </div>
     </div>
   );
-} 
+}
+
+export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+  if (!googleClientId) {
+    console.error("NEXT_PUBLIC_GOOGLE_CLIENT_ID is not set.");
+    // Render the dialog without Google Auth if the ID is missing
+    return <AuthDialogContent isOpen={isOpen} onClose={onClose} onSuccess={onSuccess} />;
+  }
+
+  return (
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <AuthDialogContent isOpen={isOpen} onClose={onClose} onSuccess={onSuccess} />
+    </GoogleOAuthProvider>
+  );
+}
+
+function EmailStep({ 
+  onSubmit, 
+  onGoogleSignIn,
+  isLoading
+}: { 
+  onSubmit: (email: string, firstName: string) => void;
+  onGoogleSignIn: () => void;
+  isLoading: boolean;
+}) {
+  const emailInputRef = React.useRef<HTMLInputElement>(null);
+  const firstNameInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const email = emailInputRef.current!.value;
+    const firstName = firstNameInputRef.current!.value;
+    onSubmit(email, firstName);
+  };
+
+  return (
+    <div className="flex flex-col space-y-4">
+      {/* Google Sign-In Button */}
+      <button
+        type="button"
+        onClick={onGoogleSignIn}
+        disabled={isLoading}
+        className={`w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-[var(--text-light-default)] bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
+          isLoading ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        <FcGoogle className="mr-2 h-4 w-4" />
+        Sign in with Google
+      </button>
+
+      <div className="relative flex py-2 items-center">
+        <div className="flex-grow border-t border-gray-400"></div>
+        <span className="flex-shrink mx-4 text-gray-400">OR</span>
+        <div className="flex-grow border-t border-gray-400"></div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
+        <p className="text-[var(--text-light-default)]">
+          Enter your email, and we&apos;ll send you a verification code. We&apos;ll create an account for you if you don&apos;t already have one.
+        </p>
+        <div>
+          <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="firstName">
+            First Name
+          </label>
+          <input
+            ref={firstNameInputRef}
+            id="firstName"
+            type="text"
+            className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
+            placeholder="Enter your first name"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="email">
+            Email
+          </label>
+          <input
+            ref={emailInputRef}
+            id="email"
+            type="email"
+            className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
+            placeholder="Enter your email"
+            required
+            autoFocus
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className={`w-full px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
+            isLoading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          {isLoading ? 'Sending...' : 'Send Code'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function CodeStep({ sentEmail, onSubmit, isLoading, onBack }: { sentEmail: string; onSubmit: (code: string) => void; isLoading: boolean; onBack: () => void; }) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const code = inputRef.current!.value;
+    onSubmit(code);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
+      <p className="text-[var(--text-light-default)]">
+        We sent an email to <strong>{sentEmail}</strong>. Check your email and paste the code you see.
+      </p>
+      <div>
+        <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="code">
+          Verification Code
+        </label>
+        <input
+          ref={inputRef}
+          id="code"
+          type="text"
+          className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
+          placeholder="123456..."
+          required
+          autoFocus
+        />
+      </div>
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={isLoading}
+          className={`text-sm font-medium text-[var(--brand-default)] hover:underline ${
+            isLoading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          Back
+        </button>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className={`px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
+            isLoading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          {isLoading ? 'Verifying...' : 'Verify Code'}
+        </button>
+      </div>
+    </form>
+  );
+}

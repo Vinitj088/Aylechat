@@ -1,63 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Message } from '../../types';
 import Header from '../../component/Header';
 import ChatMessages from '../../component/ChatMessages';
-import { useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ChatThread } from '@/lib/redis';
 import React from 'react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { db } from '@/lib/db';
 
-export default function SharedThreadPage({ params }: { params: Promise<{ shareId: string }> }) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [thread, setThread] = useState<ChatThread | null>(null);
-  const router = useRouter();
-  const shareId = React.use(params).shareId;
+export default function SharedThreadPage() {
+  const params = useParams() ?? {};
+  const shareId = (params as Record<string, string>).shareId;
 
-  useEffect(() => {
-    async function fetchSharedThread() {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const response = await fetch(`/api/shared/${shareId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        const data = await response.json();
-        if (response.ok && data.success) {
-          setThread(data.thread);
-          setMessages(data.thread.messages || []);
-        } else {
-          setError(data.error || 'Failed to load shared conversation');
-        }
-      } catch (err: any) {
-        console.error('Error fetching shared thread:', err);
-        setError('Failed to load shared conversation. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
+  const { data, isLoading, error } = db.useQuery({
+    threads: {
+      $: { where: { shareId: shareId } },
+      messages: { $: { order: { createdAt: 'asc' } } }
     }
-    if (shareId) {
-      fetchSharedThread();
-    }
-  }, [shareId]);
+  });
+
+  const thread = data?.threads?.[0];
+  const messages = thread?.messages || [];
 
   // Render loading state
   if (isLoading) {
     return (
       <main className="flex min-h-screen flex-col">
-        {/* Header - Mobile only */}
         <div className="md:hidden">
           <Header toggleSidebar={() => {}} />
         </div>
-        {/* Fixed Ayle Logo - Desktop only */}
         <Link
           href="/"
           className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
@@ -85,7 +58,6 @@ export default function SharedThreadPage({ params }: { params: Promise<{ shareId
             <div className="text-gray-600 font-medium">Loading shared conversation...</div>
           </div>
         </div>
-        {/* Fixed Theme Toggle - Desktop only */}
         <div className="hidden md:block fixed bottom-4 left-4 z-50">
           <ThemeToggle />
         </div>
@@ -97,11 +69,9 @@ export default function SharedThreadPage({ params }: { params: Promise<{ shareId
   if (error || !thread) {
     return (
       <main className="flex min-h-screen flex-col">
-        {/* Header - Mobile only */}
         <div className="md:hidden">
           <Header toggleSidebar={() => {}} />
         </div>
-        {/* Fixed Ayle Logo - Desktop only */}
         <Link
           href="/"
           className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
@@ -126,13 +96,12 @@ export default function SharedThreadPage({ params }: { params: Promise<{ shareId
         <div className="flex flex-col items-center justify-center h-screen p-4">
           <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
             <h2 className="text-xl font-bold text-red-600 mb-4">Error Loading Shared Conversation</h2>
-            <p className="text-gray-700 dark:text-gray-300 mb-6">{error || 'This shared conversation could not be found or has been removed.'}</p>
+            <p className="text-gray-700 dark:text-gray-300 mb-6">{error?.message || 'This shared conversation could not be found or has been removed.'}</p>
             <Button asChild>
               <Link href="/">Return to Home</Link>
             </Button>
           </div>
         </div>
-        {/* Fixed Theme Toggle - Desktop only */}
         <div className="hidden md:block fixed bottom-4 left-4 z-50">
           <ThemeToggle />
         </div>
@@ -152,11 +121,9 @@ export default function SharedThreadPage({ params }: { params: Promise<{ shareId
 
   return (
     <main className="flex min-h-screen flex-col">
-      {/* Header - Mobile only */}
       <div className="md:hidden">
         <Header toggleSidebar={() => {}} />
       </div>
-      {/* Fixed Ayle Logo - Desktop only */}
       <Link
         href="/"
         className="hidden md:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]"
@@ -193,19 +160,20 @@ export default function SharedThreadPage({ params }: { params: Promise<{ shareId
           </div>
         </div>
         <ChatMessages
-          messages={messages}
+          messages={messages as Message[]}
           isLoading={false}
           selectedModel={thread.model || 'exa'}
           selectedModelObj={selectedModelObj}
           isExa={thread.model === 'exa'}
           currentThreadId={shareId}
-          threadTitle={thread.title}
+          isSharedPage={true}
         />
       </div>
-      {/* Fixed Theme Toggle - Desktop only */}
       <div className="hidden md:block fixed bottom-4 left-4 z-50">
         <ThemeToggle />
       </div>
     </main>
   );
-} 
+}
+
+ 

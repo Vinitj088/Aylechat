@@ -4,11 +4,9 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
-import { useThreadCache } from "@/context/ThreadCacheContext"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
-import { getAssetPath } from "../utils"
-import { X, Trash2, LogOut, Clock, User, AlertTriangle, Settings, Pin, PinOff } from "lucide-react"
+import { X, Trash2, LogOut, Clock, User, AlertTriangle, Pin, PinOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   AlertDialog,
@@ -22,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from 'next/link'
+import { db } from "@/lib/db"
 
 interface SidebarProps {
   isOpen: boolean
@@ -33,8 +32,6 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger = 0, pinned = false, setPinned }: SidebarProps) {
-  const [lastRefreshTrigger, setLastRefreshTrigger] = useState(0)
-  const [fetchError, setFetchError] = useState<string | null>(null)
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -42,10 +39,36 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
 
   const router = useRouter()
   const pathname = usePathname()
-  const { user, signOut, refreshSession, openAuthDialog } = useAuth()
-  const { threads, isLoading, fetchThreads, addThread, removeThread, clearThreads, lastUpdated } = useThreadCache()
-
+  const { user, signOut, openAuthDialog } = useAuth()
   const isAuthenticated = !!user
+
+  // Query for the current user's profile directly
+const { data: profileData, isLoading: profileLoading, error: profileError } = db.useQuery(
+  user ? { 
+    profiles: { 
+      $: { where: { userId: user.id } },
+      user: {}
+    } 
+  } : null
+);
+const profile = profileData?.profiles?.[0];
+
+  // Only run threads query if user?.id is defined
+  const { data, isLoading, error } = db.useQuery(
+    user?.id ? {
+      threads: {
+        $: {
+          where: { 'user.id': user.id },
+          order: { updatedAt: 'desc' }
+        },
+        user: {
+          profile: {}
+        },
+      }
+    } : null
+  );
+  const threads = data?.threads || [];
+
 
   // Detect mobile device
   useEffect(() => {
@@ -90,15 +113,6 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   // Determine if sidebar should be visible
   const shouldShowSidebar = isMobile ? isOpen : isHovered
 
-  // Only fetch if not already loading and cache is empty
-  useEffect(() => {
-    if (isAuthenticated && user && shouldShowSidebar) {
-      if (!isLoading && threads.length === 0) {
-        fetchThreads(false);
-      }
-    }
-  }, [shouldShowSidebar, isAuthenticated, user, isLoading, threads.length, fetchThreads]);
-
   const handleThreadClick = (threadId: string) => {
     router.push(`/chat/${threadId}`)
     if (isMobile) {
@@ -108,29 +122,11 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
 
   const handleDeleteThread = async (threadId: string) => {
     try {
-      const response = await fetch(getAssetPath(`/api/chat/threads/${threadId}`), {
-        method: "DELETE",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-        },
-      })
-
-      if (response.ok) {
-        removeThread(threadId)
-
-        if (pathname === `/chat/${threadId}`) {
-          router.push("/")
-        }
-
-        toast.success("Thread deleted successfully")
-      } else {
-        const errorData = await response.json()
-        toast.error("Failed to delete thread", {
-          description: errorData.message || "Please try again later",
-        })
+      await db.transact(db.tx.threads[threadId].delete());
+      if (pathname === `/chat/${threadId}`) {
+        router.push("/")
       }
+      toast.success("Thread deleted successfully")
     } catch (error) {
       console.error("Error deleting thread:", error)
       toast.error("Failed to delete thread", {
@@ -170,30 +166,14 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
     const toastId = toast.loading("Clearing all chat history...")
 
     try {
-      const response = await fetch(getAssetPath("/api/chat/threads"), {
-        method: "DELETE",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-        },
-      })
-
-      if (response.ok) {
-        clearThreads()
-        toast.success("Chat history cleared successfully", { id: toastId })
-        if (pathname && pathname.startsWith("/chat/")) {
-          router.push("/")
-        }
-        if (isMobile) {
-          onClose()
-        }
-      } else {
-        const errorData = await response.json()
-        toast.error("Failed to clear history", {
-          id: toastId,
-          description: errorData.message || "Please try again later",
-        })
+      const txs = threads.map(t => db.tx.threads[t.id].delete());
+      await db.transact(txs);
+      toast.success("Chat history cleared successfully", { id: toastId })
+      if (pathname && pathname.startsWith("/chat/")) {
+        router.push("/")
+      }
+      if (isMobile) {
+        onClose()
       }
     } catch (error) {
       console.error("Error clearing all threads:", error)
@@ -296,15 +276,9 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                   </li>
                 ))}
               </ul>
-            ) : fetchError ? (
+            ) : error ? (
               <div className="text-center py-4 px-3 bg-[var(--accent-maroon-light)] border border-[var(--accent-maroon-dark)] rounded-md">
-                <p className="text-[var(--accent-red)] text-sm">{fetchError}</p>
-                <button
-                  onClick={() => fetchThreads()}
-                  className="mt-2 px-3 py-1.5 bg-[var(--secondary-darker)] text-[var(--text-light-default)] rounded-md text-sm hover:bg-[var(--secondary-darkest)] transition-colors"
-                >
-                  Try Again
-                </button>
+                <p className="text-[var(--accent-red)] text-sm">{error.message}</p>
               </div>
             ) : threads.length === 0 ? (
               <div className="text-center py-6 px-3 bg-[var(--secondary-fainter)] rounded-md border border-dashed border-[var(--secondary-darker)]">
@@ -346,7 +320,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                         onClick={() => handleThreadClick(thread.id)}
                       >
                         <Clock className="h-3 w-3 mr-1 inline-block text-[var(--brand-faint)]" />
-                        {formatDistanceToNow(new Date(thread.updatedAt), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(thread.updatedAt ?? 0), { addSuffix: true })}
                       </div>
                     </div>
                   </li>
@@ -362,7 +336,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
                     </button>
                   </li>
                 )}
-                {threads.length === 0 && !isLoading && !fetchError && (
+                {threads.length === 0 && !isLoading && !error && (
                   <li className="text-center mt-4 pt-3 border-t border-dashed border-[var(--secondary-darker)]">
                     <span className="text-xs text-[var(--text-light-muted)] italic">— History is empty —</span>
                   </li>
@@ -371,32 +345,37 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
             )}
           </div>
 
-          {/* Footer with user info and sign out */}
-          {isAuthenticated && user && (
-            <div className="p-3 border-t border-[var(--secondary-darkest)] bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-default)]">
-              <div className="flex justify-between items-center">
-                <Link
-                  href="/settings"
-                  className="text-sm truncate flex items-center text-[var(--text-light-default)] hover:text-[var(--brand-default)] focus:text-[var(--brand-default)] transition-colors cursor-pointer outline-none"
-                  tabIndex={0}
-                  title="Account settings"
-                >
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-fainter)] text-[var(--brand-default)] mr-2">
-                    <User className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="font-medium">{user.user_metadata?.name || user.email}</span>
-                </Link>
-                <button
-                  onClick={handleSignOut}
-                  className="px-2 py-1.5 text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md flex items-center gap-1.5 text-xs transition-colors"
-                  title="Sign out"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  <span>Sign Out</span>
-                </button>
-              </div>
-            </div>
+ {isAuthenticated && user && (
+  <div className="p-3 border-t border-[var(--secondary-darkest)] bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-default)]">
+    <div className="flex justify-between items-center">
+      <Link
+        href="/settings"
+        className="text-sm truncate flex items-center text-[var(--text-light-default)] hover:text-[var(--brand-default)] focus:text-[var(--brand-default)] transition-colors cursor-pointer outline-none"
+        tabIndex={0}
+        title="Account settings"
+      >
+        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-fainter)] text-[var(--brand-default)] mr-2">
+          <User className="h-3.5 w-3.5" />
+        </div>
+        <span className="font-medium">
+          {profileLoading ? (
+            <Skeleton className="h-4 w-16" />
+          ) : (
+            profile?.firstName || user.email?.split('@')[0] || user.email || 'User'
           )}
+        </span>
+      </Link>
+      <button
+        onClick={handleSignOut}
+        className="px-2 py-1.5 text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md flex items-center gap-1.5 text-xs transition-colors"
+        title="Sign out"
+      >
+        <LogOut className="h-3.5 w-3.5" />
+        <span>Sign Out</span>
+      </button>
+    </div>
+  </div>
+)}
         </div>
       </div>
 
