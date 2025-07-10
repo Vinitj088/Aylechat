@@ -302,16 +302,16 @@ const profile = profileData?.profiles?.[0];
                   <li key={thread.id} className="relative">
                     <div
                       className={cn(
-                        "w-full text-left p-3 rounded-md border transition-all duration-200",
+                        "w-full text-left p-3 rounded-md border transition-all duration-200 cursor-pointer",
                         pathname === `/chat/${thread.id}`
                           ? "bg-[var(--brand-fainter)] border-[var(--brand-muted)] shadow-[0_0_0_1px_var(--brand-faint)]"
                           : "border-[var(--secondary-darkest)] hover:bg-[var(--secondary-darker)] hover:border-[var(--secondary-darkest)]",
                       )}
+                      onClick={() => handleThreadClick(thread.id)}
                     >
                       <div className="flex justify-between items-start">
                         <div
-                          className="font-medium truncate pr-2 text-sm text-[var(--text-light-default)] cursor-pointer"
-                          onClick={() => handleThreadClick(thread.id)}
+                          className="font-medium truncate pr-2 text-sm text-[var(--text-light-default)]"
                         >
                           {thread.title}
                         </div>
@@ -327,8 +327,7 @@ const profile = profileData?.profiles?.[0];
                         </button>
                       </div>
                       <div
-                        className="text-xs text-[var(--text-light-muted)] mt-1.5 flex items-center cursor-pointer"
-                        onClick={() => handleThreadClick(thread.id)}
+                        className="text-xs text-[var(--text-light-muted)] mt-1.5 flex items-center"
                       >
                         <Clock className="h-3 w-3 mr-1 inline-block text-[var(--brand-faint)]" />
                         {formatDistanceToNow(new Date(thread.updatedAt ?? 0), { addSuffix: true })}
