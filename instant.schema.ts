@@ -11,6 +11,10 @@ const _schema = i.schema({
     $users: i.entity({
       email: i.string().unique().indexed().optional(),
     }),
+    profiles: i.entity({
+      firstName: i.string(),
+      userId: i.string().unique(),
+    }),
     messages: i.entity({
       content: i.string().optional(),
       createdAt: i.date().indexed().optional(),
@@ -60,6 +64,10 @@ const _schema = i.schema({
         has: "many",
         label: "threads",
       },
+    },
+    userProfile: {
+      forward: { on: "profiles", has: "one", label: "user" },
+      reverse: { on: "$users", has: "one", label: "profile" },
     },
   },
   rooms: {},

@@ -3,6 +3,26 @@
 import type { InstantRules } from "@instantdb/react";
 
 const rules = {
+  $users: {
+    allow: {
+      view: "auth.id == data.id",
+      create: "false",
+      delete: "false",
+      update: "false",
+    },
+  },
+  profiles: {
+    allow: {
+      view: "true",
+      create: "isLoggedIn",
+      update: "isLoggedIn",
+      delete: "false",
+    },
+    bind: [
+      "isLoggedIn",
+      "auth.id != null",
+    ],
+  },
   threads: {
     allow: {
       view: "isOwner",

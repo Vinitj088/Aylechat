@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 
@@ -12,15 +12,46 @@ interface AuthDialogProps {
 
 export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
   const {
+    user,
     isAuthDialogOpen,
     closeAuthDialog,
     sendMagicCode,
     signInWithMagicCode,
+    ensureUserProfile,
   } = useAuth();
   
   const [sentEmail, setSentEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isProcessingProfile, setIsProcessingProfile] = useState(false);
+  const hasProcessedProfile = useRef(false);
+
+  useEffect(() => {
+    if (user && firstName && !hasProcessedProfile.current && !isProcessingProfile) {
+      hasProcessedProfile.current = true;
+      setIsProcessingProfile(true);
+      
+      ensureUserProfile(firstName)
+        .then(() => {
+          toast.success("Welcome! Your profile has been set up.");
+          if (onSuccess) onSuccess();
+          handleClose();
+        })
+        .catch((err) => {
+          console.error("Failed to set up profile:", err);
+          toast.error("Profile setup failed", { 
+            description: "Your account was created but we couldn't set up your profile. You can update it later." 
+          });
+          // Still close the dialog since the user is signed in
+          if (onSuccess) onSuccess();
+          handleClose();
+        })
+        .finally(() => {
+          setIsProcessingProfile(false);
+        });
+    }
+  }, [user, firstName, ensureUserProfile, onSuccess]);
 
   const shouldBeOpen = isOpen !== undefined ? isOpen : isAuthDialogOpen;
   const handleClose = () => {
@@ -31,16 +62,20 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
     }
     // Reset state on close
     setSentEmail("");
+    setFirstName("");
     setError(null);
     setIsLoading(false);
+    hasProcessedProfile.current = false;
+    setIsProcessingProfile(false);
   };
 
-  const handleEmailSubmit = async (email: string) => {
+  const handleEmailSubmit = async (email: string, fName: string) => {
     setIsLoading(true);
     setError(null);
     try {
       await sendMagicCode(email);
       setSentEmail(email);
+      setFirstName(fName);
       toast.success(`A login code has been sent to ${email}`);
     } catch (err: any) {
       const errorMessage = err.body?.message || "Failed to send magic code. Please try again.";
@@ -57,13 +92,11 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
     try {
       await signInWithMagicCode(sentEmail, code);
       toast.success("Signed in successfully!");
-      if (onSuccess) onSuccess();
-      handleClose();
+      // Don't set loading to false here, let the profile processing effect handle it
     } catch (err: any) {
       const errorMessage = err.body?.message || "Invalid code. Please try again.";
       setError(errorMessage);
       toast.error("Login Error", { description: errorMessage });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -96,13 +129,19 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
           </div>
         )}
 
+        {isProcessingProfile && (
+          <div className="bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-400 dark:border-blue-500 text-blue-700 dark:text-blue-300 px-4 py-3 mb-4">
+            Setting up your profile...
+          </div>
+        )}
+
         {!sentEmail ? (
           <EmailStep onSubmit={handleEmailSubmit} isLoading={isLoading} />
         ) : (
           <CodeStep
             sentEmail={sentEmail}
             onSubmit={handleCodeSubmit}
-            isLoading={isLoading}
+            isLoading={isLoading || isProcessingProfile}
             onBack={() => setSentEmail("")}
           />
         )}
@@ -111,13 +150,15 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
   );
 }
 
-function EmailStep({ onSubmit, isLoading }: { onSubmit: (email: string) => void; isLoading: boolean }) {
-  const inputRef = React.useRef<HTMLInputElement>(null);
+function EmailStep({ onSubmit, isLoading }: { onSubmit: (email: string, firstName: string) => void; isLoading: boolean }) {
+  const emailInputRef = React.useRef<HTMLInputElement>(null);
+  const firstNameInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const email = inputRef.current!.value;
-    onSubmit(email);
+    const email = emailInputRef.current!.value;
+    const firstName = firstNameInputRef.current!.value;
+    onSubmit(email, firstName);
   };
 
   return (
@@ -126,11 +167,24 @@ function EmailStep({ onSubmit, isLoading }: { onSubmit: (email: string) => void;
         Enter your email, and we'll send you a verification code. We'll create an account for you if you don't already have one.
       </p>
       <div>
+        <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="firstName">
+          First Name
+        </label>
+        <input
+          ref={firstNameInputRef}
+          id="firstName"
+          type="text"
+          className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
+          placeholder="Enter your first name"
+          required
+        />
+      </div>
+      <div>
         <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="email">
           Email
         </label>
         <input
-          ref={inputRef}
+          ref={emailInputRef}
           id="email"
           type="email"
           className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
@@ -184,7 +238,10 @@ function CodeStep({ sentEmail, onSubmit, isLoading, onBack }: { sentEmail: strin
         <button
           type="button"
           onClick={onBack}
-          className="text-sm font-medium text-[var(--brand-default)] hover:underline"
+          disabled={isLoading}
+          className={`text-sm font-medium text-[var(--brand-default)] hover:underline ${
+            isLoading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
         >
           Back
         </button>
