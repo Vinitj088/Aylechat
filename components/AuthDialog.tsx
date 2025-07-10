@@ -291,6 +291,10 @@ function EmailStep({
 
   return (
     <div className="flex flex-col space-y-4">
+      {/* Google Sign-In Warning */}
+      <div className="bg-[var(--secondary-faint)] dark:bg-[var(--secondary-default)] border-2 border-[var(--secondary-darkest)] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] rounded-none p-4 max-w-md w-full relative z-10">
+        ⚠️ If Google sign-in is not working, please disable your adblocker and refresh the page, then try again.
+      </div>
       {/* Google Sign-In Button */}
       <button
         type="button"
