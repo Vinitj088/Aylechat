@@ -6,7 +6,7 @@ import MessageContent from "./MessageContent"
 import Citation from "./Citation"
 import ShareButton from "./ShareButton"
 import { Button } from "@/components/ui/button"
-import { Copy, Check, RefreshCw, Download } from "lucide-react"
+import { Copy, Check, RefreshCw, Download, ChevronDown } from "lucide-react"
 import { toast } from "sonner"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import MediaCard from "@/components/MediaCard"
@@ -302,6 +302,11 @@ const LoadingIndicator = memo(({ isExa, modelName }: { isExa: boolean; modelName
 // Add display name to the component
 LoadingIndicator.displayName = "LoadingIndicator"
 
+import { ArrowDown } from "lucide-react"
+
+// Add display name to the component
+LoadingIndicator.displayName = "LoadingIndicator"
+
 const ChatMessages = memo(function ChatMessages({
   messages,
   isLoading,
@@ -316,15 +321,41 @@ const ChatMessages = memo(function ChatMessages({
   isSharedPage,
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [messageCount, setMessageCount] = useState(0)
-  const [isAtBottom, setIsAtBottom] = useState(true)
   const [showScrollButton, setShowScrollButton] = useState(false)
 
   // Get the model name for display
   const modelName = (selectedModelObj?.name as string) || ""
 
+  const scrollToBottom = (behavior: "smooth" | "auto" = "smooth") => {
+    // This now scrolls the window, which is the actual scroll container
+    window.scrollTo({
+      top: document.documentElement.scrollHeight,
+      behavior: behavior,
+    })
+  }
+
+  // This effect now correctly listens to the window scroll events
+  useEffect(() => {
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = document.documentElement
+      // Show button if user has scrolled up more than 300px from the bottom
+      const isScrolledUp = scrollHeight - scrollTop - clientHeight > 300
+      setShowScrollButton(isScrolledUp)
+    }
+
+    window.addEventListener("scroll", handleScroll)
+    handleScroll() // Initial check on mount
+
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  // This effect ensures that if a new message arrives, we scroll down
+  useEffect(() => {
+    scrollToBottom("auto")
+  }, [messages])
+
   const renderMessage = useCallback(
-    (message: Message) => {
+    (message: Message, index: number) => {
       return (
         <ChatMessage
           key={message.id}
@@ -344,43 +375,30 @@ const ChatMessages = memo(function ChatMessages({
 
   // Instead of rendering all messages in a flat list, render user+assistant pairs
   const renderPairedMessages = () => {
-    const pairs = [];
-    let i = 0;
+    const pairs: JSX.Element[] = []
+    let i = 0
     while (i < messages.length) {
-      const userMsg = messages[i];
-      const nextMsg = messages[i + 1];
-      if (userMsg.role === 'user' && nextMsg && nextMsg.role === 'assistant') {
+      const userMsg = messages[i]
+      const nextMsg = messages[i + 1]
+      if (userMsg.role === "user" && nextMsg && nextMsg.role === "assistant") {
         pairs.push(
-          <React.Fragment key={userMsg.id + '-' + nextMsg.id}>
-            {renderMessage(userMsg)}
-            {renderMessage(nextMsg)}
-          </React.Fragment>
-        );
-        i += 2;
+          <React.Fragment key={userMsg.id + "-" + nextMsg.id}>
+            {renderMessage(userMsg, i)}
+            {renderMessage(nextMsg, i + 1)}
+          </React.Fragment>,
+        )
+        i += 2
       } else {
-        pairs.push(
-          <React.Fragment key={userMsg.id}>
-            {renderMessage(userMsg)}
-          </React.Fragment>
-        );
-        i += 1;
+        pairs.push(<React.Fragment key={userMsg.id}>{renderMessage(userMsg, i)}</React.Fragment>)
+        i += 1
       }
     }
-    return pairs;
-  };
-
-  // Scroll to bottom only on initial mount (when thread is opened), with no animation
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "auto" })
-    }
-    // Only run on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    return pairs
+  }
 
   return (
     <div
-      className="flex-1 overflow-y-auto pt-16 pb-[120px] md:px-4 md:pb-[150px] scroll-smooth relative"
+      className="flex-1 pt-16 pb-[120px] md:px-4 md:pb-[150px] relative"
       style={{ paddingBottom: `${(bottomPadding ?? 0) + 150}px` }}
     >
       <div className="w-full max-w-full md:max-w-4xl mx-auto px-2 md:px-4 py-6 space-y-6">
@@ -388,6 +406,26 @@ const ChatMessages = memo(function ChatMessages({
         {isLoading && <LoadingIndicator isExa={isExa} modelName={modelName} />}
         <div ref={messagesEndRef} />
       </div>
+
+      {showScrollButton && (
+        <div className="fixed bottom-[150px] md:bottom-[160px] left-1/2 -translate-x-1/2 z-10">
+          <Button
+            onClick={() => scrollToBottom("smooth")}
+            variant="outline"
+            className="p-2 h-7 w-30 rounded-md shadow-lg bg-white/30 dark:bg-black/30 backdrop-blur-sm border-[var(--secondary-darker)] dark:border-[var(--secondary-darker)] hover:bg-white dark:hover:bg-[var(--secondary-darker)] flex items-center justify-center gap-1"
+            aria-label="Scroll to bottom"
+          >
+            <span
+              className="text-xs text-[var(--text-light-default)] dark:text-[var(--text-light-default)] font-medium leading-tight flex items-center"
+              style={{ fontSize: "0.75rem" }} // 25% smaller than text-sm (1rem * 0.75 = 0.75rem)
+            >
+              scroll down
+            </span>
+            <ChevronDown  className="h-4 w-4 text-[var(--text-light-default)] dark:text-[var(--text-light-default)]" />
+
+          </Button>
+        </div>
+      )}
     </div>
   )
 })
