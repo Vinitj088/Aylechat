@@ -1,8 +1,8 @@
-'use client';
-
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { FcGoogle } from 'react-icons/fc';
 
 interface AuthDialogProps {
   isOpen?: boolean;
@@ -10,13 +10,29 @@ interface AuthDialogProps {
   onSuccess?: () => void;
 }
 
-export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
+// Declare global google type
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: any) => void;
+          prompt: () => void;
+          renderButton: (element: HTMLElement, options: any) => void;
+        };
+      };
+    };
+  }
+}
+
+function AuthDialogContent({ isOpen, onClose, onSuccess }: AuthDialogProps) {
   const {
     user,
     isAuthDialogOpen,
     closeAuthDialog,
     sendMagicCode,
     signInWithMagicCode,
+    signInWithIdToken,
     ensureUserProfile,
   } = useAuth();
   
@@ -26,9 +42,29 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
   const [error, setError] = useState<string | null>(null);
   const [isProcessingProfile, setIsProcessingProfile] = useState(false);
   const hasProcessedProfile = useRef(false);
+  const [nonce, setNonce] = useState('');
 
   useEffect(() => {
-    if (user && firstName && !hasProcessedProfile.current && !isProcessingProfile) {
+    setNonce(crypto.randomUUID());
+  }, []);
+
+  const handleClose = useCallback(() => {
+    if (onClose) {
+      onClose();
+    } else {
+      closeAuthDialog();
+    }
+    // Reset state on close
+    setSentEmail("");
+    setFirstName("");
+    setError(null);
+    setIsLoading(false);
+    hasProcessedProfile.current = false;
+    setIsProcessingProfile(false);
+  }, [onClose, closeAuthDialog]);
+  
+  useEffect(() => {
+    if (user && (firstName || sentEmail === 'google') && !hasProcessedProfile.current && !isProcessingProfile) {
       hasProcessedProfile.current = true;
       setIsProcessingProfile(true);
       
@@ -51,23 +87,9 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
           setIsProcessingProfile(false);
         });
     }
-  }, [user, firstName, ensureUserProfile, onSuccess]);
+  }, [user, firstName, sentEmail, ensureUserProfile, onSuccess, handleClose, isProcessingProfile]);
 
   const shouldBeOpen = isOpen !== undefined ? isOpen : isAuthDialogOpen;
-  const handleClose = () => {
-    if (onClose) {
-      onClose();
-    } else {
-      closeAuthDialog();
-    }
-    // Reset state on close
-    setSentEmail("");
-    setFirstName("");
-    setError(null);
-    setIsLoading(false);
-    hasProcessedProfile.current = false;
-    setIsProcessingProfile(false);
-  };
 
   const handleEmailSubmit = async (email: string, fName: string) => {
     setIsLoading(true);
@@ -101,13 +123,91 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
     }
   };
 
+  const handleGoogleSuccess = async (response: any) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (!response.credential) {
+        throw new Error("No credential returned from Google");
+      }
+      
+      await signInWithIdToken({
+        clientName: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_NAME!,
+        idToken: response.credential,
+        nonce: nonce,
+      });
+      
+      setSentEmail('google'); // Mark as google sign in to trigger profile creation
+      toast.success("Signed in with Google successfully!");
+    } catch (err: any) {
+      console.error("Google sign-in error:", err);
+      const errorMessage = err.body?.message || err.message || "Google sign-in failed. Please try again.";
+      setError(errorMessage);
+      toast.error("Login Error", { description: errorMessage });
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = () => {
+    if (window.google && window.google.accounts) {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+          callback: async (response: any) => {
+            if (response.credential) {
+              setIsLoading(true);
+              setError(null);
+              try {
+                await signInWithIdToken({
+                  clientName: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_NAME || 'Google',
+                  idToken: response.credential,
+                  nonce,
+                });
+                setSentEmail('google'); // Mark as google sign in to trigger profile creation
+                toast.success('Signed in with Google successfully!');
+              } catch (err: any) {
+                setError('Google sign-in failed.');
+                toast.error('Login Error', { description: err.body?.message || err.message || 'Google sign-in failed. Please try again.' });
+              } finally {
+                setIsLoading(false);
+              }
+            } else {
+              setError('No credential returned from Google.');
+              toast.error('Google sign-in unavailable', { description: 'No credential returned from Google.' });
+            }
+          },
+          nonce: nonce,
+          theme: 'filled_black', // Set dark theme for Google popup/button
+
+        });
+        window.google.accounts.id.prompt();
+      } catch (err) {
+        setError('Google sign-in initialization failed.');
+        toast.error('Google sign-in unavailable', { description: 'Google sign-in initialization failed.' });
+      }
+    } else {
+      setError('Google sign-in is not available. Please try again later.');
+      toast.error('Google sign-in unavailable', { description: 'Google sign-in is not available. Please try again later.' });
+    }
+  };
+
+  // Initialize Google Sign-In when component mounts
+  useEffect(() => {
+    if (shouldBeOpen && window.google && window.google.accounts) {
+      window.google.accounts.id.initialize({
+        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+        callback: handleGoogleSuccess,
+        nonce: nonce,
+      });
+    }
+  }, [shouldBeOpen, nonce]);
+
   if (!shouldBeOpen) {
     return null;
   }
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="fixed inset-0 bg-black/40 dark:bg-black/60" onClick={handleClose}></div>
       <div className="bg-[var(--secondary-faint)] dark:bg-[var(--secondary-default)] border-2 border-[var(--secondary-darkest)] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] rounded-none p-6 max-w-md w-full relative z-10">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-[var(--text-light-default)]">
@@ -136,7 +236,11 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
         )}
 
         {!sentEmail ? (
-          <EmailStep onSubmit={handleEmailSubmit} isLoading={isLoading} />
+          <EmailStep 
+            onSubmit={handleEmailSubmit} 
+            onGoogleSignIn={handleGoogleSignIn}
+            isLoading={isLoading}
+          />
         ) : (
           <CodeStep
             sentEmail={sentEmail}
@@ -150,7 +254,31 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
   );
 }
 
-function EmailStep({ onSubmit, isLoading }: { onSubmit: (email: string, firstName: string) => void; isLoading: boolean }) {
+export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+  if (!googleClientId) {
+    console.error("NEXT_PUBLIC_GOOGLE_CLIENT_ID is not set.");
+    // Render the dialog without Google Auth if the ID is missing
+    return <AuthDialogContent isOpen={isOpen} onClose={onClose} onSuccess={onSuccess} />;
+  }
+
+  return (
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <AuthDialogContent isOpen={isOpen} onClose={onClose} onSuccess={onSuccess} />
+    </GoogleOAuthProvider>
+  );
+}
+
+function EmailStep({ 
+  onSubmit, 
+  onGoogleSignIn,
+  isLoading
+}: { 
+  onSubmit: (email: string, firstName: string) => void;
+  onGoogleSignIn: () => void;
+  isLoading: boolean;
+}) {
   const emailInputRef = React.useRef<HTMLInputElement>(null);
   const firstNameInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -162,47 +290,68 @@ function EmailStep({ onSubmit, isLoading }: { onSubmit: (email: string, firstNam
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
-      <p className="text-[var(--text-light-default)]">
-        Enter your email, and we'll send you a verification code. We'll create an account for you if you don't already have one.
-      </p>
-      <div>
-        <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="firstName">
-          First Name
-        </label>
-        <input
-          ref={firstNameInputRef}
-          id="firstName"
-          type="text"
-          className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
-          placeholder="Enter your first name"
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="email">
-          Email
-        </label>
-        <input
-          ref={emailInputRef}
-          id="email"
-          type="email"
-          className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
-          placeholder="Enter your email"
-          required
-          autoFocus
-        />
-      </div>
+    <div className="flex flex-col space-y-4">
+      {/* Google Sign-In Button */}
       <button
-        type="submit"
+        type="button"
+        onClick={onGoogleSignIn}
         disabled={isLoading}
-        className={`w-full px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
+        className={`w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-[var(--text-light-default)] bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
           isLoading ? 'opacity-50 cursor-not-allowed' : ''
         }`}
       >
-        {isLoading ? 'Sending...' : 'Send Code'}
+        <FcGoogle className="mr-2 h-4 w-4" />
+        Sign in with Google
       </button>
-    </form>
+
+      <div className="relative flex py-2 items-center">
+        <div className="flex-grow border-t border-gray-400"></div>
+        <span className="flex-shrink mx-4 text-gray-400">OR</span>
+        <div className="flex-grow border-t border-gray-400"></div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
+        <p className="text-[var(--text-light-default)]">
+          Enter your email, and we&apos;ll send you a verification code. We&apos;ll create an account for you if you don&apos;t already have one.
+        </p>
+        <div>
+          <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="firstName">
+            First Name
+          </label>
+          <input
+            ref={firstNameInputRef}
+            id="firstName"
+            type="text"
+            className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
+            placeholder="Enter your first name"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="email">
+            Email
+          </label>
+          <input
+            ref={emailInputRef}
+            id="email"
+            type="email"
+            className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
+            placeholder="Enter your email"
+            required
+            autoFocus
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className={`w-full px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
+            isLoading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          {isLoading ? 'Sending...' : 'Send Code'}
+        </button>
+      </form>
+    </div>
   );
 }
 

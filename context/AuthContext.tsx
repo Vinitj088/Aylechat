@@ -11,6 +11,11 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   sendMagicCode: (email: string) => Promise<void>;
   signInWithMagicCode: (email: string, code: string) => Promise<void>;
+  signInWithIdToken: (params: {
+    clientName: string;
+    idToken: string;
+    nonce: string;
+  }) => Promise<void>;
   updateUserProfile: (profile: { firstName: string }) => Promise<void>;
   openAuthDialog: () => void;
   closeAuthDialog: () => void;
@@ -142,6 +147,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await db.auth.signInWithMagicCode({ email, code });
   }, []);
 
+  const signInWithIdToken = useCallback(
+    async (params: { clientName: string; idToken: string; nonce: string }) => {
+      await db.auth.signInWithIdToken(params);
+    },
+    []
+  );
+
   const updateUserProfile = useCallback(async (profile: { firstName: string }) => {
     if (!user) {
       toast.error("Not signed in", { description: "You must be signed in to update your profile." });
@@ -197,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
     sendMagicCode,
     signInWithMagicCode,
+    signInWithIdToken,
     updateUserProfile,
     openAuthDialog,
     closeAuthDialog,
