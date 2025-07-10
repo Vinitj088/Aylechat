@@ -321,6 +321,27 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData.items;
+    const newAttachments: Attachment[] = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          const previewUrl = URL.createObjectURL(file);
+          newAttachments.push({ file, previewUrl });
+        }
+      }
+    }
+
+    if (newAttachments.length > 0) {
+      e.preventDefault(); // Prevent default paste behavior only if we found images
+      setAttachments(prev => [...prev, ...newAttachments]);
+    }
+  };
+
   // Step 1: Effect to measure active files height
   useEffect(() => {
     let height = 0;
@@ -354,7 +375,77 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
   return (
     <div className={cn("fixed bottom-0 left-0 right-0 z-40 md:max-w-4xl mx-auto transition-all duration-300", sidebarPinned ? "sidebar-pinned-fixed" : "")}>
-      <div className="w-full bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] rounded-lg rounded-bl-none rounded-br-none shadow-lg p-3 relative">
+      <div className="w-full bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] rounded-lg rounded-bl-none rounded-br-none shadow-lg p-3 relative scrollbar-none">
+        {/* Step 6: Display Active Files - MOVED TO TOP */}
+        {activeChatFiles && activeChatFiles.length > 0 && removeActiveFile && (
+          <div
+            ref={activeFilesContainerRef}
+            className="mb-2 flex gap-2 items-center border-b border-[var(--secondary-darkest)] pb-2 pt-1 overflow-x-auto whitespace-nowrap scrollbar-none"
+          >
+            <span className="text-xs font-medium text-[var(--text-light-muted)] mr-1 flex-shrink-0">Active:</span>
+            {activeChatFiles.map((file) => (
+              <div
+                key={file.uri}
+                className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-sm"
+                title={`${file.name} (${file.type}) - Referenced for follow-up questions`}
+              >
+                <Paperclip className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate max-w-[150px]">{file.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeActiveFile(file.uri)}
+                  className="ml-1 p-0.5 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300"
+                  aria-label="Stop referencing this file"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Attachments Preview - MOVED TO TOP */}
+        {attachments.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2 border-b border-[var(--secondary-darkest)] pb-2">
+            {attachments.map((attachment, index) => (
+              <div key={index} className="relative group">
+                {attachment.previewUrl ? (
+                  <div className="relative w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <img
+                      src={attachment.previewUrl}
+                      alt={`Attachment ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      className="absolute top-1 right-1 z-10 bg-gray-700 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 shadow-md border border-white/80 dark:border-gray-800"
+                      aria-label="Remove attachment"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                    <span className="text-xs text-center overflow-hidden text-ellipsis px-1">
+                      {attachment.file.name.length > 12
+                        ? `${attachment.file.name.substring(0, 6)}...${attachment.file.name.substring(attachment.file.name.length - 3)}`
+                        : attachment.file.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      className="absolute -top-1 -right-1 bg-gray-700 text-white rounded-full p-0.5 opacity-80 hover:opacity-100"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         <form onSubmit={handleSubmitWithAttachments} className="relative flex flex-col w-full">
           {/* Quote block UI */}
           {quotedText && quotedText.trim().length > 0 && (
@@ -395,75 +486,6 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
             </Button>
           </div>
           
-          {/* Step 6: Display Active Files */}
-          {activeChatFiles && activeChatFiles.length > 0 && removeActiveFile && (
-            <div 
-              ref={activeFilesContainerRef}
-              className="mb-2 flex gap-2 items-center border-b border-[var(--secondary-darkest)] pb-2 pt-1 overflow-x-auto whitespace-nowrap scrollbar-thin"
-            >
-              <span className="text-xs font-medium text-[var(--text-light-muted)] mr-1 flex-shrink-0">Active:</span>
-              {activeChatFiles.map((file) => (
-                <div 
-                  key={file.uri} 
-                  className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full"
-                  title={`${file.name} (${file.type}) - Referenced for follow-up questions`}
-                >
-                  <Paperclip className="h-3 w-3 flex-shrink-0" /> 
-                  <span className="truncate max-w-[150px]">{file.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeActiveFile(file.uri)}
-                    className="ml-1 p-0.5 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300"
-                    aria-label="Stop referencing this file"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {/* Attachments Preview */}
-          {attachments.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-2">
-              {attachments.map((attachment, index) => (
-                <div key={index} className="relative group">
-                  {attachment.previewUrl ? (
-                    <div className="relative w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-gray-700">
-                      <img 
-                        src={attachment.previewUrl} 
-                        alt={`Attachment ${index + 1}`} 
-                        className="w-full h-full object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeAttachment(index)}
-                        className="absolute -top-1 -right-1 bg-gray-700 text-white rounded-full p-0.5 opacity-80 hover:opacity-100"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="relative flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-                      <span className="text-xs text-center overflow-hidden text-ellipsis px-1">
-                        {attachment.file.name.length > 12 
-                          ? `${attachment.file.name.substring(0, 6)}...${attachment.file.name.substring(attachment.file.name.length - 3)}`
-                          : attachment.file.name}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeAttachment(index)}
-                        className="absolute -top-1 -right-1 bg-gray-700 text-white rounded-full p-0.5 opacity-80 hover:opacity-100"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          
           <div className="relative flex w-full">
             {/* Conditionally render command icon */} 
             {commandMode === 'movies' && (
@@ -478,6 +500,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
               value={input}
               onChange={handleInputChangeWithCommandDetection}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               autoFocus
               placeholder={getPlaceholder()}
               rows={1}

@@ -121,10 +121,36 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
     fileInputRef.current?.click();
   };
 
+  // Handle paste for images
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData.items;
+    const newFiles: File[] = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          newFiles.push(file);
+        }
+      }
+    }
+
+    if (newFiles.length > 0) {
+      e.preventDefault(); // Prevent default paste behavior only if we found images
+      const updatedAttachments = [...attachments, ...newFiles];
+      setAttachments(updatedAttachments);
+      onAttachmentsChange?.(updatedAttachments);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    setAttachments(files);
-    onAttachmentsChange?.(files);
+    const newFiles = Array.from(e.target.files || []);
+    if (newFiles.length > 0) {
+      const updatedAttachments = [...attachments, ...newFiles];
+      setAttachments(updatedAttachments);
+      onAttachmentsChange?.(updatedAttachments);
+    }
   };
 
   const isGeminiModel = selectedModel.startsWith('gemini');
@@ -163,6 +189,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             autoFocus
             placeholder="Try a search or paste a link to find similar"
             rows={1}
