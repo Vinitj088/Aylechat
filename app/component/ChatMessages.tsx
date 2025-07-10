@@ -322,25 +322,31 @@ const ChatMessages = memo(function ChatMessages({
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
+  const [isAtBottom, setIsAtBottom] = useState(true)
 
   // Get the model name for display
   const modelName = (selectedModelObj?.name as string) || ""
 
   const scrollToBottom = (behavior: "smooth" | "auto" = "smooth") => {
-    // This now scrolls the window, which is the actual scroll container
-    window.scrollTo({
-      top: document.documentElement.scrollHeight,
-      behavior: behavior,
-    })
+    if (behavior === "smooth") {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: "smooth",
+      })
+    } else {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: "auto" })
+      }
+    }
   }
 
   // This effect now correctly listens to the window scroll events
   useEffect(() => {
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = document.documentElement
-      // Show button if user has scrolled up more than 300px from the bottom
       const isScrolledUp = scrollHeight - scrollTop - clientHeight > 300
       setShowScrollButton(isScrolledUp)
+      setIsAtBottom(!isScrolledUp)
     }
 
     window.addEventListener("scroll", handleScroll)
@@ -349,10 +355,12 @@ const ChatMessages = memo(function ChatMessages({
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
-  // This effect ensures that if a new message arrives, we scroll down
+  // This effect ensures that if a new message arrives, we scroll down smoothly
   useEffect(() => {
-    scrollToBottom("auto")
-  }, [messages])
+    if (isAtBottom) {
+      scrollToBottom("smooth")
+    }
+  }, [messages, isAtBottom])
 
   const renderMessage = useCallback(
     (message: Message, index: number) => {
