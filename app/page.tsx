@@ -279,9 +279,8 @@ function PageContent() {
     e.preventDefault();
     if (!input.trim() && attachments.length === 0) return;
 
-    const fullInput = quotedText && quotedText.trim().length > 0
-      ? `> ${quotedText.replace(/\n/g, '\n> ')}\n\n${input}`
-      : input;
+    // Only use the user's input as the message content; quotedText is shown in the custom UI, not as a blockquote
+    const fullInput = input;
 
     // Guest logic: allow up to 3 real AI messages, then block
     if (isGuest) {

@@ -161,7 +161,8 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       openAuthDialog();
       return;
     }
-    const fullInput = quotedText ? `> ${quotedText.replace(/\n/g, '\n> ')}\n\n${input.trim()}` : input.trim();
+    // Only use the user's input as the message content; quotedText is shown in the custom UI, not as a blockquote
+    const fullInput = input.trim();
     const userMessageId = id();
     const assistantMessageId = id();
     const userMessage: Message = {
