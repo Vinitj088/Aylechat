@@ -12,6 +12,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import MediaCard from "@/components/MediaCard"
 import WeatherCard from "./WeatherCard"
 import React from "react"
+import { useSidebarPin } from "@/context/SidebarPinContext"
+import { cn } from "@/lib/utils"
 
 interface ChatMessagesProps {
   messages: Message[]
@@ -284,10 +286,8 @@ const ChatMessage = memo(
   },
 )
 
-// Add display name to the component
 ChatMessage.displayName = "ChatMessage"
 
-// Loading indicator component
 const LoadingIndicator = memo(({ isExa, modelName }: { isExa: boolean; modelName: string }) => (
   <div className="flex items-center gap-2 text-[var(--text-light-muted)] animate-pulse">
     <div className="w-2 h-2 rounded-full bg-[var(--brand-default)] animate-[bounce_1s_infinite]"></div>
@@ -323,6 +323,7 @@ const ChatMessages = memo(function ChatMessages({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [isAtBottom, setIsAtBottom] = useState(true)
+  const { pinned } = useSidebarPin()
 
   // Get the model name for display
   const modelName = (selectedModelObj?.name as string) || ""
@@ -416,7 +417,13 @@ const ChatMessages = memo(function ChatMessages({
       </div>
 
       {showScrollButton && (
-        <div className="fixed bottom-[150px] md:bottom-[160px] left-1/2 -translate-x-1/2 z-10">
+        <div
+          className={cn(
+            "fixed bottom-[150px] md:bottom-[160px] z-10 transition-all duration-300 ease-in-out",
+            "left-1/2 -translate-x-1/2",
+            pinned && "md:left-[calc(50%-128px)]"
+          )}
+        >
           <Button
             onClick={() => scrollToBottom("smooth")}
             variant="outline"
