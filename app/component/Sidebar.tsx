@@ -1,7 +1,4 @@
-"use client"
-
-import type React from "react"
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { formatDistanceToNow } from "date-fns"
@@ -21,6 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from 'next/link'
 import { db } from "@/lib/db"
+import { motion, AnimatePresence } from "framer-motion"
 
 interface SidebarProps {
   isOpen: boolean
@@ -31,11 +29,13 @@ interface SidebarProps {
   setPinned?: (pinned: boolean) => void
 }
 
-export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger = 0, pinned = false, setPinned }: SidebarProps) {
+const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInClick, refreshTrigger = 0, pinned = false, setPinned }) => {
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
   const [threadToDelete, setThreadToDelete] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false);
+  const [showPinButton, setShowPinButton] = useState(false);
+
 
   const router = useRouter()
   const pathname = usePathname()
@@ -43,15 +43,15 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   const isAuthenticated = !!user
 
   // Query for the current user's profile directly
-const { data: profileData, isLoading: profileLoading, error: profileError } = db.useQuery(
-  user ? { 
-    profiles: { 
-      $: { where: { userId: user.id } },
-      user: {}
-    } 
-  } : null
-);
-const profile = profileData?.profiles?.[0];
+  const { data: profileData, isLoading: profileLoading, error: profileError } = db.useQuery(
+    user ? {
+      profiles: {
+        $: { where: { userId: user.id } },
+        user: {}
+      }
+    } : null
+  );
+  const profile = profileData?.profiles?.[0];
 
   // Only run threads query if user?.id is defined
   const { data, isLoading, error } = db.useQuery(
@@ -67,7 +67,8 @@ const profile = profileData?.profiles?.[0];
       }
     } : null
   );
-  const threads = data?.threads || [];
+  
+  const threads = useMemo(() => data?.threads || [], [data]);
 
 
   // Prefetch threads to make navigation faster
@@ -80,21 +81,21 @@ const profile = profileData?.profiles?.[0];
     }
   }, [threads, router]);
 
-
-  // Detect mobile device
+  // Detect screen size changes
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+      setShowPinButton(window.innerWidth > 1300);
+    };
 
-    checkMobile()
-    window.addEventListener("resize", checkMobile)
-    return () => window.removeEventListener("resize", checkMobile)
-  }, [])
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
 
   // For desktop: show sidebar when hovering near left edge
   useEffect(() => {
-    if (isMobile) return
+    if (isMobile || pinned) return
 
     const handleMouseMove = (e: MouseEvent) => {
       const windowWidth = window.innerWidth
@@ -119,10 +120,10 @@ const profile = profileData?.profiles?.[0];
       document.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseleave", handleMouseLeave)
     }
-  }, [isMobile])
+  }, [isMobile, pinned])
 
   // Determine if sidebar should be visible
-  const shouldShowSidebar = isMobile ? isOpen : isHovered
+  const shouldShowSidebar = isMobile ? isOpen : (isHovered || pinned)
 
   const handleThreadClick = (threadId: string) => {
     router.push(`/chat/${threadId}`)
@@ -195,18 +196,25 @@ const profile = profileData?.profiles?.[0];
     }
   }
 
+  const sidebarVariants = {
+    open: { x: 0 },
+    closed: { x: "100%" },
+  }
+
   return (
     <>
       {/* Overlay - only visible on mobile when sidebar is open */}
-      {isMobile && (
-        <div
-          className={cn(
-            "fixed inset-0 bg-black/40 dark:bg-black/60 z-40 transition-opacity",
-            isOpen ? "opacity-100" : "opacity-0 pointer-events-none",
-          )}
-          onClick={onClose}
-        />
-      )}
+      <AnimatePresence>
+        {isMobile && isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 dark:bg-black/60 z-40"
+            onClick={onClose}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Hover trigger area for desktop - invisible area at right edge */}
       {!isMobile && !pinned && (
@@ -217,14 +225,15 @@ const profile = profileData?.profiles?.[0];
       )}
 
       {/* Sidebar */}
-      <div
+      <motion.div
         className={cn(
-          "fixed inset-y-0 right-0 z-50 w-64 bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-fainter)] border-l border-[var(--secondary-darkest)] shadow-lg transform transition-transform duration-300 ease-in-out",
-          shouldShowSidebar || pinned ? "translate-x-0" : "translate-x-full",
+          "fixed inset-y-0 right-0 z-50 w-64 bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-fainter)] border-l border-[var(--secondary-darkest)] shadow-lg",
         )}
         onMouseEnter={() => !isMobile && setIsHovered(true)}
         onMouseLeave={() => !isMobile && setIsHovered(false)}
-        style={pinned ? { right: 0 } : {}}
+        variants={sidebarVariants}
+        animate={shouldShowSidebar ? "open" : "closed"}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
         {/* Sidebar content */}
         <div className="flex flex-col h-full">
@@ -236,7 +245,7 @@ const profile = profileData?.profiles?.[0];
             </h2>
             <div className="flex items-center gap-1">
               {/* Pin/unpin button - desktop only */}
-              {!isMobile && setPinned && (
+              {showPinButton && setPinned && (
                 <button
                   onClick={() => setPinned(!pinned)}
                   className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
@@ -245,16 +254,16 @@ const profile = profileData?.profiles?.[0];
                   {pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
                 </button>
               )}
-            {/* Only show close button on mobile */}
-            {isMobile && (
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
-                aria-label="Close sidebar"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+              {/* Only show close button on mobile */}
+              {isMobile && (
+                <button
+                  onClick={onClose}
+                  className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
+                  aria-label="Close sidebar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -276,8 +285,8 @@ const profile = profileData?.profiles?.[0];
                   <li key={i} className="relative">
                     <div className="w-full text-left p-3 rounded-md border border-[var(--secondary-darkest)] bg-[var(--secondary-fainter)]">
                       <div className="flex justify-between items-start">
-                         {/* Title skeleton */} 
-                         <Skeleton className="h-4 w-32 mb-2" />
+                        {/* Title skeleton */}
+                        <Skeleton className="h-4 w-32 mb-2" />
                         {/* Delete button skeleton */}
                         <Skeleton className="h-5 w-5 rounded-full" />
                       </div>
@@ -355,39 +364,39 @@ const profile = profileData?.profiles?.[0];
             )}
           </div>
 
- {isAuthenticated && user && (
-  <div className="p-3 border-t border-[var(--secondary-darkest)] bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-default)]">
-    <div className="flex justify-between items-center">
-      <Link
-        href="/settings"
-        className="text-sm truncate flex items-center text-[var(--text-light-default)] hover:text-[var(--brand-default)] focus:text-[var(--brand-default)] transition-colors cursor-pointer outline-none"
-        tabIndex={0}
-        title="Account settings"
-      >
-        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-fainter)] text-[var(--brand-default)] mr-2">
-          <User className="h-3.5 w-3.5" />
-        </div>
-        <span className="font-medium">
-          {profileLoading ? (
-            <Skeleton className="h-4 w-16" />
-          ) : (
-            profile?.firstName || user.email?.split('@')[0] || user.email || 'User'
+          {isAuthenticated && user && (
+            <div className="p-3 border-t border-[var(--secondary-darkest)] bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-default)]">
+              <div className="flex justify-between items-center">
+                <Link
+                  href="/settings"
+                  className="text-sm truncate flex items-center text-[var(--text-light-default)] hover:text-[var(--brand-default)] focus:text-[var(--brand-default)] transition-colors cursor-pointer outline-none"
+                  tabIndex={0}
+                  title="Account settings"
+                >
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-fainter)] text-[var(--brand-default)] mr-2">
+                    <User className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="font-medium">
+                    {profileLoading ? (
+                      <Skeleton className="h-4 w-16" />
+                    ) : (
+                      profile?.firstName || user.email?.split('@')[0] || user.email || 'User'
+                    )}
+                  </span>
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="px-2 py-1.5 text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md flex items-center gap-1.5 text-xs transition-colors"
+                  title="Sign out"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
           )}
-        </span>
-      </Link>
-      <button
-        onClick={handleSignOut}
-        className="px-2 py-1.5 text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md flex items-center gap-1.5 text-xs transition-colors"
-        title="Sign out"
-      >
-        <LogOut className="h-3.5 w-3.5" />
-        <span>Sign Out</span>
-      </button>
-    </div>
-  </div>
-)}
         </div>
-      </div>
+      </motion.div>
 
       <AlertDialog open={isClearConfirmOpen} onOpenChange={setIsClearConfirmOpen}>
         <AlertDialogContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
@@ -433,3 +442,7 @@ const profile = profileData?.profiles?.[0];
     </>
   )
 }
+
+const Sidebar = React.memo(SidebarComponent);
+export default Sidebar;
+

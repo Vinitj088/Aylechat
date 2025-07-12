@@ -66,10 +66,6 @@ const DynamicChatInput = dynamic(() => import('./component/ChatInput'), {
   ssr: false
 });
 
-const DynamicSidebar = dynamic(() => import('./component/Sidebar'), {
-  ssr: false
-});
-
 // Create a new component that uses useSearchParams
 function PageContent() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -106,7 +102,6 @@ function PageContent() {
   const prevGuestMessageCount = useRef(guestMessageCount);
   const [quotedText, setQuotedText] = useState('');
   const [retriedMessageId, setRetriedMessageId] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
   const { enhancerMode } = useQueryEnhancer();
 
@@ -906,14 +901,7 @@ function PageContent() {
   });
 
   return (
-    <div className={cn(
-      pinned ? "ayle-grid-layout" : "",
-      "min-h-screen w-full"
-    )}>
-      <main className={cn(
-        "flex flex-col flex-1 min-h-screen",
-        pinned ? "ayle-main-pinned" : ""
-      )}>
+    <>
         {/* Header - Mobile only */}
         <div className="lg:hidden">
           <Header toggleSidebar={toggleSidebar} />
@@ -940,15 +928,6 @@ function PageContent() {
             Ayle
           </span>
         </Link>
-        {/* Sidebar: always render, for both guests and authenticated users */}
-        <DynamicSidebar 
-          isOpen={pinned || isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          onSignInClick={openAuthDialog}
-          refreshTrigger={refreshSidebar}
-          pinned={pinned}
-          setPinned={setPinned}
-        />
         {!hasMessages ? (
           isMobile ? (
             <MobileSearchUI 
@@ -1020,7 +999,6 @@ function PageContent() {
                   onActiveFilesHeightChange={handleActiveFilesHeightChange}
                   quotedText={quotedText}
                   setQuotedText={setQuotedText}
-                  sidebarPinned={pinned}
                 />
               )
             ) : (
@@ -1035,8 +1013,7 @@ function PageContent() {
         <div className={cn("hidden lg:block fixed bottom-4 left-4 z-50", pinned ? "sidebar-pinned-fixed" : "")}> 
           <ThemeToggle />
         </div>
-      </main>
-    </div>
+    </>
   );
 }
 
@@ -1050,3 +1027,8 @@ export default function Page() {
     </Suspense>
   );
 }
+
+function setIsSidebarOpen(arg0: boolean) {
+  throw new Error('Function not implemented.');
+}
+

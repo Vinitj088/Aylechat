@@ -1,18 +1,29 @@
 import { useState, useEffect, useRef } from "react"
 
-const useTypewriter = (text: string) => {
-  const [displayedText, setDisplayedText] = useState("")
+const useTypewriter = (text: string, enabled = true) => {
+  const [displayedText, setDisplayedText] = useState(enabled ? "" : text)
   const charIndexRef = useRef(0)
 
   useEffect(() => {
+    // Immediately set the full text if the effect is disabled.
+    if (!enabled) {
+      setDisplayedText(text)
+      return
+    }
+
     // Reset if the text content shrinks, indicating a new message
     if (text.length < displayedText.length) {
       charIndexRef.current = 0
       setDisplayedText("")
     }
-  }, [text, displayedText.length])
+  }, [text, displayedText.length, enabled])
 
   useEffect(() => {
+    // Don't run the effect if it's disabled.
+    if (!enabled) {
+      return
+    }
+
     // If we're already up to date, do nothing.
     if (charIndexRef.current >= text.length) {
       // Ensure the final text is accurate
@@ -41,7 +52,7 @@ const useTypewriter = (text: string) => {
     }
     // This effect runs on every frame as long as we're not caught up.
     // The dependency on displayedText and text creates this loop.
-  }, [displayedText, text])
+  }, [displayedText, text, enabled])
 
   return displayedText
 }

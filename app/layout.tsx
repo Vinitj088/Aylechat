@@ -1,3 +1,5 @@
+'use client';
+
 import './globals.css';
 import 'katex/dist/katex.min.css';
 import { Analytics } from '@vercel/analytics/next';
@@ -7,8 +9,12 @@ import Script from 'next/script';
 import { Geist, Space_Grotesk } from 'next/font/google';
 import { Sentient, MagnetBold, gebukRegular, ppeditorial } from './fonts';
 import BorderRadiusInitializer from './component/BorderRadiusInitializer';
-import { SidebarPinProvider } from '../context/SidebarPinContext';
+import { SidebarPinProvider, useSidebarPin } from '../context/SidebarPinContext';
 import FontInitializer from './component/FontInitializer';
+import Sidebar from './component/Sidebar';
+import { useAuth } from '@/context/AuthContext';
+import { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 
 const GeistSans = Geist({
   subsets: ['latin'],
@@ -23,10 +29,44 @@ const spaceGrotesk = Space_Grotesk({
   weight: ['300', '400', '500', '600', '700'],
 });
 
-export const metadata = {
+const metadata = {
   title: 'Ayle Chat',
   description: 'Chat with AI using Exa for web search and real-time information',
 };
+
+function AppLayout({ children }: { children: React.ReactNode }) {
+  const { pinned, setPinned } = useSidebarPin();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { openAuthDialog } = useAuth();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1300 && pinned) setPinned(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [pinned, setPinned]);
+
+  return (
+    <div className="min-h-screen w-full">
+      <Sidebar
+        isOpen={pinned || isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        onSignInClick={openAuthDialog}
+        refreshTrigger={refreshTrigger}
+        pinned={pinned}
+        setPinned={setPinned}
+      />
+      <main className={cn(
+        "flex flex-col flex-1 min-h-screen main-content",
+        pinned ? "ayle-main-pinned" : ""
+      )}>
+        {children}
+      </main>
+    </div>
+  )
+}
 
 export default function RootLayout({
   children,
@@ -60,9 +100,9 @@ export default function RootLayout({
           <SidebarPinProvider>
             <BorderRadiusInitializer />
             <FontInitializer />
-            <div className="w-full overflow-x-hidden">
+            <AppLayout>
               {children}
-            </div>
+            </AppLayout>
           </SidebarPinProvider>
         </Providers>
         <Analytics />

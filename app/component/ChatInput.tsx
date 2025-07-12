@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import ModelSelector from './ModelSelector';
 import QueryEnhancer from './QueryEnhancer';
 import { useQueryEnhancer } from '@/context/QueryEnhancerContext';
+import { useSidebarPin } from '@/context/SidebarPinContext';
 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(false);
@@ -131,6 +132,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
   // Check if current model is a Gemini model
   const isGeminiModel = selectedModel.includes('gemini');
+
+  const { pinned } = useSidebarPin()
 
   // Expose the focus method to parent components
   useImperativeHandle(ref, () => ({
@@ -374,199 +377,196 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   };
 
   return (
-    <div className={cn("fixed bottom-0 left-0 right-0 z-40 md:max-w-4xl mx-auto transition-all duration-300", sidebarPinned ? "sidebar-pinned-fixed" : "")}>
-      <div className="w-full bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] rounded-lg rounded-bl-none rounded-br-none shadow-lg p-3 relative scrollbar-none">
-        {/* Step 6: Display Active Files - MOVED TO TOP */}
-        {activeChatFiles && activeChatFiles.length > 0 && removeActiveFile && (
-          <div
-            ref={activeFilesContainerRef}
-            className="mb-2 flex gap-2 items-center border-b border-[var(--secondary-darkest)] pb-2 pt-1 overflow-x-auto whitespace-nowrap scrollbar-none"
-          >
-            <span className="text-xs font-medium text-[var(--text-light-muted)] mr-1 flex-shrink-0">Active:</span>
-            {activeChatFiles.map((file) => (
-              <div
-                key={file.uri}
-                className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-sm"
-                title={`${file.name} (${file.type}) - Referenced for follow-up questions`}
-              >
-                <Paperclip className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate max-w-[150px]">{file.name}</span>
-                <button
-                  type="button"
-                  onClick={() => removeActiveFile(file.uri)}
-                  className="ml-1 p-0.5 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300"
-                  aria-label="Stop referencing this file"
+       <div className="sticky bottom-0 w-full max-w-4xl mx-auto bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] rounded-lg rounded-bl-none rounded-br-none shadow-lg p-3 z-50 scrollbar-none">
+          {/* Step 6: Display Active Files - MOVED TO TOP */}
+          {activeChatFiles && activeChatFiles.length > 0 && removeActiveFile && (
+            <div
+              ref={activeFilesContainerRef}
+              className="mb-2 flex gap-2 items-center border-b border-[var(--secondary-darkest)] pb-2 pt-1 overflow-x-auto whitespace-nowrap scrollbar-none"
+            >
+              <span className="text-xs font-medium text-[var(--text-light-muted)] mr-1 flex-shrink-0">Active:</span>
+              {activeChatFiles.map((file) => (
+                <div
+                  key={file.uri}
+                  className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-sm"
+                  title={`${file.name} (${file.type}) - Referenced for follow-up questions`}
                 >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Attachments Preview - MOVED TO TOP */}
-        {attachments.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-2 border-b border-[var(--secondary-darkest)] pb-2">
-            {attachments.map((attachment, index) => (
-              <div key={index} className="relative group">
-                {attachment.previewUrl ? (
-                  <div className="relative w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-gray-700">
-                    <img
-                      src={attachment.previewUrl}
-                      alt={`Attachment ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(index)}
-                      className="absolute top-1 right-1 z-10 bg-gray-700 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 shadow-md border border-white/80 dark:border-gray-800"
-                      aria-label="Remove attachment"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="relative flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-                    <span className="text-xs text-center overflow-hidden text-ellipsis px-1">
-                      {attachment.file.name.length > 12
-                        ? `${attachment.file.name.substring(0, 6)}...${attachment.file.name.substring(attachment.file.name.length - 3)}`
-                        : attachment.file.name}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(index)}
-                      className="absolute -top-1 -right-1 bg-gray-700 text-white rounded-full p-0.5 opacity-80 hover:opacity-100"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmitWithAttachments} className="relative flex flex-col w-full">
-          {/* Quote block UI */}
-          {quotedText && quotedText.trim().length > 0 && (
-            <div className="flex items-start bg-[var(--secondary-faint)] border-l-4 border-[var(--brand-default)] rounded-md p-3 mb-2 relative">
-              <span className="text-[var(--text-light-muted)] text-sm flex-1 whitespace-pre-line">{getTruncatedQuote(quotedText)}</span>
-              {setQuotedText && (
-                <button
-                  type="button"
-                  className="ml-2 text-gray-400 hover:text-gray-700 absolute top-2 right-2"
-                  onClick={() => setQuotedText('')}
-                  aria-label="Remove quote"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              )}
+                  <Paperclip className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate max-w-[150px]">{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeActiveFile(file.uri)}
+                    className="ml-1 p-0.5 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300"
+                    aria-label="Stop referencing this file"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center flex-shrink overflow-hidden max-w-[65%] sm:max-w-none">
-              <label htmlFor="chat-model-selector" className="text-sm text-[var(--text-light-muted)] mr-2 hidden sm:inline font-medium">Model:</label>
-              
-              <div className="max-w-[160px] sm:max-w-[200px] md:max-w-none">
-                <ModelSelector
-                  selectedModel={selectedModel}
-                  handleModelChange={handleModelChangeWithPrefetch}
-                  models={models}
-                />
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onNewChat}
-              className="text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] group flex items-center gap-1 flex-shrink-0 transition-all duration-200 ease-in-out transform hover:scale-105 focus:scale-105"
-            >
-              <Plus className="h-4 w-4 group-hover:text-[var(--brand-default)] transition-transform duration-200 ease-in-out group-hover:rotate-90" />
-              <span className="font-medium">New chat</span>
-            </Button>
-          </div>
-          
-          <div className="relative flex w-full">
-            {/* Conditionally render command icon */} 
-            {commandMode === 'movies' && (
-              <Film className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-light-muted)] pointer-events-none" />
-            )}
-            {commandMode === 'tv' && (
-              <Tv className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-light-muted)] pointer-events-none" />
-            )}
-            
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={handleInputChangeWithCommandDetection}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              autoFocus
-              placeholder={getPlaceholder()}
-              rows={1}
-              className={cn(
-                "w-full p-3 resize-none min-h-[50px] max-h-[120px]",
-                "bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] rounded-md",
-                "focus:outline-none focus:ring-1 focus:ring-[var(--brand-default)] focus:border-[var(--brand-default)]",
-                "placeholder:text-[var(--text-light-subtle)] text-[var(--text-light-default)] font-medium shadow-sm dark:focus:ring-0 dark:focus:outline-none",
-                commandMode !== 'none' ? "pl-9" : "pl-3",
-                enhancerMode === 'manual' 
-                  ? (isMobile ? 'pr-[95px]' : 'pr-[140px]') 
-                  : 'pr-[90px]',
-                "scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]"
-              )}
-              disabled={isLoading}
-            />
-            
-            <div className="absolute right-2 bottom-2 flex items-center gap-1.5">
-              {isGeminiModel && (
-                <button
-                  type="button"
-                  onClick={handleFileButtonClick}
-                  disabled={isLoading}
-                  className="p-2 text-[var(--text-light-muted)] hover:text-[var(--brand-default)] rounded-full hover:bg-[var(--secondary-faint)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FileUp className="h-4 w-4" />
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    multiple
-                  />
-                </button>
-              )}
-              
-              <QueryEnhancer 
-                input={input} 
-                setInput={(value: string) => handleInputChange(value)} 
-                isLoading={isLoading} 
-                isMobile={isMobile}
-              />
 
+          {/* Attachments Preview - MOVED TO TOP */}
+          {attachments.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2 border-b border-[var(--secondary-darkest)] pb-2">
+              {attachments.map((attachment, index) => (
+                <div key={index} className="relative group">
+                  {attachment.previewUrl ? (
+                    <div className="relative w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-gray-700">
+                      <img
+                        src={attachment.previewUrl}
+                        alt={`Attachment ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(index)}
+                        className="absolute top-1 right-1 z-10 bg-gray-700 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 shadow-md border border-white/80 dark:border-gray-800"
+                        aria-label="Remove attachment"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                      <span className="text-xs text-center overflow-hidden text-ellipsis px-1">
+                        {attachment.file.name.length > 12
+                          ? `${attachment.file.name.substring(0, 6)}...${attachment.file.name.substring(attachment.file.name.length - 3)}`
+                          : attachment.file.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(index)}
+                        className="absolute -top-1 -right-1 bg-gray-700 text-white rounded-full p-0.5 opacity-80 hover:opacity-100"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmitWithAttachments} className="relative flex flex-col w-full">
+            {/* Quote block UI */}
+            {quotedText && quotedText.trim().length > 0 && (
+              <div className="flex items-start bg-[var(--secondary-faint)] border-l-4 border-[var(--brand-default)] rounded-md p-3 mb-2 relative">
+                <span className="text-[var(--text-light-muted)] text-sm flex-1 whitespace-pre-line">{getTruncatedQuote(quotedText)}</span>
+                {setQuotedText && (
+                  <button
+                    type="button"
+                    className="ml-2 text-gray-400 hover:text-gray-700 absolute top-2 right-2"
+                    onClick={() => setQuotedText('')}
+                    aria-label="Remove quote"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center flex-shrink overflow-hidden max-w-[65%] sm:max-w-none">
+                <label htmlFor="chat-model-selector" className="text-sm text-[var(--text-light-muted)] mr-2 hidden sm:inline font-medium">Model:</label>
+                
+                <div className="max-w-[160px] sm:max-w-[200px] md:max-w-none">
+                  <ModelSelector
+                    selectedModel={selectedModel}
+                    handleModelChange={handleModelChangeWithPrefetch}
+                    models={models}
+                  />
+                </div>
+              </div>
               <Button
-                type="submit"
-                size="icon"
-                disabled={(!input.trim() && attachments.length === 0) || isLoading}
-                className="h-9 w-9 flex-shrink-0
-                bg-[var(--brand-dark)] hover:bg-[var(--brand-muted)] text-white
-                disabled:opacity-50 disabled:cursor-not-allowed font-medium
-                rounded-md transition-all duration-200"
+                variant="ghost"
+                size="sm"
+                onClick={onNewChat}
+                className="text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] group flex items-center gap-1 flex-shrink-0 transition-all duration-200 ease-in-out transform hover:scale-105 focus:scale-105"
               >
-                <Send className="h-4 w-4" />
+                <Plus className="h-4 w-4 group-hover:text-[var(--brand-default)] transition-transform duration-200 ease-in-out group-hover:rotate-90" />
+                <span className="font-medium">New chat</span>
               </Button>
             </div>
-          </div>
-          <div className="mt-1 text-[10px] text-[var(--text-light-muted)] text-center">
-            Press <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Shift</kbd> + <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Enter</kbd> for new line
-          </div>
-        </form>
-      </div>
-    </div>
+            
+            <div className="relative flex w-full">
+              {/* Conditionally render command icon */} 
+              {commandMode === 'movies' && (
+                <Film className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-light-muted)] pointer-events-none" />
+              )}
+              {commandMode === 'tv' && (
+                <Tv className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-light-muted)] pointer-events-none" />
+              )}
+              
+              <Textarea
+                ref={textareaRef}
+                value={input}
+                onChange={handleInputChangeWithCommandDetection}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                autoFocus
+                placeholder={getPlaceholder()}
+                rows={1}
+                className={cn(
+                  "w-full p-3 resize-none min-h-[50px] max-h-[120px]",
+                  "bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] rounded-md",
+                  "focus:outline-none focus:ring-1 focus:ring-[var(--brand-default)] focus:border-[var(--brand-default)]",
+                  "placeholder:text-[var(--text-light-subtle)] text-[var(--text-light-default)] font-medium shadow-sm dark:focus:ring-0 dark:focus:outline-none",
+                  commandMode !== 'none' ? "pl-9" : "pl-3",
+                  enhancerMode === 'manual' 
+                    ? (isMobile ? 'pr-[95px]' : 'pr-[140px]') 
+                    : 'pr-[90px]',
+                  "scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]"
+                )}
+                disabled={isLoading}
+              />
+              
+              <div className="absolute right-2 bottom-2 flex items-center gap-1.5">
+                {isGeminiModel && (
+                  <button
+                    type="button"
+                    onClick={handleFileButtonClick}
+                    disabled={isLoading}
+                    className="p-2 text-[var(--text-light-muted)] hover:text-[var(--brand-default)] rounded-full hover:bg-[var(--secondary-faint)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FileUp className="h-4 w-4" />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      multiple
+                    />
+                  </button>
+                )}
+                
+                <QueryEnhancer 
+                  input={input} 
+                  setInput={(value: string) => handleInputChange(value)} 
+                  isLoading={isLoading} 
+                  isMobile={isMobile}
+                />
+
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={(!input.trim() && attachments.length === 0) || isLoading}
+                  className="h-9 w-9 flex-shrink-0
+                  bg-[var(--brand-dark)] hover:bg-[var(--brand-muted)] text-white
+                  disabled:opacity-50 disabled:cursor-not-allowed font-medium
+                  rounded-md transition-all duration-200"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="mt-1 text-[10px] text-[var(--text-light-muted)] text-center">
+              Press <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Shift</kbd> + <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Enter</kbd> for new line
+            </div>
+          </form>
+        </div>
+ 
   );
 });
 
-ChatInput.displayName = 'ChatInput';
-
-export default ChatInput; 
+export default ChatInput;

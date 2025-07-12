@@ -740,9 +740,8 @@ const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, 
   const contentRef = React.useRef<HTMLDivElement>(null)
   const quoteMenuRef = React.useRef<HTMLDivElement>(null)
 
-  // Apply typewriter effect for assistant messages
-  const animatedContent = useTypewriter(visible)
-  const finalVisibleContent = role === "assistant" ? animatedContent : visible
+  // Apply typewriter effect only for assistant messages that are actively generating.
+  const finalVisibleContent = useTypewriter(visible, role === "assistant" && !completed)
 
   // Function to copy text to clipboard
   const copyToClipboard = (text: string) => {

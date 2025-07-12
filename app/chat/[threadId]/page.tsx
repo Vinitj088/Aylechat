@@ -297,14 +297,8 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
   if (isThreadLoading || authLoading) {
     return (
-      <div className={cn(
-        pinned ? "ayle-grid-layout" : "",
-        "min-h-screen w-full"
-      )}>
-        <main className={cn(
-          "flex flex-col flex-1 min-h-screen",
-          pinned ? "ayle-main-pinned" : ""
-        )}>
+      <div className="min-h-screen w-full">
+        <main className="flex flex-col flex-1 min-h-screen">
         {/* Header - Mobile only */}
         <div className="lg:hidden">
           <Header toggleSidebar={toggleSidebar} />
@@ -331,14 +325,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
             Ayle
           </span>
         </Link>
-        <Sidebar
-          isOpen={pinned || isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          onSignInClick={openAuthDialog}
-            refreshTrigger={refreshSidebar}
-            pinned={pinned}
-            setPinned={setPinned}
-        />
+        
         {/* ChatMessages skeleton or empty space while loading */}
           <div className="flex-1">
             {/* Optionally, you can add a skeleton here for ChatMessages */}
@@ -360,10 +347,9 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
             onActiveFilesHeightChange={handleActiveFilesHeightChange}
             quotedText={quotedText}
             setQuotedText={setQuotedText}
-            sidebarPinned={pinned}
           />
         {/* Fixed Theme Toggle - Desktop only, only for lg and up */}
-          <div className={cn("hidden lg:block fixed bottom-4 left-4 z-50", pinned ? "sidebar-pinned-fixed" : "")}>
+          <div className={cn("hidden lg:block fixed bottom-4 left-4 z-50", pinned ? "sidebar-pinned-fixed" : "")}> 
           <ThemeToggle />
         </div>
       </main>
@@ -372,14 +358,8 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   }
 
   return (
-    <div className={cn(
-      pinned ? "ayle-grid-layout" : "",
-      "min-h-screen w-full"
-    )}>
-      <main className={cn(
-        "flex flex-col flex-1 min-h-screen",
-        pinned ? "ayle-main-pinned" : ""
-      )}>
+    <div className="min-h-screen w-full">
+      <main className="flex flex-col flex-1 min-h-screen">
          {/* Header - Mobile only */}
 <div className="lg:hidden">
   <Header toggleSidebar={toggleSidebar} />
@@ -406,14 +386,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     Ayle
   </span>
 </Link>
-      <Sidebar
-        isOpen={pinned || isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        onSignInClick={openAuthDialog}
-        refreshTrigger={refreshSidebar}
-          pinned={pinned}
-          setPinned={setPinned}
-      />
+      
 
       <ChatMessages
         messages={sortedMessages}
@@ -445,7 +418,6 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         onActiveFilesHeightChange={handleActiveFilesHeightChange}
         quotedText={quotedText}
         setQuotedText={setQuotedText}
-          sidebarPinned={pinned}
       />
 
       {/* Auth Dialog */}
