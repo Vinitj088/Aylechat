@@ -7,6 +7,14 @@ const config: Config = {
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  safelist: [
+    'bg-background',
+    'border-border',
+    'text-foreground',
+    'bg-secondary',
+    'border-primary',
+    'text-primary',
+  ],
   theme: {
     fontFamily: {
       sans: ['Instrument Sans', 'system-ui', 'sans-serif'],
@@ -110,6 +118,12 @@ const config: Config = {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			}
+  		},
+  		borderColor: {
+  			DEFAULT: 'hsl(var(--border))',
+  		},
+  		backgroundColor: {
+  			DEFAULT: 'hsl(var(--background))',
   		},
   		animation: {
   			'fade-up': 'fade-up 0.5s ease-out forwards'

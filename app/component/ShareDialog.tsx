@@ -44,13 +44,13 @@ export default function ShareDialog({ isOpen, onClose, shareUrl }: ShareDialogPr
   
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[95vw] max-w-sm sm:max-w-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-lg rounded-lg p-4 sm:p-6">
+      <DialogContent className="w-[95vw] max-w-sm sm:max-w-md bg-background border border-border shadow-lg rounded-[var(--radius)] p-4 sm:p-6">
         <DialogHeader className="mb-2 sm:mb-3">
-          <DialogTitle className="flex items-center gap-2 text-[var(--brand-default)] text-base sm:text-lg">
+          <DialogTitle className="flex items-center gap-2 text-primary text-base sm:text-lg">
             <Share2 className="h-4 w-4" />
             Share Conversation
           </DialogTitle>
-          <DialogDescription className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
+          <DialogDescription className="text-muted-foreground text-xs sm:text-sm">
             Anyone with this link can view this conversation
           </DialogDescription>
         </DialogHeader>
@@ -61,7 +61,7 @@ export default function ShareDialog({ isOpen, onClose, shareUrl }: ShareDialogPr
               ref={inputRef}
               value={shareUrl}
               readOnly
-              className="w-full h-8 sm:h-9 font-mono text-[10px] sm:text-xs border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-2"
+              className="w-full h-8 sm:h-9 font-mono text-[10px] sm:text-xs border-border bg-secondary px-2"
               onClick={(e) => e.currentTarget.select()}
             />
           </div>
@@ -69,11 +69,11 @@ export default function ShareDialog({ isOpen, onClose, shareUrl }: ShareDialogPr
             type="button" 
             variant="outline" 
             size="sm" 
-            className="h-8 px-2 sm:px-3 min-w-[2.5rem] sm:min-w-[4rem] border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="h-8 px-2 sm:px-3 min-w-[2.5rem] sm:min-w-[4rem] border-border hover:bg-accent"
             onClick={handleCopy}
           >
             {copied ? (
-              <Check className="h-4 w-4 text-green-500" />
+              <Check className="h-4 w-4 text-primary" />
             ) : (
               <Copy className="h-4 w-4" />
             )}
@@ -87,7 +87,7 @@ export default function ShareDialog({ isOpen, onClose, shareUrl }: ShareDialogPr
             variant="default"
             size="sm"
             onClick={onClose}
-            className="bg-[var(--brand-darker)] hover:bg-[var(--brand-dark)] text-white w-full sm:w-auto"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto"
           >
             Done
           </Button>

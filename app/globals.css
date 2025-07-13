@@ -2,130 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --font-body: var(--font-geist-sans);
-  --font-heading: var(--font-space-grotesk);
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 231, 231, 245;
-  --background-end-rgb: 255, 255, 255;
-
-  /* COLORS */
-  --brand-default: #1679CB;
-  --brand-fainter: #D4F1F4;
-  --brand-faint: #D4F1F4;
-  --brand-subtle: #C1DDF0;
-  --brand-muted: #1679CB;
-  --brand-dark: #0C2D48;
-  --brand-darker: #0C2D48;
-
-  --secondary-accent: #9f9672;
-  --secondary-accent2x: #89805d;
-  --secondary-dark: #eeeeee;
-  --secondary-darker: #e0e0e0;
-  --secondary-darkest: #bdbdbd;
-  --secondary-default: #f5f5f5;
-  --secondary-faint: #fafafa;
-  --secondary-fainter: #fafaf9;
-
-  --gray-50: #fafafa;
-  --gray-100: #f5f5f5;
-  --gray-200: #e5e5e5;
-  --gray-300: #d4d4d4;
-  --gray-400: #a3a3a3;
-  --gray-500: #737373;
-  --gray-600: #525252;
-  --gray-700: #404040;
-  --gray-800: #262626;
-  --gray-900: #171717;
-  --gray-950: #0a0a0a;
-
-  --black: #000000;
-  --white: #ffffff;
-
-  --accent-yellow-light: #fef3c7;
-  --accent-yellow-dark: #92400e;
-  --accent-skyblue-light: #dbeafe;
-  --accent-skyblue-dark: #1e40af;
-  --accent-green: #50b40a;
-  --accent-red: #d32f2f;
-  --accent-darkgreen-dark: #065f46;
-  --accent-darkgreen-light: #d1fae5;
-  --accent-purple-dark: #5b21b6;
-  --accent-purple-light: #ede9fe;
-  --accent-pink-dark: #9d174d;
-  --accent-pink-light: #fce7f3;
-  --accent-maroon-dark: #991b1b;
-  --accent-maroon-light: #fee2e2;
-
-  /* Light Mode Text */
-  --text-light-default: #111827;
-  --text-light-muted: #6b7280;
-  --text-light-subtle: #9ca3af;
-  --text-light-faint: #e5e7eb;
-  --text-light-link: #B1D4E0;
-
-  /* Background and accent defaults */
-  --background: var(--secondary-default);
-  --accent: var(--brand-default);
-  --accent-background: var(--brand-default);
-  --border-default: var(--gray-300);
-  --border-radius-default: 0px;
-
-  /* Typography - These are now handled by variables set in layout.tsx */
-  /* --font-family-sans: 'Instrument Sans', sans-serif; */
-  /* --font-family-serif: 'Space Grotesk', sans-serif; */
-}
-
-/* Dark Mode Variables */
-.dark {
-  /* Invert and adjust brand colors - improved for better readability */
-  --brand-default: #B1D4E0; /* Adjusted to be lighter and more vivid */
-  --brand-fainter: #385E72;
-  --brand-faint: #A1DBF1;
-  --brand-subtle: #B1D4E0; /* Made slightly lighter */
-  --brand-muted: #B1D4E0; /* More vibrant for better contrast */
-  --brand-dark: #385E72; /* Lighter for better contrast */
-  --brand-darker: #0C4160;
-
-  /* Dark mode secondary colors */
-  --secondary-accent: #c9bb92;
-  --secondary-accent2x: #d8cba3;
-  --secondary-dark: #202020;
-  --secondary-darker: #1d1d1d;
-  --secondary-darkest: #2e2e2e;
-  --secondary-default: #141414;
-  --secondary-faint: #131313;
-  --secondary-fainter: #1e1e1e;
-
-  /* Text colors for dark mode */
-  --text-light-default: #e7e7e7;
-  --text-light-muted: #a0a0a0;
-  --text-light-subtle: #707070;
-  --text-light-faint: #404040;
-  --text-light-link: #B1D4E0; /* Adjusted to be more visible in dark mode */
-
-  /* Background and accent for dark mode */
-  --background: var(--secondary-default);
-  --accent: var(--brand-default);
-  --accent-background: var(--brand-default);
-  --border-default: var(--gray-700);
-  
-  /* Dark mode variants of accent colors for better contrast */
-  --accent-yellow-light: #45371b;
-  --accent-yellow-dark: #fcd34d;
-  --accent-skyblue-light: #1e3a8a;
-  --accent-skyblue-dark: #93c5fd;
-  --accent-green: #84cc16;
-  --accent-red: #ef4444;
-  --accent-darkgreen-light: #10403b;
-  --accent-darkgreen-dark: #6ee7b7;
-  --accent-purple-light: #2e1065;
-  --accent-purple-dark: #c4b5fd;
-  --accent-pink-light: #500724;
-  --accent-pink-dark: #fbcfe8;
-  --accent-maroon-light: #450a0a;
-  --accent-maroon-dark: #fca5a5;
-}
 
 body {
   color: var(--text-light-default);
@@ -165,21 +41,6 @@ p, span, div, li, button, input, textarea {
   .text-balance {
     text-wrap: balance;
   }
-}
-
-:root {
-  --background: var(--secondary-default);
-  --accent: var(--brand-default);
-  --accent-background: var(--brand-default);
-}
-
-:root {
-  --border-default: var(--gray-300);
-  --border-radius-default: 0px;
-
-  /* Typography - These are now handled by variables set in layout.tsx */
-  /* --font-family-sans: 'Instrument Sans', sans-serif; */
-  /* --font-family-serif: 'Space Grotesk', sans-serif; */
 }
 
 /* Custom prose styling to reduce spacing */
@@ -318,7 +179,7 @@ p, span, div, li, button, input, textarea {
 }
 
 .dark .message-ai {
-  
+
   border-color: var(--secondary-darkest);
 }
 
@@ -679,18 +540,18 @@ pre code {
   width: 8px;  /* Set width for vertical scrollbars */
   height: 8px; /* Set height for horizontal scrollbars */
   }
-  
+
   /* Target the scrollbar thumb (the draggable part) */
   ::-webkit-scrollbar-thumb {
   background-color: rgba(0, 0, 0, 0.2); /* Dark grey */
   border-radius: 4px; /* Rounded corners */
   }
-  
+
   /* Target the scrollbar track when hovered */
   ::-webkit-scrollbar-track {
   background-color: rgba(0, 0, 0, 0.05); /* Light grey */
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
   background-color: rgba(0, 0, 0, 0.4); /* Darker grey on hover */
   }
@@ -720,3 +581,105 @@ pre code {
   }
 }
 
+:root {
+  --background: 48 33.3333% 97.0588%;
+  --foreground: 48 19.6078% 20%;
+  --card: 48 33.3333% 97.0588%;
+  --card-foreground: 60 2.5641% 7.6471%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 50.7692 19.4030% 13.1373%;
+  --primary: 15.1111 55.5556% 52.3529%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 46.1538 22.8070% 88.8235%;
+  --secondary-foreground: 50.7692 8.4967% 30.0000%;
+  --muted: 44.0000 29.4118% 90%;
+  --muted-foreground: 50.0000 2.3622% 50.1961%;
+  --accent: 46.1538 22.8070% 88.8235%;
+  --accent-foreground: 50.7692 19.4030% 13.1373%;
+  --destructive: 60 2.5641% 7.6471%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 50 7.5000% 84.3137%;
+  --input: 50.7692 7.9755% 68.0392%;
+  --ring: 15.1111 55.5556% 52.3529%;
+  --chart-1: 18.2813 57.1429% 43.9216%;
+  --chart-2: 251.4545 84.6154% 74.5098%;
+  --chart-3: 46.1538 28.2609% 81.9608%;
+  --chart-4: 256.5517 49.1525% 88.4314%;
+  --chart-5: 17.7778 60% 44.1176%;
+  --sidebar: 51.4286 25.9259% 94.7059%;
+  --sidebar-foreground: 60 2.5210% 23.3333%;
+  --sidebar-primary: 15.1111 55.5556% 52.3529%;
+  --sidebar-primary-foreground: 0 0% 98.4314%;
+  --sidebar-accent: 46.1538 22.8070% 88.8235%;
+  --sidebar-accent-foreground: 0 0% 20.3922%;
+  --sidebar-border: 0 0% 92.1569%;
+  --sidebar-ring: 0 0% 70.9804%;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius: 0.5rem;
+  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
+  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+.dark {
+  --background: 60 2.7027% 14.5098%;
+  --foreground: 46.1538 9.7744% 73.9216%;
+  --card: 60 2.7027% 14.5098%;
+  --card-foreground: 48 33.3333% 97.0588%;
+  --popover: 60 2.1277% 18.4314%;
+  --popover-foreground: 60 5.4545% 89.2157%;
+  --primary: 14.7692 63.1068% 59.6078%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 48 33.3333% 97.0588%;
+  --secondary-foreground: 60 2.1277% 18.4314%;
+  --muted: 60 3.8462% 10.1961%;
+  --muted-foreground: 51.4286 8.8608% 69.0196%;
+  --accent: 48 10.6383% 9.2157%;
+  --accent-foreground: 51.4286 25.9259% 94.7059%;
+  --destructive: 0 84.2365% 60.1961%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 60 5.0847% 23.1373%;
+  --input: 52.5000 5.1282% 30.5882%;
+  --ring: 14.7692 63.1068% 59.6078%;
+  --chart-1: 18.2813 57.1429% 43.9216%;
+  --chart-2: 251.4545 84.6154% 74.5098%;
+  --chart-3: 48 10.6383% 9.2157%;
+  --chart-4: 248.2759 25.2174% 22.5490%;
+  --chart-5: 17.7778 60% 44.1176%;
+  --sidebar: 30 3.3333% 11.7647%;
+  --sidebar-foreground: 46.1538 9.7744% 73.9216%;
+  --sidebar-primary: 0 0% 20.3922%;
+  --sidebar-primary-foreground: 0 0% 98.4314%;
+  --sidebar-accent: 60 3.4483% 5.6863%;
+  --sidebar-accent-foreground: 46.1538 9.7744% 73.9216%;
+  --sidebar-border: 0 0% 92.1569%;
+  --sidebar-ring: 0 0% 70.9804%;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius: 0.5rem;
+  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
+  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+}
+
+@layer base {
+  body {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+}

@@ -160,7 +160,7 @@ const ChatMessage = memo(
             {message.quotedText && message.quotedText.trim().length > 0 && (
               <div className={`mb-1 mr-0 ml-0 w-full flex ${isUser ? "justify-end" : "justify-start"}`}>
                 <div className={`flex items-center ${isUser ? "self-end" : "self-start"}`}>
-                  <div className="border-l-4 border-[var(--brand-default)] bg-[var(--secondary-faint)] rounded-md px-3 py-2 text-[var(--text-light-muted)] text-sm max-w-full whitespace-pre-line shadow-sm">
+                  <div className="border-l-4 border-primary bg-secondary rounded-[var(--radius)] px-3 py-2 text-muted-foreground text-sm max-w-full whitespace-pre-line shadow-sm">
                     {(() => {
                       const words = message.quotedText.split(/\s+/)
                       return words.length > 40 ? words.slice(0, 40).join(" ") + " ..." : message.quotedText

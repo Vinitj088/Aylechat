@@ -49,14 +49,14 @@ const WeatherCard = ({ data }: { data: any }) => {
   const displayLocation = locationName.charAt(0).toUpperCase() + locationName.slice(1);
 
   return (
-    <div className="w-full bg-white/50 dark:bg-[var(--secondary-default)] border border-zinc-200 dark:border-zinc-700/50 rounded-lg p-5 my-2 backdrop-blur-sm">
+    <div className="w-full bg-card border border-border rounded-[var(--radius)] p-5 my-2 backdrop-blur-sm">
       {/* Top Section: Location and Emoji */}
       <div className="flex justify-between items-center mb-4">
         <div>
-          <p className="text-xl font-bold text-[var(--primary-default)] dark:text-zinc-100">
+          <p className="text-xl font-bold text-foreground">
             {displayLocation}
           </p>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm text-muted-foreground">
             {/* Display the full location from API if different from user query */}
             {data.location.name && data.location.name.toLowerCase() !== displayLocation.toLowerCase() ? data.location.name : ''}
           </p>
@@ -68,37 +68,37 @@ const WeatherCard = ({ data }: { data: any }) => {
 
       {/* Middle Section: Main temperature and description */}
       <div className="flex items-center gap-4 mb-4">
-        <p className="text-7xl font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tighter">
+        <p className="text-7xl font-extrabold text-foreground tracking-tighter">
           {current.temp_C}°
         </p>
         <div className="flex flex-col">
-            <p className="font-semibold text-lg text-zinc-700 dark:text-zinc-200">{current.weatherDesc[0].value}</p>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="font-semibold text-lg text-foreground">{current.weatherDesc[0].value}</p>
+            <p className="text-sm text-muted-foreground">
                 Feels like {current.FeelsLikeC}°C
             </p>
         </div>
       </div>
 
       {/* Bottom Section: Details Grid */}
-      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-zinc-200 dark:border-zinc-700/50 text-sm">
-        <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
-            <Thermometer className="w-4 h-4 text-zinc-400" />
+      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border text-sm">
+        <div className="flex items-center gap-2 text-foreground">
+            <Thermometer className="w-4 h-4 text-muted-foreground" />
             <div className="flex flex-col">
-                <span className="text-xs text-zinc-400">H/L</span>
+                <span className="text-xs text-muted-foreground">H/L</span>
                 <span>{today.maxtempC}° / {today.mintempC}°</span>
             </div>
         </div>
-        <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
-            <Wind className="w-4 h-4 text-zinc-400" />
+        <div className="flex items-center gap-2 text-foreground">
+            <Wind className="w-4 h-4 text-muted-foreground" />
              <div className="flex flex-col">
-                <span className="text-xs text-zinc-400">Wind</span>
+                <span className="text-xs text-muted-foreground">Wind</span>
                 <span>{current.windspeedKmph} km/h</span>
             </div>
         </div>
-        <div className="flex items-center gap-2 text-zinc-600 dark:text-zinc-300">
-            <Droplets className="w-4 h-4 text-zinc-400" />
+        <div className="flex items-center gap-2 text-foreground">
+            <Droplets className="w-4 h-4 text-muted-foreground" />
              <div className="flex flex-col">
-                <span className="text-xs text-zinc-400">Humidity</span>
+                <span className="text-xs text-muted-foreground">Humidity</span>
                 <span>{current.humidity}%</span>
             </div>
         </div>

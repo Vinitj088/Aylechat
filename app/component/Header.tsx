@@ -25,7 +25,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 bg-[var(--secondary-faint)] border-b border-[var(--secondary-darkest)] z-50 w-screen overflow-x-hidden">
+      <div className="fixed top-0 left-0 right-0 bg-background border-b border-border z-50 w-screen overflow-x-hidden">
         <div className="w-full max-w-full md:max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
           {/* Logo */}
           <Link
@@ -33,7 +33,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
             className="flex items-center hover:opacity-80 transition-opacity"
           >
             <span 
-              className="text-3xl text-[var(--brand-default)] dark:text-[var(--brand-default)]"
+              className="text-3xl text-primary dark:text-primary"
               style={{ 
                 fontFamily: 'var(--font-gebuk-regular)',
                 letterSpacing: '0.05em',
@@ -111,7 +111,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
 
             {/* Sidebar Toggle Button */}
             <button
-              className="p-1.5 text-[var(--text-light-muted)] hover:bg-[var(--secondary-darker)] rounded-md transition-colors md:hidden"
+              className="p-1.5 text-muted-foreground hover:bg-accent rounded-[var(--radius)] transition-colors md:hidden"
               onClick={toggleSidebar}
               aria-label="Toggle sidebar"
             >

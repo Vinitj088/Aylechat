@@ -45,12 +45,12 @@ const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
     <Button
       variant="outline" // Keep outline for a subtle border, or change if needed
       // Add responsive classes: hidden by default, flex on medium screens and up
-      className="fixed bottom-6 right-4 z-50 rounded-lg shadow-lg h-auto px-4 py-2 
+      className="fixed bottom-6 right-4 z-50 rounded-[var(--radius)] shadow-lg h-auto px-4 py-2 
                  hidden md:flex
-                 bg-white/10 dark:bg-black/10 
+                 bg-background/10 
                  backdrop-blur-md 
-                 border border-white/20 dark:border-black/20 
-                 text-sm font-medium text-foreground/80 hover:text-foreground hover:bg-white/20 dark:hover:bg-black/20
+                 border border-border 
+                 text-sm font-medium text-foreground hover:text-foreground hover:bg-accent/10
                  transition-all duration-200 ease-in-out"
       onClick={scrollToBottom}
       aria-label="Scroll to bottom"

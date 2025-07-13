@@ -208,14 +208,14 @@ function AuthDialogContent({ isOpen, onClose, onSuccess }: AuthDialogProps) {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="bg-[var(--secondary-faint)] dark:bg-[var(--secondary-default)] border-2 border-[var(--secondary-darkest)] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] rounded-none p-6 max-w-md w-full relative z-10">
+      <div className="bg-[var(--background)] dark:bg-[var(--background)] border-2 border-[var(--border)] shadow-sm rounded-[var(--radius)] p-6 max-w-md w-full relative z-10">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-[var(--text-light-default)]">
+          <h2 className="text-xl font-bold text-[var(--foreground)]">
             {!sentEmail ? "Sign In or Sign Up" : "Enter Your Code"}
           </h2>
           <button 
             onClick={handleClose}
-            className="p-1.5 rounded-md hover:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] text-[var(--text-light-default)]"
+            className="p-1.5 rounded-md hover:bg-[var(--secondary)] border border-[var(--border)] text-[var(--foreground)]"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -292,7 +292,7 @@ function EmailStep({
   return (
     <div className="flex flex-col space-y-4">
       {/* Google Sign-In Warning */}
-      <div className="bg-[var(--secondary-faint)] dark:bg-[var(--secondary-default)] border-2 border-[var(--secondary-darkest)] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] rounded-none p-4 max-w-md w-full relative z-10">
+      <div className="bg-[var(--background)] dark:bg-[var(--background)] border-2 border-[var(--border)] shadow-sm rounded-[var(--radius)] p-4 max-w-md w-full relative z-10">
         ⚠️ If Google sign-in is not working, please disable your adblocker and refresh the page, then try again.
       </div>
       {/* Google Sign-In Button */}
@@ -300,7 +300,7 @@ function EmailStep({
         type="button"
         onClick={onGoogleSignIn}
         disabled={isLoading}
-        className={`w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-[var(--text-light-default)] bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
+        className={`w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-[var(--foreground)] bg-white dark:bg-[var(--secondary)] border-2 border-[var(--border)] shadow-sm hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-xs transition-all ${
           isLoading ? 'opacity-50 cursor-not-allowed' : ''
         }`}
       >
@@ -315,31 +315,31 @@ function EmailStep({
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
-        <p className="text-[var(--text-light-default)]">
+        <p className="text-[var(--foreground)]">
           Enter your email, and we&apos;ll send you a verification code. We&apos;ll create an account for you if you don&apos;t already have one.
         </p>
         <div>
-          <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="firstName">
+          <label className="block text-[var(--foreground)] text-sm font-bold mb-2" htmlFor="firstName">
             First Name
           </label>
           <input
             ref={firstNameInputRef}
             id="firstName"
             type="text"
-            className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
+            className="appearance-none border-2 border-[var(--border)] dark:bg-[var(--secondary)] rounded-[var(--radius)] w-full py-2 px-3 text-[var(--foreground)] leading-tight focus:outline-none focus:border-[var(--primary)]"
             placeholder="Enter your first name"
             required
           />
         </div>
         <div>
-          <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="email">
+          <label className="block text-[var(--foreground)] text-sm font-bold mb-2" htmlFor="email">
             Email
           </label>
           <input
             ref={emailInputRef}
             id="email"
             type="email"
-            className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
+            className="appearance-none border-2 border-[var(--border)] dark:bg-[var(--secondary)] rounded-[var(--radius)] w-full py-2 px-3 text-[var(--foreground)] leading-tight focus:outline-none focus:border-[var(--primary)]"
             placeholder="Enter your email"
             required
             autoFocus
@@ -348,7 +348,7 @@ function EmailStep({
         <button
           type="submit"
           disabled={isLoading}
-          className={`w-full px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
+          className={`w-full px-4 py-2 text-sm font-medium text-white bg-[var(--primary)] dark:bg-[var(--primary)] border-2 border-[var(--border)] shadow-sm hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-xs transition-all ${
             isLoading ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
@@ -370,18 +370,18 @@ function CodeStep({ sentEmail, onSubmit, isLoading, onBack }: { sentEmail: strin
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
-      <p className="text-[var(--text-light-default)]">
+      <p className="text-[var(--foreground)]">
         We sent an email to <strong>{sentEmail}</strong>. Check your email and paste the code you see.
       </p>
       <div>
-        <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="code">
+        <label className="block text-[var(--foreground)] text-sm font-bold mb-2" htmlFor="code">
           Verification Code
         </label>
         <input
           ref={inputRef}
           id="code"
           type="text"
-          className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
+          className="appearance-none border-2 border-[var(--border)] dark:bg-[var(--secondary)] rounded-[var(--radius)] w-full py-2 px-3 text-[var(--foreground)] leading-tight focus:outline-none focus:border-[var(--primary)]"
           placeholder="123456..."
           required
           autoFocus
@@ -392,7 +392,7 @@ function CodeStep({ sentEmail, onSubmit, isLoading, onBack }: { sentEmail: strin
           type="button"
           onClick={onBack}
           disabled={isLoading}
-          className={`text-sm font-medium text-[var(--brand-default)] hover:underline ${
+          className={`text-sm font-medium text-[var(--primary)] hover:underline ${
             isLoading ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
@@ -401,7 +401,7 @@ function CodeStep({ sentEmail, onSubmit, isLoading, onBack }: { sentEmail: strin
         <button
           type="submit"
           disabled={isLoading}
-          className={`px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
+          className={`px-4 py-2 text-sm font-medium text-white bg-[var(--primary)] dark:bg-[var(--primary)] border-2 border-[var(--border)] shadow-sm hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-xs transition-all ${
             isLoading ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >

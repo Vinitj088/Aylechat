@@ -132,7 +132,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full sm:w-[200px] md:w-[240px] justify-between bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] hover:border-[var(--brand-default)] active:scale-[0.98] text-[var(--text-light-default)] transition-none"
+            className="w-full sm:w-[200px] md:w-[240px] justify-between bg-background border border-border hover:border-primary active:scale-[0.98] text-foreground transition-none"
           >
             <div className="flex items-center gap-2 w-full min-w-0">
               <div className="flex-shrink-0">
@@ -150,14 +150,14 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-[85vw] sm:w-[200px] md:w-[240px] p-0 bg-white dark:bg-[var(--secondary-dark)] border border-[var(--secondary-darkest)] shadow-lg z-50 transition-none"
+          className="w-[85vw] sm:w-[200px] md:w-[240px] p-0 bg-background border border-border shadow-lg z-50 transition-none"
           sideOffset={5}
           align="start"
         >
           <div className="max-h-[300px] overflow-y-auto">
             {Object.entries(groupedModels).map(([provider, providerModels]) => (
               <div key={provider} className="px-2 pt-2 pb-1">
-                <div className="text-xs font-medium text-[var(--text-light-muted)] px-1 mb-1">{provider}</div>
+                <div className="text-xs font-medium text-muted-foreground px-1 mb-1">{provider}</div>
                 {providerModels.map(model => {
                   const isActive = selectedModel === model.id;
                   const capabilities = modelCapabilities[model.id] || [];
@@ -165,7 +165,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                   return (
                     <div
                       key={model.id}
-                      className={`flex items-center gap-2 py-2 px-2 hover:bg-[var(--secondary-darker)] focus:bg-[var(--secondary-darker)] cursor-pointer rounded-sm ${isActive ? 'bg-[var(--brand-fainter)] dark:bg-[var(--brand-dark)]' : ''}`}
+                      className={`flex items-center gap-2 py-2 px-2 hover:bg-accent focus:bg-accent cursor-pointer rounded-[var(--radius)] ${isActive ? 'bg-primary/10 dark:bg-primary/20' : ''}`}
                       onClick={() => {
                         handleModelChange(model.id);
                         setOpen(false);
@@ -185,7 +185,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                         <div className="flex-shrink-0">
                           {getProviderIconByAvatarType(model.avatarType || model.providerId)}
                         </div>
-                        <span className={`truncate text-[var(--text-light-default)] text-sm ${isActive ? 'font-medium' : 'font-normal'}`}>
+                        <span className={`truncate text-foreground text-sm ${isActive ? 'font-medium' : 'font-normal'}`}>
                           {model.name}
                         </span>
                       </div>
@@ -199,7 +199,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <div
-                                className="ml-1 h-5 w-5 rounded-full flex items-center justify-center text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] bg-[var(--secondary-darker)] dark:bg-[var(--secondary-darkest)]"
+                                className="ml-1 h-5 w-5 rounded-[var(--radius)] flex items-center justify-center text-muted-foreground hover:text-foreground bg-secondary"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   e.preventDefault();
@@ -208,7 +208,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                                 <Info size={14} />
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent side="right" className="bg-white dark:bg-[var(--secondary-dark)] border shadow-md z-[60] text-[var(--text-light-default)]">
+                            <TooltipContent side="right" className="bg-background border shadow-md z-[60] text-foreground">
                               <p className="font-medium">{model.name}</p>
                               <p className="text-xs text-[var(--text-light-muted)]">{model.provider}</p>
                               {capabilities.length > 0 && (
@@ -227,7 +227,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                           </Tooltip>
                         </TooltipProvider>
 
-                        {isActive && <Check className="h-4 w-4 text-[var(--brand-default)]" />}
+                        {isActive && <Check className="h-4 w-4 text-primary" />}
                       </div>
                     </div>
                   );

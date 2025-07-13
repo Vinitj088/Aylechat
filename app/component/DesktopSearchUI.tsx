@@ -159,19 +159,19 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   const MainContainer = (
     <div className={`w-full max-w-full md:max-w-3xl mb-8 ${sidebarPinned ? 'text-left' : 'mx-auto text-center'}`}>
       <div className="mb-8 text-center">
-        <h1 className="text-5xl font-bold mb-2 text-[var(--text-light-default)]">
-          The web, <span className="text-[var(--brand-default)]" style={{ fontFamily: 'var(--font-heading)' }}>organized</span>
+        <h1 className="text-5xl font-bold mb-2 text-foreground">
+          The web, <span className="text-primary" style={{ fontFamily: 'var(--font-heading)' }}>organized</span>
         </h1>
-        <p className="text-base text-[var(--text-light-muted)] mb-2">
+        <p className="text-base text-muted-foreground mb-2">
           {description}
         </p>
       </div>
       
       {/* Search box */}
-      <div className={`border ${isRounded ? 'border-2' : ''} border-[var(--brand-default)] rounded-lg bg-white dark:bg-[var(--secondary-darker)] shadow-sm overflow-hidden mb-8`}>
+      <div className={`border ${isRounded ? 'border-2' : ''} border-primary rounded-[var(--radius)] bg-background shadow-sm overflow-hidden mb-8`}>
         <form onSubmit={handleSubmit} className="relative">
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--secondary-darkest)]">
-            <svg className="w-5 h-5 text-[var(--text-light-muted)]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-border">
+            <svg className="w-5 h-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             
@@ -193,18 +193,18 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
             autoFocus
             placeholder="Try a search or paste a link to find similar"
             rows={1}
-            className="w-full p-4 bg-white dark:bg-[var(--secondary-darker)] border-0 
-            focus:outline-none focus:ring-0 text-base text-[var(--text-light-default)]
-            placeholder:text-[var(--text-light-subtle)] resize-none min-h-[46px] max-h-[120px]
-            scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent dark:focus:outline-none"
+            className="w-full p-4 bg-background border-0 
+            focus:outline-none focus:ring-0 text-base text-foreground
+            placeholder:text-muted-foreground resize-none min-h-[46px] max-h-[120px]
+            scrollbar-thin scrollbar-thumb-muted-foreground scrollbar-track-transparent dark:focus:outline-none"
             style={{ lineHeight: '1.5' }}
             disabled={disableInput}
           />
           
-          <div className="flex items-center justify-between px-2 py-2 border-t border-[var(--secondary-darkest)]">
+          <div className="flex items-center justify-between px-2 py-2 border-t border-border">
             <div className="flex items-center gap-2">
               <QueryEnhancer input={input} setInput={setInput} isLoading={isLoading} isMobile={false} />
-              <span className="text-sm text-[var(--text-light-muted)]">Enhance Query</span>
+              <span className="text-sm text-muted-foreground">Enhance Query</span>
             </div>
             
             <div className="flex items-center gap-2">
@@ -213,7 +213,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                   type="button"
                   onClick={handleFileButtonClick}
                   disabled={isLoading}
-                  className="p-2 text-[var(--text-light-muted)] hover:text-[var(--brand-default)] rounded-full hover:bg-[var(--secondary-faint)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 text-muted-foreground hover:text-primary rounded-[var(--radius)] hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Attach files"
                 >
                   <FileUp className="h-5 w-5" />
@@ -231,8 +231,8 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
               <button
                 type="submit"
                 disabled={!input.trim() || isLoading || disableInput}
-                className="bg-[var(--brand-default)] text-white px-6 py-2 rounded-md font-medium
-                disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 dark:bg-[var(--brand-dark)] dark:hover:bg-[var(--brand-muted)]"
+                className="bg-primary text-primary-foreground px-6 py-2 rounded-[var(--radius)] font-medium
+                disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:bg-primary/90"
               >
                 <div className="flex items-center justify-center gap-2">
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -246,12 +246,12 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
 
           {/* Attachments Preview */}
           {attachments.length > 0 && (
-            <div className="px-4 py-2 border-t border-[var(--secondary-darkest)] bg-[var(--secondary-faint)]">
+            <div className="px-4 py-2 border-t border-border bg-secondary">
               <div className="flex flex-wrap gap-2">
                 {attachments.map((file, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-2 bg-white dark:bg-[var(--secondary-darker)] px-2 py-1 rounded-md text-sm"
+                    className="flex items-center gap-2 bg-background px-2 py-1 rounded-[var(--radius)] text-sm"
                   >
                     <span className="truncate max-w-[150px]">{file.name}</span>
                     <button
@@ -261,7 +261,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                         setAttachments(newAttachments);
                         onAttachmentsChange?.(newAttachments);
                       }}
-                      className="text-[var(--text-light-muted)] hover:text-red-500"
+                      className="text-muted-foreground hover:text-destructive"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -275,23 +275,23 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
       
       {/* Popular searches */}
       <div className="mb-8">
-        <h3 className="text-sm font-medium text-[var(--text-light-muted)] mb-3">POPULAR SEARCHES</h3>
+        <h3 className="text-sm font-medium text-muted-foreground mb-3">POPULAR SEARCHES</h3>
         <div className="grid grid-cols-3 gap-3">
           <button 
             onClick={() => setInput("Can you explain how black holes work?")}
-            className="px-3 py-2 bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] rounded-md text-sm hover:border-[var(--brand-default)] transition-colors text-left text-[var(--text-light-default)] transition-none"
+            className="px-3 py-2 bg-background border border-border rounded-[var(--radius)] text-sm hover:border-primary transition-colors text-left text-foreground transition-none"
           >
             Can you explain how black holes work?
           </button>
           <button 
             onClick={() => setInput("Can you tell me a fascinating story from history?")}
-            className="px-3 py-2 bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] rounded-md text-sm hover:border-[var(--brand-default)] transition-colors text-left text-[var(--text-light-default)] transition-none"
+            className="px-3 py-2 bg-background border border-border rounded-[var(--radius)] text-sm hover:border-primary transition-colors text-left text-foreground transition-none"
           >
             Can you tell me a fascinating story from history?
           </button>
           <button 
             onClick={() => setInput("Write a program to implement a binary search in c++?")}
-            className="px-3 py-2 bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] rounded-md text-sm hover:border-[var(--brand-default)] transition-colors text-left text-[var(--text-light-default)] transition-none"
+            className="px-3 py-2 bg-background border border-border rounded-[var(--radius)] text-sm hover:border-primary transition-colors text-left text-foreground transition-none"
           >
             Write a program to implement a binary search in c++?
           </button>
@@ -310,10 +310,10 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
               {messages.filter(m => m.role !== 'system').map((message) => (
                 <div key={message.id} className="w-full">
                   <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`rounded px-4 py-3 max-w-[85%] ${
+                    <div className={`rounded-[var(--radius)] px-4 py-3 max-w-[85%] ${
                       message.role === 'user'
-                        ? 'bg-[var(--secondary-darker)] text-[var(--text-light-default)] message-human'
-                        : 'text-[var(--text-light-default)] message-ai'
+                        ? 'bg-secondary text-foreground message-human'
+                        : 'text-foreground message-ai'
                     }`}>
                       {message.role === 'assistant' ? (
                         <>
@@ -323,15 +323,15 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                               <>
                                 {(thinking || !isComplete) && (
                                   <div className="my-6 space-y-3">
-                                    <div className="flex items-center gap-2 text-[var(--text-light-default)]">
+                                    <div className="flex items-center gap-2 text-foreground">
                                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                                       </svg>
                                       <h3 className="text-sm font-medium">Thinking</h3>
                                     </div>
                                     <div className="pl-4 relative">
-                                      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--secondary-darkest)]"></div>
-                                      <div className="text-sm text-[var(--text-light-muted)] whitespace-pre-wrap">{thinking}</div>
+                                      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-border"></div>
+                                      <div className="text-sm text-muted-foreground whitespace-pre-wrap">{thinking}</div>
                                     </div>
                                   </div>
                                 )}

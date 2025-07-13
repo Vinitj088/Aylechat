@@ -24,7 +24,7 @@ export function ThemeToggle() {
       variant="ghost"
       size="sm"
       onClick={() => setTheme(targetTheme)}
-      className="h-8 px-2 text-xs bg-transparent hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] border-none flex items-center gap-1 font-medium transition-none"
+      className="h-8 px-2 text-xs bg-transparent hover:bg-accent text-muted-foreground border-none flex items-center gap-1 font-medium transition-none"
       aria-label={`Switch to ${targetTheme} mode`}
     >
       {theme === 'dark' ? (

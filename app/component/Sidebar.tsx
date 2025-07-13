@@ -227,7 +227,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
       {/* Sidebar */}
       <motion.div
         className={cn(
-          "fixed inset-y-0 right-0 z-50 w-64 bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-fainter)] border-l border-[var(--secondary-darkest)] shadow-lg",
+          "fixed inset-y-0 right-0 z-50 w-64 bg-sidebar text-sidebar-foreground border-l border-sidebar-border shadow-lg",
         )}
         onMouseEnter={() => !isMobile && setIsHovered(true)}
         onMouseLeave={() => !isMobile && setIsHovered(false)}
@@ -238,9 +238,9 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
         {/* Sidebar content */}
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="px-4 py-3 border-b border-[var(--secondary-darkest)] bg-[var(--secondary-default)] flex items-center justify-between">
-            <h2 className="text-base font-medium text-[var(--text-light-default)] flex items-center">
-              <Clock className="h-4 w-4 mr-2 text-[var(--brand-default)]" />
+          <div className="px-4 py-3 border-b border-sidebar-border bg-sidebar flex items-center justify-between">
+            <h2 className="text-base font-medium text-sidebar-foreground flex items-center">
+              <Clock className="h-4 w-4 mr-2 text-sidebar-primary" />
               Chat History
             </h2>
             <div className="flex items-center gap-1">
@@ -248,7 +248,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
               {showPinButton && setPinned && (
                 <button
                   onClick={() => setPinned(!pinned)}
-                  className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
+                  className="p-1.5 rounded-[var(--radius)] hover:bg-sidebar-accent text-sidebar-foreground hover:text-sidebar-foreground transition-colors"
                   aria-label={pinned ? "Unpin sidebar" : "Pin sidebar"}
                 >
                   {pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
@@ -258,7 +258,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
               {isMobile && (
                 <button
                   onClick={onClose}
-                  className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
+                  className="p-1.5 rounded-[var(--radius)] hover:bg-sidebar-accent text-sidebar-foreground hover:text-sidebar-foreground transition-colors"
                   aria-label="Close sidebar"
                 >
                   <X className="h-4 w-4" />
@@ -276,10 +276,10 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
                 </div>
             ) : !isAuthenticated ? (
               <div className="flex flex-col items-center justify-center h-full space-y-4">
-                <p className="text-sm text-[var(--text-light-muted)]">Sign in to view your chat history</p>
+                <p className="text-sm text-muted-foreground">Sign in to view your chat history</p>
                 <button
                   onClick={onSignInClick || openAuthDialog}
-                  className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all"
+                  className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary border-2 border-border shadow-sm hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-xs transition-all"
                 >
                   Sign In
                 </button>
@@ -288,7 +288,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
               <ul className="space-y-2.5">
                 {[...Array(6)].map((_, i) => (
                   <li key={i} className="relative">
-                    <div className="w-full text-left p-3 rounded-md border border-[var(--secondary-darkest)] bg-[var(--secondary-fainter)]">
+                    <div className="w-full text-left p-3 rounded-[var(--radius)] border border-border bg-secondary">
                       <div className="flex justify-between items-start">
                         {/* Title skeleton */}
                         <Skeleton className="h-4 w-32 mb-2" />
@@ -302,13 +302,13 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
                 ))}
               </ul>
             ) : error ? (
-              <div className="text-center py-4 px-3 bg-[var(--accent-maroon-light)] border border-[var(--accent-maroon-dark)] rounded-md">
-                <p className="text-[var(--accent-red)] text-sm">{error.message}</p>
+              <div className="text-center py-4 px-3 bg-destructive/10 border border-destructive rounded-[var(--radius)]">
+                <p className="text-destructive text-sm">{error.message}</p>
               </div>
             ) : threads.length === 0 ? (
-              <div className="text-center py-6 px-3 bg-[var(--secondary-fainter)] rounded-md border border-dashed border-[var(--secondary-darker)]">
-                <p className="text-[var(--text-light-muted)] text-sm">No chat history yet</p>
-                <p className="text-xs text-[var(--text-light-faint)] mt-1">Start a new chat to see your history here</p>
+              <div className="text-center py-6 px-3 bg-secondary rounded-[var(--radius)] border border-dashed border-border">
+                <p className="text-muted-foreground text-sm">No chat history yet</p>
+                <p className="text-xs text-muted-foreground mt-1">Start a new chat to see your history here</p>
               </div>
             ) : (
               <ul className="space-y-2.5">
@@ -316,16 +316,16 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
                   <li key={thread.id} className="relative">
                     <div
                       className={cn(
-                        "w-full text-left p-3 rounded-md border transition-all duration-200 cursor-pointer",
+                        "w-full text-left p-3 rounded-[var(--radius)] border transition-all duration-200 cursor-pointer",
                         pathname === `/chat/${thread.id}`
-                          ? "bg-[var(--brand-fainter)] border-[var(--brand-muted)] shadow-[0_0_0_1px_var(--brand-faint)]"
-                          : "border-[var(--secondary-darkest)] hover:bg-[var(--secondary-darker)] hover:border-[var(--secondary-darkest)]",
+                          ? "bg-primary/10 border-primary shadow-sm"
+                          : "border-border hover:bg-secondary hover:border-border",
                       )}
                       onClick={() => handleThreadClick(thread.id)}
                     >
                       <div className="flex justify-between items-start">
                         <div
-                          className="font-medium truncate pr-2 text-sm text-[var(--text-light-default)]"
+                          className="font-medium truncate pr-2 text-sm text-foreground"
                         >
                           {thread.title}
                         </div>
@@ -334,26 +334,26 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
                             e.stopPropagation();
                             setThreadToDelete(thread.id);
                           }}
-                          className="p-1 text-[var(--text-light-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-maroon-light)] rounded-full transition-colors"
+                          className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-[var(--radius)] transition-colors"
                           title="Delete thread"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                       <div
-                        className="text-xs text-[var(--text-light-muted)] mt-1.5 flex items-center"
+                        className="text-xs text-muted-foreground mt-1.5 flex items-center"
                       >
-                        <Clock className="h-3 w-3 mr-1 inline-block text-[var(--brand-faint)]" />
+                        <Clock className="h-3 w-3 mr-1 inline-block text-primary" />
                         {formatDistanceToNow(new Date(thread.updatedAt ?? 0), { addSuffix: true })}
                       </div>
                     </div>
                   </li>
                 ))}
                 {threads.length > 0 && (
-                  <li className="pt-3 border-t border-dashed border-[var(--secondary-darker)] mt-3">
+                  <li className="pt-3 border-t border-dashed border-border mt-3">
                     <button
                       onClick={handleClearAllHistory}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-[var(--accent-red)] hover:bg-[var(--accent-maroon-light)] rounded-md transition-colors"
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-[var(--radius)] transition-colors"
                     >
                       <Trash2 className="h-4 w-4" />
                       Clear All History
@@ -361,8 +361,8 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
                   </li>
                 )}
                 {threads.length === 0 && !isLoading && !error && (
-                  <li className="text-center mt-4 pt-3 border-t border-dashed border-[var(--secondary-darker)]">
-                    <span className="text-xs text-[var(--text-light-muted)] italic">— History is empty —</span>
+                  <li className="text-center mt-4 pt-3 border-t border-dashed border-border">
+                    <span className="text-xs text-muted-foreground italic">— History is empty —</span>
                   </li>
                 )}
               </ul>
@@ -370,15 +370,15 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
           </div>
 
           {isAuthenticated && user && (
-            <div className="p-3 border-t border-[var(--secondary-darkest)] bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-default)]">
+            <div className="p-3 border-t border-sidebar-border bg-sidebar">
               <div className="flex justify-between items-center">
                 <Link
                   href="/settings"
-                  className="text-sm truncate flex items-center text-[var(--text-light-default)] hover:text-[var(--brand-default)] focus:text-[var(--brand-default)] transition-colors cursor-pointer outline-none"
+                  className="text-sm truncate flex items-center text-sidebar-foreground hover:text-sidebar-primary focus:text-sidebar-primary transition-colors cursor-pointer outline-none"
                   tabIndex={0}
                   title="Account settings"
                 >
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-fainter)] text-[var(--brand-default)] mr-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-[var(--radius)] bg-sidebar-primary/10 text-sidebar-primary mr-2">
                     <User className="h-3.5 w-3.5" />
                   </div>
                   <span className="font-medium">
@@ -391,7 +391,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
                 </Link>
                 <button
                   onClick={handleSignOut}
-                  className="px-2 py-1.5 text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md flex items-center gap-1.5 text-xs transition-colors"
+                  className="px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-[var(--radius)] flex items-center gap-1.5 text-xs transition-colors"
                   title="Sign out"
                 >
                   <LogOut className="h-3.5 w-3.5" />
@@ -404,10 +404,10 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
       </motion.div>
 
       <AlertDialog open={isClearConfirmOpen} onOpenChange={setIsClearConfirmOpen}>
-        <AlertDialogContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+        <AlertDialogContent className="bg-background border border-border">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
+              <AlertTriangle className="h-5 w-5 text-destructive" />
               Are you absolutely sure?
             </AlertDialogTitle>
             <AlertDialogDescription>
@@ -417,7 +417,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmClearAll} className="bg-red-600 hover:bg-red-700 text-white">
+            <AlertDialogAction onClick={handleConfirmClearAll} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
               Yes, delete all history
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -426,10 +426,10 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
 
       {/* Thread delete dialog */}
       <AlertDialog open={!!threadToDelete} onOpenChange={(open) => { if (!open) setThreadToDelete(null); }}>
-        <AlertDialogContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+        <AlertDialogContent className="bg-background border border-border">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
+              <AlertTriangle className="h-5 w-5 text-destructive" />
               Delete this chat thread?
             </AlertDialogTitle>
             <AlertDialogDescription>
@@ -438,7 +438,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDeleteThread} className="bg-red-600 hover:bg-red-700 text-white">
+            <AlertDialogAction onClick={handleConfirmDeleteThread} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
               Yes, delete thread
             </AlertDialogAction>
           </AlertDialogFooter>

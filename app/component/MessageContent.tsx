@@ -174,9 +174,9 @@ const GeneratedImageView = ({
           return (
             <div
               key={`error-${index}`}
-              className="p-4 border border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-800 rounded-md"
+              className="p-4 border border-destructive bg-destructive/10 rounded-[var(--radius)]"
             >
-              <p className="text-red-600 dark:text-red-400 text-sm">Image data is missing</p>
+              <p className="text-destructive text-sm">Image data is missing</p>
             </div>
           )
         }
@@ -204,13 +204,13 @@ const GeneratedImageView = ({
         return (
           <div
             key={`image-${index}`}
-            className="relative rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm"
+            className="relative rounded-[var(--radius)] overflow-hidden border border-border shadow-sm"
           >
             <div className="absolute top-2 right-2 z-10">
               <a
                 href={downloadLink}
                 download={`generated-image-${index}.png`}
-                className="bg-white dark:bg-gray-800 p-2 rounded-full shadow-md flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="bg-background p-2 rounded-[var(--radius)] shadow-md flex items-center justify-center hover:bg-accent transition-colors"
                 title="Download image"
               >
                 <svg
@@ -234,10 +234,10 @@ const GeneratedImageView = ({
             <div className="flex justify-center items-center pt-6 pb-8 px-4">
               {/* Loading indicator - only show for base64 images or if URL images haven't loaded yet */}
               {!imagesLoaded[index] && !errorStates[index] && (
-                <div className="h-[300px] w-full max-w-[500px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-md">
+                <div className="h-[300px] w-full max-w-[500px] flex items-center justify-center bg-secondary rounded-[var(--radius)]">
                   <div className="animate-pulse flex flex-col items-center">
                     <svg
-                      className="w-10 h-10 text-gray-400"
+                      className="w-10 h-10 text-muted-foreground"
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
@@ -250,17 +250,17 @@ const GeneratedImageView = ({
                         d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                       />
                     </svg>
-                    <p className="mt-2 text-sm text-gray-500">Loading image...</p>
+                    <p className="mt-2 text-sm text-muted-foreground">Loading image...</p>
                   </div>
                 </div>
               )}
 
               {/* Error state */}
               {errorStates[index] && (
-                <div className="h-[200px] w-full max-w-[500px] flex items-center justify-center bg-red-50 dark:bg-red-900/20 rounded-md border border-red-200 dark:border-red-900">
+                <div className="h-[200px] w-full max-w-[500px] flex items-center justify-center bg-destructive/10 rounded-[var(--radius)] border border-destructive">
                   <div className="flex flex-col items-center text-center p-4">
                     <svg
-                      className="w-10 h-10 text-red-400"
+                      className="w-10 h-10 text-destructive"
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
@@ -273,8 +273,8 @@ const GeneratedImageView = ({
                         d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                       />
                     </svg>
-                    <p className="mt-2 text-sm text-red-600 dark:text-red-400">Failed to load image</p>
-                    <p className="mt-1 text-xs text-red-500 dark:text-red-300">
+                    <p className="mt-2 text-sm text-destructive">Failed to load image</p>
+                    <p className="mt-1 text-xs text-destructive/80">
                       {image.url ? "Error loading from URL" : "Error loading image data"}
                     </p>
                   </div>
@@ -370,9 +370,9 @@ const CodeBlock = ({ className, children }: { className?: string; children: Reac
 
   // For code blocks
   return (
-    <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-md mb-5 shadow-sm">
+    <div className="overflow-hidden border border-border rounded-[var(--radius)] mb-5 shadow-sm">
       {/* Header with copy button */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between px-4 py-2 bg-secondary border-b border-border">
         <div className="flex items-center gap-2">
           <svg
             width="16"
@@ -380,7 +380,7 @@ const CodeBlock = ({ className, children }: { className?: string; children: Reac
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            className="text-gray-600 dark:text-gray-300"
+            className="text-muted-foreground"
           >
             <path
               d="M8 3H7C5.89543 3 5 3.89543 5 5V7M8 3H16M8 3V2M16 3H17C18.1046 3 19 3.89543 19 5V7M16 3V2M19 7V15M19 7H20M5 7V15M5 7H4M19 15V17C19 18.1046 18.1046 19 17 19H16M19 15H20M5 15V17C5 18.1046 5.89543 19 7 19H8M5 15H4M8 19H16M8 19V20M16 19V20"
@@ -389,11 +389,11 @@ const CodeBlock = ({ className, children }: { className?: string; children: Reac
               strokeLinecap="round"
             />
           </svg>
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Code</span>
+          <span className="text-sm font-medium text-foreground">Code</span>
         </div>
         <button
           onClick={copyToClipboard}
-          className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
           title="Copy code"
         >
           {copied ? (
@@ -457,10 +457,10 @@ const TaskListItem = ({ checked, children }: { checked?: boolean; children: Reac
     <li className="flex items-start gap-2 mb-3">
       <div className="flex-shrink-0 mt-1">
         <div
-          className={`w-4 h-4 border rounded ${
+          className={`w-4 h-4 border rounded-[var(--radius)] ${
             checked
-              ? "bg-blue-500 border-blue-500 flex items-center justify-center"
-              : "border-gray-300 dark:border-gray-600"
+              ? "bg-primary border-primary flex items-center justify-center"
+              : "border-border"
           }`}
         >
           {checked && (
@@ -497,7 +497,7 @@ const PreBlock = ({ children, ...props }: { children: React.ReactNode; [key: str
   }
 
   return (
-    <pre className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md mb-6 overflow-x-auto whitespace-pre-wrap" {...props}>
+    <pre className="p-4 bg-secondary rounded-[var(--radius)] mb-6 overflow-x-auto whitespace-pre-wrap" {...props}>
       {children}
     </pre>
   )
@@ -548,7 +548,7 @@ export const markdownOptions = {
           {...props}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-600 dark:text-blue-400 hover:underline"
+          className="text-primary hover:underline"
         >
           {children}
         </a>
@@ -556,8 +556,8 @@ export const markdownOptions = {
     },
     table: {
       component: ({ children, ...props }: any) => (
-        <div className="overflow-x-auto my-6 border border-gray-200 dark:border-gray-700 rounded-md shadow-sm">
-          <table className="min-w-full border-collapse bg-white dark:bg-gray-800 table-fixed" {...props}>
+        <div className="overflow-x-auto my-6 border border-border rounded-[var(--radius)] shadow-sm">
+          <table className="min-w-full border-collapse bg-background table-fixed" {...props}>
             {children}
           </table>
         </div>
@@ -565,7 +565,7 @@ export const markdownOptions = {
     },
     thead: {
       component: ({ children, ...props }: any) => (
-        <thead className="bg-gray-50 dark:bg-gray-800" {...props}>
+        <thead className="bg-secondary" {...props}>
           {children}
         </thead>
       ),
@@ -573,7 +573,7 @@ export const markdownOptions = {
     th: {
       component: ({ children, ...props }: any) => (
         <th
-          className="border-b border-gray-200 dark:border-gray-700 px-4 py-2 text-left font-semibold bg-gray-50 dark:bg-gray-700"
+          className="border-b border-border px-4 py-2 text-left font-semibold bg-secondary"
           {...props}
         >
           {children}
@@ -582,7 +582,7 @@ export const markdownOptions = {
     },
     td: {
       component: ({ children, ...props }: any) => (
-        <td className="border-b border-gray-200 dark:border-gray-700 px-4 py-2" {...props}>
+        <td className="border-b border-border px-4 py-2" {...props}>
           {children}
         </td>
       ),
@@ -607,7 +607,7 @@ export const markdownOptions = {
     blockquote: {
       component: ({ children, ...props }: any) => (
         <blockquote
-          className="border-l-4 border-gray-200 dark:border-gray-700 pl-4 italic my-6 text-gray-700 dark:text-gray-300"
+          className="border-l-4 border-border pl-4 italic my-6 text-muted-foreground"
           {...props}
         >
           {children}
@@ -665,7 +665,7 @@ export const markdownOptions = {
     },
     hr: {
       component: ({ ...props }: any) => (
-        <hr className="my-6 border-t border-gray-200 dark:border-gray-700" {...props} />
+        <hr className="my-6 border-t border-border" {...props} />
       ),
     },
     img: {
@@ -689,17 +689,17 @@ const FileAttachmentView = ({ attachments }: { attachments: FileAttachment[] }) 
 
   return (
     <div className="mt-4 space-y-2">
-      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Attached Files</h4>
+      <h4 className="text-sm font-medium text-muted-foreground">Attached Files</h4>
       <div className="flex flex-wrap gap-3">
         {attachments.map((attachment, index) => {
           // Generic file attachment for all types (using file icon)
           return (
             <div
               key={`attachment-${index}`}
-              className="flex items-center p-3 border border-gray-200 dark:border-gray-700 rounded-md w-full max-w-xs bg-white dark:bg-gray-800 shadow-sm"
+              className="flex items-center p-3 border border-border rounded-[var(--radius)] w-full max-w-xs bg-background shadow-sm"
             >
               {/* Generic File Icon */}
-              <div className="mr-3 text-gray-500 dark:text-gray-400 flex-shrink-0">
+              <div className="mr-3 text-muted-foreground flex-shrink-0">
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                   <path
                     fillRule="evenodd"
@@ -710,10 +710,10 @@ const FileAttachmentView = ({ attachments }: { attachments: FileAttachment[] }) 
               </div>
               {/* File Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={attachment.name}>
+                <p className="text-sm font-medium text-foreground truncate" title={attachment.name}>
                   {attachment.name}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-muted-foreground">
                   {/* Display size if available */}
                   {attachment.size ? `${Math.round(attachment.size / 1024)} KB` : ""}
                   {/* Display type if available and different from name extension */}
@@ -819,7 +819,7 @@ const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, 
     <div className="relative" ref={contentRef} onMouseUp={handleMouseUp}>
       {thinking && (
         <div className="my-6 space-y-3">
-          <div className="flex items-center gap-2 text-[var(--text-light-default)]">
+          <div className="flex items-center gap-2 text-foreground">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
@@ -831,8 +831,8 @@ const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, 
             <h3 className="text-sm font-medium">Thinking</h3>
           </div>
           <div className="pl-4 relative">
-            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--secondary-darkest)]"></div>
-            <div className="text-sm text-[var(--text-light-muted)] whitespace-pre-wrap">{thinking}</div>
+            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-border"></div>
+            <div className="text-sm text-muted-foreground whitespace-pre-wrap">{thinking}</div>
           </div>
         </div>
       )}
@@ -853,10 +853,10 @@ const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, 
         <div style={{ position: "fixed", top: quoteMenuPos.y + 8, left: quoteMenuPos.x, zIndex: 9999 }}>
           <div
             ref={quoteMenuRef}
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg px-2 py-1 flex items-center space-x-2"
+            className="bg-background border border-border rounded-[var(--radius)] shadow-lg px-2 py-1 flex items-center space-x-2"
           >
             <button
-              className="text-sm px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+              className="text-sm px-2 py-1 hover:bg-accent rounded-[var(--radius)]"
               onClick={handleQuote}
             >
               Quote

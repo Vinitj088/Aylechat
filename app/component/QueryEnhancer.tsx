@@ -48,7 +48,7 @@ const QueryEnhancer: React.FC<QueryEnhancerProps> = ({ input, setInput, isLoadin
       <button
         type="button"
         onClick={toggleEnhancerMode}
-        className="flex items-center justify-center w-8 h-8 !rounded-md text-green-400 dark:text-green-400 bg-green-400/10 dark:bg-green-400/10"
+        className="flex items-center justify-center w-8 h-8 rounded-[var(--radius)] text-primary bg-primary/10"
         title="Auto-Enhance Active. Click to switch to manual."
       >
         <SpellCheck   className="w-5 h-5" />
@@ -59,28 +59,28 @@ const QueryEnhancer: React.FC<QueryEnhancerProps> = ({ input, setInput, isLoadin
   // Manual Mode UI from your design
   return (
     <div className={cn(
-      "flex items-center rounded-md border border-zinc-700 h-8 text-sm transition-all bg-zinc-200/50 dark:bg-zinc-800/50 dark:text-zinc-400",
+      "flex items-center rounded-[var(--radius)] border border-border h-8 text-sm transition-all bg-secondary text-muted-foreground",
       isDisabled ? "opacity-60 cursor-not-allowed" : ""
     )}>
       <button
         type="button"
         onClick={toggleEnhancerMode}
         disabled={isLoading || isEnhancing}
-        className="flex items-center justify-center px-2 h-full text-zinc-400 hover:bg-zinc-700 hover:text-white rounded-r-md"
+        className="flex items-center justify-center px-2 h-full text-muted-foreground hover:bg-accent rounded-r-[var(--radius)]"
         title="Switch to auto enhancement"
       >
         <SpellCheck className="w-4 h-4" />
       </button>
-      <div className="w-px h-full bg-zinc-700"></div>
+      <div className="w-px h-full bg-border"></div>
 
       <button
         type="button"
         onClick={handleManualEnhance}
         disabled={isDisabled}
-        className="flex items-center gap-1.5 px-2.5 h-full dark:hover:bg-yellow-400/25 hover:bg-yellow-400/10 text-black rounded-l-md"
+        className="flex items-center gap-1.5 px-2.5 h-full hover:bg-accent/10 text-foreground rounded-l-[var(--radius)]"
         title="Enhance query manually"
       >
-        <Star className="w-4 h-4 text-yellow-500/80" fill="currentColor"/>
+        <Star className="w-4 h-4 text-primary" fill="currentColor"/>
         {!isMobile && <span className="font-medium text-xs">Enhance</span>}
       </button>
       

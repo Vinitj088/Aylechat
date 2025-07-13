@@ -24,7 +24,7 @@ export default function Citation({ citations }: CitationProps) {
     <div className="mt-4 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <h3 className="text-md font-medium text-[var(--text-light-default)]">Exa Search Results</h3>
+        <h3 className="text-md font-medium text-foreground">Exa Search Results</h3>
       </div>
 
       {/* Results */}
@@ -36,7 +36,7 @@ export default function Citation({ citations }: CitationProps) {
                 href={citation.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[var(--text-light-muted)] hover:text-[var(--brand-default)] flex items-center gap-2 max-w-full break-all overflow-x-auto"
+                className="text-muted-foreground hover:text-primary flex items-center gap-2 max-w-full break-all overflow-x-auto"
                 title={citation.url}
               >
                 [{idx + 1}] {citation.title || citation.url}

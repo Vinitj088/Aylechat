@@ -176,7 +176,7 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
   }, [input]);
 
   return (
-    <div className="md:hidden min-h-screen bg-[var(--secondary-faint)] pt-16 w-screen overflow-x-hidden">
+    <div className="md:hidden min-h-screen bg-background pt-16 w-screen overflow-x-hidden">
       {/* Messages section */}
       {messages && messages.length > 0 && (
         <div className="w-full max-w-full mx-auto mb-8">
@@ -184,10 +184,10 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
             {messages.filter(m => m.role !== 'system').map((message) => (
               <div key={message.id} className="w-full">
                 <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`rounded px-4 py-3 max-w-[85%] ${
+                  <div className={`rounded-[var(--radius)] px-4 py-3 max-w-[85%] ${
                     message.role === 'user'
-                      ? 'bg-[var(--secondary-darker)] text-[var(--text-light-default)] message-human'
-                      : 'bg-white dark:bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] rounded-lg text-[var(--text-light-default)] message-ai'
+                      ? 'bg-secondary text-foreground message-human'
+                      : 'bg-background border border-border rounded-[var(--radius)] text-foreground message-ai'
                   }`}>
                     {message.role === 'assistant' ? (
                       <>
@@ -197,15 +197,15 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
                             <>
                               {(thinking || !isComplete) && (
                                 <div className="my-6 space-y-3">
-                                  <div className="flex items-center gap-2 text-[var(--text-light-default)]">
+                                  <div className="flex items-center gap-2 text-foreground">
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                                     </svg>
                                     <h3 className="text-sm font-medium">Thinking</h3>
                                   </div>
                                   <div className="pl-4 relative">
-                                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--secondary-darkest)]"></div>
-                                    <div className="text-sm text-[var(--text-light-muted)] whitespace-pre-wrap">{thinking}</div>
+                                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-border"></div>
+                                    <div className="text-sm text-muted-foreground whitespace-pre-wrap">{thinking}</div>
                                   </div>
                                 </div>
                               )}
