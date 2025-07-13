@@ -39,7 +39,7 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
 
   const router = useRouter()
   const pathname = usePathname()
-  const { user, signOut, openAuthDialog } = useAuth()
+  const { user, signOut, openAuthDialog, isLoading: isAuthLoading } = useAuth()
   const isAuthenticated = !!user
 
   // Query for the current user's profile directly
@@ -269,7 +269,12 @@ const SidebarComponent: React.FC<SidebarProps> = ({ isOpen, onClose, onSignInCli
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {!isAuthenticated ? (
+            {isAuthLoading ? (
+               <div className="flex flex-col items-center justify-center h-full space-y-4">
+                 <Skeleton className="h-4 w-40 mb-2" />
+                 <Skeleton className="h-10 w-24" />
+                </div>
+            ) : !isAuthenticated ? (
               <div className="flex flex-col items-center justify-center h-full space-y-4">
                 <p className="text-sm text-[var(--text-light-muted)]">Sign in to view your chat history</p>
                 <button
