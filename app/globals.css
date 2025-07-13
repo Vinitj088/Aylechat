@@ -4,8 +4,6 @@
 
 
 body {
-  color: var(--text-light-default);
-  background: var(--background);
 
   /* Use Instrument Sans for body text via variable */
   /* font-family: 'Instrument Sans', sans-serif; */ /* Replaced by className in layout.tsx or variable below */
@@ -173,68 +171,9 @@ p, span, div, li, button, input, textarea {
 }
 
 /* Message styling for dark mode */
-.dark .message-human {
-  background-color: var(--secondary-darker);
-  border-color: var(--secondary-darkest);
-}
 
-.dark .message-ai {
 
-  border-color: var(--secondary-darkest);
-}
 
-/* Make svgs and icons respect the text color in dark mode */
-.dark svg {
-  color: currentColor;
-}
-
-/* Ensure links are readable in dark mode */
-.dark a {
-  color: var(--text-light-link);
-}
-
-/* Fix dropdown menus in dark mode */
-.dark [role="listbox"],
-.dark [role="menu"] {
-  background-color: var(--secondary-dark);
-  border-color: var(--secondary-darkest);
-}
-
-.dark [role="option"],
-.dark [role="menuitem"] {
-  color: var(--text-light-default);
-}
-
-.dark [role="option"]:hover,
-.dark [role="menuitem"]:hover {
-  background-color: var(--secondary-darker);
-}
-
-/* Ensure form elements are styled properly in dark mode */
-.dark input::placeholder,
-.dark textarea::placeholder {
-  color: var(--text-light-subtle);
-}
-
-.dark input,
-.dark textarea,
-.dark select {
-  color: var(--text-light-default);
-  background-color: var(--secondary-darker);
-  border-color: var(--secondary-darkest);
-}
-
-.dark input:focus,
-.dark textarea:focus,
-.dark select:focus {
-  border-color: var(--brand-default);
-  outline-color: var(--brand-default);
-}
-
-/* Fix button styling in dark mode */
-.dark button {
-  color: var(--text-light-default);
-}
 
 .dark button[disabled] {
   opacity: 0.5;
@@ -580,44 +519,43 @@ pre code {
     padding-right: 256px; /* Half of sidebar width */
   }
 }
-
 :root {
-  --background: 48 33.3333% 97.0588%;
+  --background: 0 0% 98.0392%;
   --foreground: 48 19.6078% 20%;
   --card: 48 33.3333% 97.0588%;
   --card-foreground: 60 2.5641% 7.6471%;
   --popover: 0 0% 100%;
   --popover-foreground: 50.7692 19.4030% 13.1373%;
-  --primary: 15.1111 55.5556% 52.3529%;
+  --primary: 207.1823 80.4444% 44.1176%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 46.1538 22.8070% 88.8235%;
-  --secondary-foreground: 50.7692 8.4967% 30.0000%;
-  --muted: 44.0000 29.4118% 90%;
+  --secondary: 0 0% 90.1961%;
+  --secondary-foreground: 0 0% 47.0588%;
+  --muted: 0 0% 90.1961%;
   --muted-foreground: 50.0000 2.3622% 50.1961%;
-  --accent: 46.1538 22.8070% 88.8235%;
+  --accent: 0 0% 87.8431%;
   --accent-foreground: 50.7692 19.4030% 13.1373%;
   --destructive: 60 2.5641% 7.6471%;
   --destructive-foreground: 0 0% 100%;
   --border: 50 7.5000% 84.3137%;
   --input: 50.7692 7.9755% 68.0392%;
-  --ring: 15.1111 55.5556% 52.3529%;
-  --chart-1: 18.2813 57.1429% 43.9216%;
+  --ring: 207.1823 80.4444% 44.1176%;
+  --chart-1: 207.1823 80.4444% 44.1176%;
   --chart-2: 251.4545 84.6154% 74.5098%;
   --chart-3: 46.1538 28.2609% 81.9608%;
   --chart-4: 256.5517 49.1525% 88.4314%;
-  --chart-5: 17.7778 60% 44.1176%;
+  --chart-5: 207.1823 80.4444% 44.1176%;
   --sidebar: 51.4286 25.9259% 94.7059%;
   --sidebar-foreground: 60 2.5210% 23.3333%;
-  --sidebar-primary: 15.1111 55.5556% 52.3529%;
+  --sidebar-primary: 207.1823 80.4444% 44.1176%;
   --sidebar-primary-foreground: 0 0% 98.4314%;
-  --sidebar-accent: 46.1538 22.8070% 88.8235%;
+  --sidebar-accent: 0 0% 87.0588%;
   --sidebar-accent-foreground: 0 0% 20.3922%;
   --sidebar-border: 0 0% 92.1569%;
   --sidebar-ring: 0 0% 70.9804%;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --radius: 0.5rem;
+  --font-sans: Geist, sans-serif;
+  --font-serif: Geist, sans-serif;
+  --font-mono: Geist Mono, monospace;
+  --radius: 0rem;
   --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
   --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
   --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
@@ -631,15 +569,15 @@ pre code {
 }
 
 .dark {
-  --background: 60 2.7027% 14.5098%;
-  --foreground: 46.1538 9.7744% 73.9216%;
+  --background: 0 0% 7.8431%;
+  --foreground: 0 0% 76.0784%;
   --card: 60 2.7027% 14.5098%;
   --card-foreground: 48 33.3333% 97.0588%;
   --popover: 60 2.1277% 18.4314%;
   --popover-foreground: 60 5.4545% 89.2157%;
-  --primary: 14.7692 63.1068% 59.6078%;
+  --primary: 195.3191 43.1193% 78.6275%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 48 33.3333% 97.0588%;
+  --secondary: 0 0% 21.1765%;
   --secondary-foreground: 60 2.1277% 18.4314%;
   --muted: 60 3.8462% 10.1961%;
   --muted-foreground: 51.4286 8.8608% 69.0196%;
@@ -649,12 +587,12 @@ pre code {
   --destructive-foreground: 0 0% 100%;
   --border: 60 5.0847% 23.1373%;
   --input: 52.5000 5.1282% 30.5882%;
-  --ring: 14.7692 63.1068% 59.6078%;
-  --chart-1: 18.2813 57.1429% 43.9216%;
+  --ring: 195.3191 43.1193% 78.6275%;
+  --chart-1: 195.3191 43.1193% 78.6275%;
   --chart-2: 251.4545 84.6154% 74.5098%;
   --chart-3: 48 10.6383% 9.2157%;
   --chart-4: 248.2759 25.2174% 22.5490%;
-  --chart-5: 17.7778 60% 44.1176%;
+  --chart-5: 195.3191 43.1193% 78.6275%;
   --sidebar: 30 3.3333% 11.7647%;
   --sidebar-foreground: 46.1538 9.7744% 73.9216%;
   --sidebar-primary: 0 0% 20.3922%;
@@ -663,10 +601,10 @@ pre code {
   --sidebar-accent-foreground: 46.1538 9.7744% 73.9216%;
   --sidebar-border: 0 0% 92.1569%;
   --sidebar-ring: 0 0% 70.9804%;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --radius: 0.5rem;
+  --font-sans: Geist, sans-serif;
+  --font-serif: Geist, sans-serif;
+  --font-mono: Geist Mono, monospace;
+  --radius: 0rem;
   --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
   --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
   --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
@@ -676,7 +614,6 @@ pre code {
   --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
   --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
 }
-
 @layer base {
   body {
     background: hsl(var(--background));
