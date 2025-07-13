@@ -916,7 +916,7 @@ function PageContent() {
           }}
         >
           <span 
-            className="text-3xl text-[var(--brand-default)]"
+            className="text-3xl text-primary"
             style={{ 
               fontFamily: 'var(--font-gebuk-regular)',
               letterSpacing: '0.05em',

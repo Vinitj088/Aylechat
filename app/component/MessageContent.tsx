@@ -497,7 +497,7 @@ const PreBlock = ({ children, ...props }: { children: React.ReactNode; [key: str
   }
 
   return (
-    <pre className="p-4 bg-secondary rounded-[var(--radius)] mb-6 overflow-x-auto whitespace-pre-wrap" {...props}>
+    <pre className="p-4 bg-gray-50 dark:bg-gray-900 rounded-md mb-6 overflow-x-auto whitespace-pre-wrap" {...props}>
       {children}
     </pre>
   )

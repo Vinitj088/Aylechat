@@ -173,8 +173,8 @@ const ChatMessage = memo(
             <div
               className={
                 isUser
-                  ? "chat-bubble-user !rounded-lg bg-[var(--secondary-darker)] text-[var(--text-light-default)] text-base py-0.5 px-4"
-                  : "w-full text-[var(--text-light-default)] text-base message-ai py-3 border-0 px-1 md:px-4"
+                  ? "chat-bubble-user !rounded-lg bg-muted text-muted-foreground text-base py-0.5 px-4"
+                  : "w-full text-muted-foreground text-base message-ai py-3 border-0 px-1 md:px-4"
               }
             >
               {!isUser && message.mediaData && (
@@ -430,16 +430,16 @@ const ChatMessages = memo(function ChatMessages({
           <Button
             onClick={() => scrollToBottom("smooth")}
             variant="outline"
-            className="p-2 h-7 w-30 rounded-md shadow-lg bg-white/30 dark:bg-black/30 backdrop-blur-sm border-[var(--secondary-darker)] dark:border-[var(--secondary-darker)] hover:bg-white dark:hover:bg-[var(--secondary-darker)] flex items-center justify-center gap-1"
+            className="p-2 h-7 w-30 rounded-md shadow-lg bg-white/30 dark:bg-black/30 backdrop-blur-sm border-muted dark:border-muted hover:bg-white dark:hover:bg-muted flex items-center justify-center gap-1"
             aria-label="Scroll to bottom"
           >
             <span
-              className="text-xs text-[var(--text-light-default)] dark:text-[var(--text-light-default)] font-medium leading-tight flex items-center"
+              className="text-xs text-muted-foreground dark:text-muted-foreground font-medium leading-tight flex items-center"
               style={{ fontSize: "0.75rem" }} // 25% smaller than text-sm (1rem * 0.75 = 0.75rem)
             >
               scroll down
             </span>
-            <ChevronDown  className="h-4 w-4 text-[var(--text-light-default)] dark:text-[var(--text-light-default)]" />
+            <ChevronDown  className="h-4 w-4 text-muted-foreground dark:text-muted-foreground" />
 
           </Button>
         </div>

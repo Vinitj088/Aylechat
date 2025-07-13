@@ -95,7 +95,7 @@ p, span, div, li, button, input, textarea {
   left: -1em;
   width: 1.5em;
   text-align: right;
-  color: var(--text-light-muted);
+  color: var(--secondary);
 }
 
 .prose li {
@@ -130,7 +130,7 @@ p, span, div, li, button, input, textarea {
 }
 
 .prose a {
-  color: var(--brand-default);
+  color: var(--primary);
   text-decoration: underline;
 }
 
@@ -152,6 +152,7 @@ p, span, div, li, button, input, textarea {
 .prose pre code {
   background-color: transparent;
   padding: 0;
+  color: #000;
 }
 
 /* Dark mode styles for code blocks */
@@ -198,8 +199,7 @@ p, span, div, li, button, input, textarea {
   font-size: 1.1em;
   padding: 0.2em 0.4em;
   border-radius: 3px;
-  background-color: var(--secondary-darker);
-  color: var(--text-light-default);
+  background-color: var(--secondary);
   word-break: break-word;
 }
 
@@ -229,18 +229,18 @@ p, span, div, li, button, input, textarea {
 .markdown-content table th,
 .markdown-content table td {
   padding: 0.75em;
-  border: 1px solid var(--secondary-darkest);
+  border: 1px solid var(--secondary);
   min-width: 100px;
   white-space: normal;
 }
 
 .markdown-content table th {
-  background-color: var(--secondary-darker);
+  background-color: var(--secondary);
   font-weight: 600;
 }
 
 .markdown-content blockquote {
-  border-left: 4px solid var(--secondary-darkest);
+  border-left: 4px solid var(--secondary);
   padding-left: 1em;
   margin-left: 0;
   font-style: italic;
@@ -573,20 +573,20 @@ pre code {
   --foreground: 0 0% 76.0784%;
   --card: 60 2.7027% 14.5098%;
   --card-foreground: 48 33.3333% 97.0588%;
-  --popover: 60 2.1277% 18.4314%;
-  --popover-foreground: 60 5.4545% 89.2157%;
+  --popover: 0 0% 21.1765%;
+  --popover-foreground: 0 0% 90.1961%;
   --primary: 195.3191 43.1193% 78.6275%;
   --primary-foreground: 0 0% 100%;
   --secondary: 0 0% 21.1765%;
-  --secondary-foreground: 60 2.1277% 18.4314%;
-  --muted: 60 3.8462% 10.1961%;
-  --muted-foreground: 51.4286 8.8608% 69.0196%;
-  --accent: 48 10.6383% 9.2157%;
-  --accent-foreground: 51.4286 25.9259% 94.7059%;
+  --secondary-foreground: 0 0% 20%;
+  --muted: 0 0% 10.1961%;
+  --muted-foreground: 54.5455 6.9182% 68.8235%;
+  --accent: 0 0% 11.3725%;
+  --accent-foreground: 0 0% 96.0784%;
   --destructive: 0 84.2365% 60.1961%;
   --destructive-foreground: 0 0% 100%;
-  --border: 60 5.0847% 23.1373%;
-  --input: 52.5000 5.1282% 30.5882%;
+  --border: 0 0% 25.8824%;
+  --input: 0 0% 27.8431%;
   --ring: 195.3191 43.1193% 78.6275%;
   --chart-1: 195.3191 43.1193% 78.6275%;
   --chart-2: 251.4545 84.6154% 74.5098%;
@@ -594,11 +594,11 @@ pre code {
   --chart-4: 248.2759 25.2174% 22.5490%;
   --chart-5: 195.3191 43.1193% 78.6275%;
   --sidebar: 30 3.3333% 11.7647%;
-  --sidebar-foreground: 46.1538 9.7744% 73.9216%;
+  --sidebar-foreground: 0 0% 76.0784%;
   --sidebar-primary: 0 0% 20.3922%;
   --sidebar-primary-foreground: 0 0% 98.4314%;
   --sidebar-accent: 60 3.4483% 5.6863%;
-  --sidebar-accent-foreground: 46.1538 9.7744% 73.9216%;
+  --sidebar-accent-foreground: 0 0% 72.9412%;
   --sidebar-border: 0 0% 92.1569%;
   --sidebar-ring: 0 0% 70.9804%;
   --font-sans: Geist, sans-serif;

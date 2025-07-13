@@ -421,10 +421,10 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                       <button
                         type="button"
                         onClick={() => removeAttachment(index)}
-                        className="absolute top-1 right-1 z-10 bg-primary text-primary-foreground rounded-[var(--radius)] p-0.5 opacity-90 hover:opacity-100 shadow-md border border-border"
+                        className="absolute top-1 right-1 z-10 bg-muted text-primary-foreground rounded-[var(--radius)] p-0.5 opacity-90 hover:opacity-100 shadow-md border border-border"
                         aria-label="Remove attachment"
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-3 w-3 text-muted-foreground" />
                       </button>
                     </div>
                   ) : (
@@ -437,9 +437,9 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                       <button
                         type="button"
                         onClick={() => removeAttachment(index)}
-                        className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-[var(--radius)] p-0.5 opacity-80 hover:opacity-100"
+                        className="absolute -top-1 -right-1 bg-muted text-primary-foreground rounded-[var(--radius)] p-0.5 opacity-80 hover:opacity-100"
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-3 w-3 text-muted-foreground" />
                       </button>
                     </div>
                   )}
@@ -451,7 +451,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           <form onSubmit={handleSubmitWithAttachments} className="relative flex flex-col w-full">
             {/* Quote block UI */}
             {quotedText && quotedText.trim().length > 0 && (
-              <div className="flex items-start bg-secondary border-l-4 border-primary rounded-[var(--radius)] p-3 mb-2 relative">
+              <div className="flex items-start bg-muted border-l-4 border-primary rounded-[var(--radius)] p-3 mb-2 relative">
                 <span className="text-muted-foreground text-sm flex-1 whitespace-pre-line">{getTruncatedQuote(quotedText)}</span>
                 {setQuotedText && (
                   <button
@@ -469,7 +469,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                 <div className="flex items-center flex-shrink overflow-hidden max-w-[65%] sm:max-w-none">
                   <label htmlFor="chat-model-selector" className="text-sm text-muted-foreground mr-2 hidden sm:inline font-medium">Model:</label>
                 
-                <div className="max-w-[160px] sm:max-w-[200px] md:max-w-none">
+                <div className="max-w-[160px] sm:max-w-[200px] md:max-w-none ">
                   <ModelSelector
                     selectedModel={selectedModel}
                     handleModelChange={handleModelChangeWithPrefetch}
@@ -508,7 +508,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                 rows={1}
                 className={cn(
                   "w-full p-3 resize-none min-h-[50px] max-h-[120px]",
-                  "bg-background border-2 border-border rounded-[var(--radius)]",
+                  "bg-accent border-2 border-border rounded-[var(--radius)]",
                   "focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary",
                   "placeholder:text-muted-foreground text-foreground font-medium shadow-sm dark:focus:ring-0 dark:focus:outline-none",
                   commandMode !== 'none' ? "pl-9" : "pl-3",

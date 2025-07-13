@@ -132,7 +132,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full sm:w-[200px] md:w-[240px] justify-between bg-background border border-border hover:border-primary active:scale-[0.98] text-foreground transition-none"
+            className="w-full sm:w-[200px] md:w-[240px] justify-between bg-accent border border-border hover:border-primary active:scale-[0.98] text-foreground transition-none"
           >
             <div className="flex items-center gap-2 w-full min-w-0">
               <div className="flex-shrink-0">

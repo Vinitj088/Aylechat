@@ -21,6 +21,7 @@ import { useSidebarPin } from '../../../context/SidebarPinContext';
 import { QueryEnhancerProvider, useQueryEnhancer } from '@/context/QueryEnhancerContext';
 import { db } from '@/lib/db';
 import { id } from '@instantdb/react';
+import { text } from 'stream/consumers';
 
 function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const { data, isLoading: isThreadLoading, error } = db.useQuery({
@@ -306,20 +307,20 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         {/* Fixed Ayle Logo - Desktop only */}
         <Link
           href="/"
-            className={cn("hidden lg:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]", pinned ? "sidebar-pinned-fixed" : "")}
+            className={cn("hidden lg:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 text-primary", pinned ? "sidebar-pinned-fixed" : "")}
           onClick={(e) => {
             e.preventDefault();
             window.location.href = '/';
           }}
         >
           <span 
-            className="text-3xl text-[var(--brand-default)]"
+            className="text-3xl text-primary"
             style={{ 
               fontFamily: 'var(--font-gebuk-regular)',
               letterSpacing: '0.05em',
               fontWeight: 'normal',
               position: 'relative',
-              padding: '0 4px'
+              padding: '0 4px',
             }}
           >
             Ayle
@@ -374,7 +375,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   }}
 >
   <span 
-    className="text-3xl text-[var(--brand-default)]"
+    className="text-3xl text-primary"
     style={{ 
       fontFamily: 'var(--font-gebuk-regular)',
       letterSpacing: '0.05em',
