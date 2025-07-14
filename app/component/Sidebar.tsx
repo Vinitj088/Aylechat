@@ -4,9 +4,8 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
-import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
-import { X, Trash2, LogOut, Clock, User, AlertTriangle, Pin, PinOff } from "lucide-react"
+import { X, Trash2, LogOut, Clock, User, AlertTriangle, Pin, PinOff, Folder } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   AlertDialog,
@@ -21,6 +20,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from 'next/link'
 import { db } from "@/lib/db"
+import { CollapsibleSection } from "./CollapsibleSection"
 
 interface SidebarProps {
   isOpen: boolean
@@ -44,15 +44,15 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   const isAuthenticated = !!user
 
   // Query for the current user's profile directly
-const { data: profileData, isLoading: profileLoading, error: profileError } = db.useQuery(
-  user ? { 
-    profiles: { 
-      $: { where: { userId: user.id } },
-      user: {}
-    } 
-  } : null
-);
-const profile = profileData?.profiles?.[0];
+  const { data: profileData, isLoading: profileLoading, error: profileError } = db.useQuery(
+    user ? {
+      profiles: {
+        $: { where: { userId: user.id } },
+        user: {}
+      }
+    } : null
+  );
+  const profile = profileData?.profiles?.[0];
 
   // Only run threads query if user?.id is defined
   const { data, isLoading, error } = db.useQuery(
@@ -69,6 +69,42 @@ const profile = profileData?.profiles?.[0];
     } : null
   );
   const threads = data?.threads || [];
+
+  // Group threads by time
+  const groupThreads = (threads: any[]) => {
+    const now = new Date();
+    const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+    const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const groups = {
+      "Latest": [],
+      "Last 12 hours": [],
+      "Last 7 days": [],
+      "Last 30 days": [],
+      "Long ago": [],
+    };
+
+    threads.forEach(thread => {
+      const updatedAt = new Date(thread.updatedAt);
+      if (updatedAt > threeHoursAgo) {
+        (groups["Latest"] as any[]).push(thread);
+      } else if (updatedAt > twelveHoursAgo) {
+        (groups["Last 12 hours"] as any[]).push(thread);
+      } else if (updatedAt > sevenDaysAgo) {
+        (groups["Last 7 days"] as any[]).push(thread);
+      } else if (updatedAt > thirtyDaysAgo) {
+        (groups["Last 30 days"] as any[]).push(thread);
+      } else {
+        (groups["Long ago"] as any[]).push(thread);
+      }
+    });
+
+    return groups;
+  };
+
+  const groupedThreads = groupThreads(threads);
 
 
   // Prefetch threads to make navigation faster
@@ -205,6 +241,45 @@ const profile = profileData?.profiles?.[0];
     }
   }
 
+  const renderThreads = (threads: any[]) => (
+    <ul className="space-y-2.5">
+      {threads.map((thread) => (
+        <li key={thread.id} className="relative group">
+          <div
+            className={cn(
+              "w-full text-left p-2 !rounded-md border transition-all duration-200 cursor-pointer",
+              pathname === `/chat/${thread.id}`
+                ? "bg-[var(--brand-fainter)] border-[var(--brand-muted)] shadow-[0_0_0_1px_var(--brand-faint)]"
+                : "border-[var(--secondary-darkest)] hover:bg-[var(--secondary-darker)] hover:border-[var(--secondary-darkest)]",
+            )}
+            onClick={() => handleThreadClick(thread.id)}
+          >
+            <div className="flex justify-between items-start">
+              <div
+                className="font-medium truncate pr-2 text-sm text-[var(--text-light-default)]"
+              >
+                {thread.title}
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setThreadToDelete(thread.id);
+                }}
+                className={cn(
+                  "p-1 text-[var(--text-light-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-maroon-light)] rounded-full transition-colors",
+                  isMobile ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                )}
+                title="Delete thread"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+
   return (
     <>
       {/* Overlay - only visible on mobile when sidebar is open */}
@@ -255,21 +330,29 @@ const profile = profileData?.profiles?.[0];
                   {pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
                 </button>
               )}
-            {/* Only show close button on mobile */}
-            {isMobile && (
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
-                aria-label="Close sidebar"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+              {/* Only show close button on mobile */}
+              {isMobile && (
+                <button
+                  onClick={onClose}
+                  className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
+                  aria-label="Close sidebar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
+            {/* Folder Area */}
+            <div className="p-2 mb-4 border border-dashed border-[var(--secondary-darker)] rounded-md">
+              <div className="flex items-center text-sm text-[var(--text-light-muted)]">
+                <Folder className="h-4 w-4 mr-2" />
+                <span>Folders (coming soon)</span>
+              </div>
+            </div>
+
             {!isAuthenticated ? (
               <div className="flex flex-col items-center justify-center h-full space-y-4">
                 <p className="text-sm text-[var(--text-light-muted)]">Sign in to view your chat history</p>
@@ -284,10 +367,10 @@ const profile = profileData?.profiles?.[0];
               <ul className="space-y-2.5">
                 {[...Array(6)].map((_, i) => (
                   <li key={i} className="relative">
-                    <div className="w-full text-left p-3 rounded-md border border-[var(--secondary-darkest)] bg-[var(--secondary-fainter)]">
+                    <div className="w-full text-left p-2 rounded-md border border-[var(--secondary-darkest)] bg-[var(--secondary-fainter)]">
                       <div className="flex justify-between items-start">
-                         {/* Title skeleton */} 
-                         <Skeleton className="h-4 w-32 mb-2" />
+                        {/* Title skeleton */}
+                        <Skeleton className="h-4 w-32 mb-2" />
                         {/* Delete button skeleton */}
                         <Skeleton className="h-5 w-5 rounded-full" />
                       </div>
@@ -307,46 +390,17 @@ const profile = profileData?.profiles?.[0];
                 <p className="text-xs text-[var(--text-light-faint)] mt-1">Start a new chat to see your history here</p>
               </div>
             ) : (
-              <ul className="space-y-2.5">
-                {threads.map((thread) => (
-                  <li key={thread.id} className="relative">
-                    <div
-                      className={cn(
-                        "w-full text-left p-3 rounded-md border transition-all duration-200 cursor-pointer",
-                        pathname === `/chat/${thread.id}`
-                          ? "bg-[var(--brand-fainter)] border-[var(--brand-muted)] shadow-[0_0_0_1px_var(--brand-faint)]"
-                          : "border-[var(--secondary-darkest)] hover:bg-[var(--secondary-darker)] hover:border-[var(--secondary-darkest)]",
-                      )}
-                      onClick={() => handleThreadClick(thread.id)}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div
-                          className="font-medium truncate pr-2 text-sm text-[var(--text-light-default)]"
-                        >
-                          {thread.title}
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setThreadToDelete(thread.id);
-                          }}
-                          className="p-1 text-[var(--text-light-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-maroon-light)] rounded-full transition-colors"
-                          title="Delete thread"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      <div
-                        className="text-xs text-[var(--text-light-muted)] mt-1.5 flex items-center"
-                      >
-                        <Clock className="h-3 w-3 mr-1 inline-block text-[var(--brand-faint)]" />
-                        {formatDistanceToNow(new Date(thread.updatedAt ?? 0), { addSuffix: true })}
-                      </div>
-                    </div>
-                  </li>
-                ))}
+              <>
+                {Object.entries(groupedThreads).map(([group, threads]) =>
+                  threads.length > 0 ? (
+                    <CollapsibleSection key={group} title={group}>
+                      {renderThreads(threads)}
+                    </CollapsibleSection>
+                  ) : null
+                )}
+
                 {threads.length > 0 && (
-                  <li className="pt-3 border-t border-dashed border-[var(--secondary-darker)] mt-3">
+                  <div className="pt-3 border-t border-dashed border-[var(--secondary-darker)] mt-3">
                     <button
                       onClick={handleClearAllHistory}
                       className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-[var(--accent-red)] hover:bg-[var(--accent-maroon-light)] rounded-md transition-colors"
@@ -354,48 +408,43 @@ const profile = profileData?.profiles?.[0];
                       <Trash2 className="h-4 w-4" />
                       Clear All History
                     </button>
-                  </li>
+                  </div>
                 )}
-                {threads.length === 0 && !isLoading && !error && (
-                  <li className="text-center mt-4 pt-3 border-t border-dashed border-[var(--secondary-darker)]">
-                    <span className="text-xs text-[var(--text-light-muted)] italic">— History is empty —</span>
-                  </li>
-                )}
-              </ul>
+              </>
             )}
           </div>
 
- {isAuthenticated && user && (
-  <div className="p-3 border-t border-[var(--secondary-darkest)] bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-default)]">
-    <div className="flex justify-between items-center">
-      <Link
-        href="/settings"
-        className="text-sm truncate flex items-center text-[var(--text-light-default)] hover:text-[var(--brand-default)] focus:text-[var(--brand-default)] transition-colors cursor-pointer outline-none"
-        tabIndex={0}
-        title="Account settings"
-      >
-        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-fainter)] text-[var(--brand-default)] mr-2">
-          <User className="h-3.5 w-3.5" />
-        </div>
-        <span className="font-medium">
-          {profileLoading ? (
-            <Skeleton className="h-4 w-16" />
-          ) : (
-            profile?.firstName || user.email?.split('@')[0] || user.email || 'User'
+          {isAuthenticated && user && (
+            <div className="p-3 border-t border-[var(--secondary-darkest)] bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-default)]">
+              <div className="flex justify-between items-center">
+                <Link
+                  href="/settings"
+                  className="text-sm truncate flex items-center text-[var(--text-light-default)] hover:text-[var(--brand-default)] focus:text-[var(--brand-default)] transition-colors cursor-pointer outline-none"
+                  tabIndex={0}
+                  title="Account settings"
+                >
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-fainter)] text-[var(--brand-default)] mr-2">
+                    <User className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="font-medium">
+                    {profileLoading ? (
+                      <Skeleton className="h-4 w-16" />
+                    ) : (
+                      profile?.firstName || user.email?.split('@')[0] || user.email || 'User'
+                    )}
+                  </span>
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="px-2 py-1.5 text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md flex items-center gap-1.5 text-xs transition-colors"
+                  title="Sign out"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
           )}
-        </span>
-      </Link>
-      <button
-        onClick={handleSignOut}
-        className="px-2 py-1.5 text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md flex items-center gap-1.5 text-xs transition-colors"
-        title="Sign out"
-      >
-        <LogOut className="h-3.5 w-3.5" />
-        <span>Sign Out</span>
-      </button>
-    </div>
-  </div>
-)}
         </div>
       </div>
 
@@ -443,3 +492,4 @@ const profile = profileData?.profiles?.[0];
     </>
   )
 }
+

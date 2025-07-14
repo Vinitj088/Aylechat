@@ -411,9 +411,9 @@ const ChatMessages = memo(function ChatMessages({
 
   return (
     <div
-      className="flex-1 pt-16 pb-32 md:px-4 relative"
+      className="flex-1 pt-16 pb-32 md:px-4 relative no-scrollbar"
     >
-      <div className="w-full max-w-full md:max-w-4xl mx-auto px-2 md:px-4 py-6 space-y-6">
+      <div className="w-full max-w-full md:max-w-4xl mx-auto px-2 md:px-4 py-6 space-y-6 no-scrollbar">
         {renderPairedMessages()}
         {isLoading && <LoadingIndicator isExa={isExa} modelName={modelName} />}
         <div ref={messagesEndRef} />

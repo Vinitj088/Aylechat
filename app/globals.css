@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}
+
 :root {
   --font-body: var(--font-geist-sans);
   --font-heading: var(--font-space-grotesk);
@@ -75,6 +88,660 @@
   /* --font-family-sans: 'Instrument Sans', sans-serif; */
   /* --font-family-serif: 'Space Grotesk', sans-serif; */
 }
+
+/* Dark Mode Variables */
+.dark {
+  /* Invert and adjust brand colors - improved for better readability */
+  --brand-default: #B1D4E0; /* Adjusted to be lighter and more vivid */
+  --brand-fainter: #385E72;
+  --brand-faint: #A1DBF1;
+  --brand-subtle: #B1D4E0; /* Made slightly lighter */
+  --brand-muted: #B1D4E0; /* More vibrant for better contrast */
+  --brand-dark: #385E72; /* Lighter for better contrast */
+  --brand-darker: #0C4160;
+
+  /* Dark mode secondary colors */
+  --secondary-accent: #c9bb92;
+  --secondary-accent2x: #d8cba3;
+  --secondary-dark: #202020;
+  --secondary-darker: #1d1d1d;
+  --secondary-darkest: #2e2e2e;
+  --secondary-default: #141414;
+  --secondary-faint: #131313;
+  --secondary-fainter: #1e1e1e;
+
+  /* Text colors for dark mode */
+  --text-light-default: #e7e7e7;
+  --text-light-muted: #a0a0a0;
+  --text-light-subtle: #707070;
+  --text-light-faint: #404040;
+  --text-light-link: #B1D4E0; /* Adjusted to be more visible in dark mode */
+
+  /* Background and accent for dark mode */
+  --background: var(--secondary-default);
+  --accent: var(--brand-default);
+  --accent-background: var(--brand-default);
+  --border-default: var(--gray-700);
+  
+  /* Dark mode variants of accent colors for better contrast */
+  --accent-yellow-light: #45371b;
+  --accent-yellow-dark: #fcd34d;
+  --accent-skyblue-light: #1e3a8a;
+  --accent-skyblue-dark: #93c5fd;
+  --accent-green: #84cc16;
+  --accent-red: #ef4444;
+  --accent-darkgreen-light: #10403b;
+  --accent-darkgreen-dark: #6ee7b7;
+  --accent-purple-light: #2e1065;
+  --accent-purple-dark: #c4b5fd;
+  --accent-pink-light: #500724;
+  --accent-pink-dark: #fbcfe8;
+  --accent-maroon-light: #450a0a;
+  --accent-maroon-dark: #fca5a5;
+}
+
+body {
+  color: var(--text-light-default);
+  background: var(--background);
+
+  /* Use Instrument Sans for body text via variable */
+  /* font-family: 'Instrument Sans', sans-serif; */ /* Replaced by className in layout.tsx or variable below */
+  font-family: var(--font-body);
+  font-weight: 500; /* Keeping default weight, specific weights handled by next/font */
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  & {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}
+
+/* Use Space Grotesk for headings via variable */
+/* font-family: 'Space Grotesk', sans-serif; */ /* Replaced */
+h1, h2, h3, h4, h5, h6, .heading {
+  font-family: var(--font-heading);
+  font-weight: 600; /* Keeping default weight, specific weights handled by next/font */
+}
+
+p, span, div, li, button, input, textarea {
+  /* Ensure other elements also use the base font variable */
+  /* font-family: 'Instrument Sans', sans-serif; */ /* Replaced */
+  font-family: var(--font-body);
+}
+
+:root {
+  --background: var(--secondary-default);
+  --accent: var(--brand-default);
+  --accent-background: var(--brand-default);
+}
+
+:root {
+  --border-default: var(--gray-300);
+  --border-radius-default: 0px;
+
+  /* Typography - These are now handled by variables set in layout.tsx */
+  /* --font-family-sans: 'Instrument Sans', sans-serif; */
+  /* --font-family-serif: 'Space Grotesk', sans-serif; */
+}
+
+/* Custom prose styling to reduce spacing */
+.prose {
+  max-width: none;
+  line-height: 1.4;
+}
+
+.prose > * {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
+}
+
+.prose p {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
+}
+
+.prose h1, 
+.prose h2, 
+.prose h3, 
+.prose h4, 
+.prose h5, 
+.prose h6 {
+  margin-top: 0.6em !important;
+  margin-bottom: 0.3em !important;
+  line-height: 1.2;
+}
+
+.prose ul, 
+.prose ol {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
+  padding-left: 1.5em;
+  list-style-position: outside;
+}
+
+/* Reset and restyle ordered lists */
+.prose ol {
+  list-style: none;
+  padding-left: 1.5em;
+  counter-reset: item;
+}
+
+.prose ol > li {
+  position: relative;
+  padding-left: 1em;
+}
+
+.prose ol > li:before {
+  content: counter(item) ".";
+  counter-increment: item;
+  position: absolute;
+  left: -1em;
+  width: 1.5em;
+  text-align: right;
+  color: var(--text-light-muted);
+}
+
+.prose li {
+  margin-top: 0.1em !important;
+  margin-bottom: 0.1em !important;
+  line-height: 1.5;
+}
+
+.prose li > p {
+  margin: 0 !important;
+  display: inline;
+}
+
+.prose li > * {
+  margin: 0 !important;
+}
+
+.prose pre {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
+}
+
+.prose blockquote {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
+  padding-left: 1em;
+}
+
+.prose hr {
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
+}
+
+.prose a {
+  color: var(--brand-default);
+  text-decoration: underline;
+}
+
+.prose code:not(pre code) {
+  background: #e0e0e0 !important;
+  color: #1a1a1a !important;
+  font-size: 1em;
+  font-weight: 600;
+  border-radius: 0.45em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  box-shadow: none;
+}
+
+.prose code:not(pre code)::before,
+.prose code:not(pre code)::after {
+  content: none;
+}
+
+.prose pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+/* Dark mode styles for code blocks */
+.dark .prose code:not(pre code) {
+  background: #242b2e !important;
+  color: #B1D4E0 !important;
+  font-size: 1em;
+  font-weight: 600;
+  padding: 0.22em 0.55em;
+  border-radius: 0.45em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  box-shadow: none;
+}
+
+.dark .prose pre {
+  /* background-color: var(--secondary-dark) !important; */
+}
+
+/* Message styling for dark mode */
+.dark .message-human {
+  background-color: var(--secondary-darker);
+  border-color: var(--secondary-darkest);
+}
+
+.dark .message-ai {
+  
+  border-color: var(--secondary-darkest);
+}
+
+/* Make svgs and icons respect the text color in dark mode */
+.dark svg {
+  color: currentColor;
+}
+
+/* Ensure links are readable in dark mode */
+.dark a {
+  color: var(--text-light-link);
+}
+
+/* Fix dropdown menus in dark mode */
+.dark [role="listbox"],
+.dark [role="menu"] {
+  background-color: var(--secondary-dark);
+  border-color: var(--secondary-darkest);
+}
+
+.dark [role="option"],
+.dark [role="menuitem"] {
+  color: var(--text-light-default);
+}
+
+.dark [role="option"]:hover,
+.dark [role="menuitem"]:hover {
+  background-color: var(--secondary-darker);
+}
+
+/* Ensure form elements are styled properly in dark mode */
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--text-light-subtle);
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  color: var(--text-light-default);
+  background-color: var(--secondary-darker);
+  border-color: var(--secondary-darkest);
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: var(--brand-default);
+  outline-color: var(--brand-default);
+}
+
+/* Fix button styling in dark mode */
+.dark button {
+  color: var(--text-light-default);
+}
+
+.dark button[disabled] {
+  opacity: 0.5;
+}
+
+/* Custom styling for markdown content */
+.markdown-content {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.markdown-content pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+.markdown-content code {
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 1.1em;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  background-color: var(--secondary-darker);
+  color: var(--text-light-default);
+  word-break: break-word;
+}
+
+.markdown-content pre code {
+  padding: 0;
+  background-color: transparent;
+  border-radius: 0;
+  white-space: pre;
+}
+
+/* Improved table styling for better scrolling */
+.markdown-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.8em 0;
+  font-size: 0.9em;
+  table-layout: auto;
+  white-space: nowrap;
+}
+
+.markdown-content .overflow-x-auto {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.markdown-content table th,
+.markdown-content table td {
+  padding: 0.75em;
+  border: 1px solid var(--secondary-darkest);
+  min-width: 100px;
+  white-space: normal;
+}
+
+.markdown-content table th {
+  background-color: var(--secondary-darker);
+  font-weight: 600;
+}
+
+.markdown-content blockquote {
+  border-left: 4px solid var(--secondary-darkest);
+  padding-left: 1em;
+  margin-left: 0;
+  font-style: italic;
+  margin: 1.5em 0;
+}
+
+/* Improved spacing for paragraphs */
+.prose p {
+  margin-top: 1.25em !important;
+  margin-bottom: 1.25em !important;
+  line-height: 1.7;
+}
+
+/* Better spacing for lists */
+.prose ul, 
+.prose ol {
+  margin-top: 1.25em !important;
+  margin-bottom: 1.25em !important;
+  padding-left: 1.75em;
+}
+
+.prose li {
+  margin-bottom: 0.6em !important;
+}
+
+/* Increased spacing between elements */
+.prose > * {
+  margin-top: 1em !important;
+  margin-bottom: 1em !important;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  margin-top: 0.8em !important;
+  margin-bottom: 0.8em !important;
+}
+
+/* Fix mobile overflow issues */
+@media (max-width: 768px) {
+  .markdown-content {
+    max-width: 100%;
+  }
+
+  .markdown-content pre,
+  .markdown-content code {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .markdown-content table {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .markdown-content pre > div {
+    white-space: pre-wrap;
+  }
+}
+
+/* Code block wrapper styles */
+.codeblock-wrapper {
+  margin: 1.5em 0;
+}
+
+.codeblock-wrapper > pre {
+  margin: 0 !important;
+}
+
+.codeblock-wrapper > * {
+  margin: 0 !important;
+}
+
+/* Theme-specific styling for highlight.js */
+.github {
+  background-color: #f6f8fa !important;
+}
+
+.github-dark {
+  background-color: #0d1117 !important;
+}
+
+/* Prism.js Dark Mode Overrides */
+.dark .token.comment,
+.dark .token.prolog,
+.dark .token.doctype,
+.dark .token.cdata {
+  color: #8b949e;
+}
+
+.dark .token.punctuation {
+  color: #c9d1d9;
+}
+
+.dark .token.namespace {
+  opacity: 0.7;
+}
+
+.dark .token.property,
+.dark .token.tag,
+.dark .token.constant,
+.dark .token.symbol,
+.dark .token.deleted {
+  color: #7ee787;
+}
+
+.dark .token.boolean,
+.dark .token.number {
+  color: #79c0ff;
+}
+
+.dark .token.selector,
+.dark .token.attr-name,
+.dark .token.string,
+.dark .token.char,
+.dark .token.builtin,
+.dark .token.inserted {
+  color: #a5d6ff;
+}
+
+.dark .token.operator,
+.dark .token.entity,
+.dark .token.url,
+.dark .language-css .token.string,
+.dark .style .token.string {
+  color: #79c0ff;
+}
+
+.dark .token.atrule,
+.dark .token.attr-value,
+.dark .token.keyword {
+  color: #ff7b72;
+}
+
+.dark .token.function,
+.dark .token.class-name {
+  color: #d2a8ff;
+}
+
+.dark .token.regex,
+.dark .token.important,
+.dark .token.variable {
+  color: #ffa657;
+}
+
+.dark .token.important,
+.dark .token.bold {
+  font-weight: bold;
+}
+
+.dark .token.italic {
+  font-style: italic;
+}
+
+.dark .token.entity {
+  cursor: help;
+}
+
+/* Adjust background colors for code blocks */
+.dark pre[class*="language-"],
+.dark code[class*="language-"] {
+  color: #c9d1d9;
+  background: transparent;
+}
+
+/* Base styles for all code blocks */
+pre[class*="language-"],
+code[class*="language-"] {
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  line-height: 1.5;
+  tab-size: 4;
+  hyphens: none;
+}
+
+/* Ensure prism code blocks have proper spacing */
+pre.prism-code {
+  margin: 0;
+  padding: 0;
+  background: transparent !important;
+  overflow: visible;
+}
+
+/* Override any other styles that might interfere with code highlighting */
+.markdown-content pre,
+.markdown-content code {
+  background: transparent !important;
+}
+
+/* Code block styling */
+.code-block {
+  position: relative;
+  margin: 1em 0;
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+/* Code styling - base */
+pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  display: block;
+  overflow-x: auto;
+  tab-size: 2;
+}
+
+/* Highlight.js styling */
+.hljs-addition {
+  color: #22863a;
+  background-color: #f0fff4;
+}
+
+.hljs-deletion {
+  color: #b31d28;
+  background-color: #ffeef0;
+}
+
+.dark .hljs-addition {
+  color: #aff5b4;
+  background-color: #033a16;
+}
+
+.dark .hljs-deletion {
+  color: #ffa198;
+  background-color: #67060c;
+}
+
+/* Target the scrollbar track */
+::-webkit-scrollbar {
+  width: 8px;  /* Set width for vertical scrollbars */
+  height: 8px; /* Set height for horizontal scrollbars */
+  }
+  
+  /* Target the scrollbar thumb (the draggable part) */
+  ::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2); /* Dark grey */
+  border-radius: 4px; /* Rounded corners */
+  }
+  
+  /* Target the scrollbar track when hovered */
+  ::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.05); /* Light grey */
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.4); /* Darker grey on hover */
+  }
+
+.dark .prose, .dark .prose * {
+  color: #c4c4c4;
+}
+
+.dark .prose b, .dark .prose strong {
+  color: #d4d4d4;
+}
+
+/* Force rounded corners for user chat bubbles, override all */
+.chat-bubble-user {
+  border-radius: 0.25rem !important; /* 12px, matches Tailwind rounded-lg */
+}
+
+@media (min-width: 1300px) {
+  .sidebar-pinned {
+    margin-right: 256px !important;
+    transition: margin-right 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  .sidebar-pinned-fixed {
+    right: 256px !important;
+    transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  .ayle-grid-layout {
+    display: grid;
+    grid-template-columns: 1fr 256px;
+    width: 100vw;
+    min-height: 100vh;
+    transition: grid-template-columns 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  .ayle-main-pinned {
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+  /* Sidebar should be in the second column when pinned */
+  .ayle-grid-layout > .fixed.right-0 {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
 
 /* Dark Mode Variables */
 .dark {
