@@ -11,48 +11,47 @@ const rules = {
       update: "false",
     },
   },
-  profiles: {
-    allow: {
-      view: "true",
-      create: "isLoggedIn",
-      update: "isOwner",
-      delete: "false",
-    },
+  threads: {
     bind: [
       "isLoggedIn",
       "auth.id != null",
       "isOwner",
       "isLoggedIn && auth.id in data.ref('user.id')",
     ],
-  },
-  threads: {
     allow: {
       view: "isOwner || data.isPublic",
       create: "isLoggedIn",
-      update: "isOwner",
       delete: "isOwner",
+      update: "isOwner",
     },
-    bind: [
-      "isLoggedIn",
-      "auth.id != null",
-      "isOwner",
-      "isLoggedIn && auth.id in data.ref('user.id')",
-    ],
   },
   messages: {
-    allow: {
-      view: "isThreadOwner || data.ref('thread.isPublic')[0] == true",
-      create: "isLoggedIn",
-      // TODO: should users be able to update/delete messages?
-      update: "false",
-      delete: "false",
-    },
     bind: [
       "isLoggedIn",
       "auth.id != null",
       "isThreadOwner",
       "isLoggedIn && auth.id in data.ref('thread.user.id')",
     ],
+    allow: {
+      view: "isThreadOwner || data.ref('thread.isPublic')[0] == true",
+      create: "isLoggedIn",
+      delete: "isThreadOwner",
+      update: "isThreadOwner",
+    },
+  },
+  profiles: {
+    bind: [
+      "isLoggedIn",
+      "auth.id != null",
+      "isOwner",
+      "isLoggedIn && auth.id in data.ref('user.id')",
+    ],
+    allow: {
+      view: "true",
+      create: "isLoggedIn",
+      delete: "false",
+      update: "isOwner",
+    },
   },
 } satisfies InstantRules;
 

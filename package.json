@@ -47,6 +47,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.0",
     "exa-js": "^1.4.10",
+    "framer-motion": "^12.23.3",
     "groq-sdk": "^0.17.0",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.21",

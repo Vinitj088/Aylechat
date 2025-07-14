@@ -324,6 +324,7 @@ const ChatMessages = memo(function ChatMessages({
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const { pinned } = useSidebarPin()
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   // Get the model name for display
   const modelName = (selectedModelObj?.name as string) || ""
@@ -356,12 +357,15 @@ const ChatMessages = memo(function ChatMessages({
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
-  // This effect ensures that if a new message arrives, we scroll down smoothly
+  // This effect ensures that if a new message arrives, we scroll down
   useEffect(() => {
-    if (isAtBottom) {
+    if (isInitialLoad) {
+      scrollToBottom("smooth")
+      setIsInitialLoad(false)
+    } else if (isAtBottom) {
       scrollToBottom("smooth")
     }
-  }, [messages, isAtBottom])
+  }, [messages, isAtBottom, isInitialLoad])
 
   const renderMessage = useCallback(
     (message: Message, index: number) => {
@@ -407,8 +411,7 @@ const ChatMessages = memo(function ChatMessages({
 
   return (
     <div
-      className="flex-1 pt-16 pb-[120px] md:px-4 md:pb-[150px] relative"
-      style={{ paddingBottom: `${(bottomPadding ?? 0) + 150}px` }}
+      className="flex-1 pt-16 pb-32 md:px-4 relative"
     >
       <div className="w-full max-w-full md:max-w-4xl mx-auto px-2 md:px-4 py-6 space-y-6">
         {renderPairedMessages()}

@@ -23,7 +23,7 @@ const spaceGrotesk = Space_Grotesk({
   weight: ['300', '400', '500', '600', '700'],
 });
 
-export const metadata = {
+const metadata = {
   title: 'Ayle Chat',
   description: 'Chat with AI using Exa for web search and real-time information',
 };

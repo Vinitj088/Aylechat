@@ -3,6 +3,9 @@
 import { i } from "@instantdb/react";
 
 const _schema = i.schema({
+  // We inferred 5 attributes!
+  // Take a look at this schema, and if everything looks good,
+  // run `push schema` again to enforce the types.
   entities: {
     $files: i.entity({
       path: i.string().unique().indexed(),
@@ -11,25 +14,25 @@ const _schema = i.schema({
     $users: i.entity({
       email: i.string().unique().indexed().optional(),
     }),
+    messages: i.entity({
+      attachments: i.json().optional(),
+      citations: i.json().optional(),
+      completed: i.boolean().optional(),
+      content: i.string().optional(),
+      createdAt: i.date().indexed().optional(),
+      endTime: i.number().optional(),
+      images: i.json().optional(),
+      mediaData: i.json().optional(),
+      provider: i.string().optional(),
+      quotedText: i.string().optional(),
+      role: i.string().optional(),
+      startTime: i.number().optional(),
+      tps: i.number().optional(),
+      weatherData: i.json().optional(),
+    }),
     profiles: i.entity({
       firstName: i.string(),
       userId: i.string().unique(),
-    }),
-    messages: i.entity({
-      content: i.string().optional(),
-      createdAt: i.date().indexed().optional(),
-      role: i.string().optional(),
-      citations: i.json().optional(),
-      completed: i.boolean().optional(),
-      startTime: i.number().optional(),
-      endTime: i.number().optional(),
-      tps: i.number().optional(),
-      mediaData: i.json().optional(),
-      weatherData: i.json().optional(),
-      images: i.json().optional(),
-      attachments: i.json().optional(),
-      provider: i.string().optional(),
-      quotedText: i.string().optional(),
     }),
     threads: i.entity({
       createdAt: i.date().indexed().optional(),
@@ -46,11 +49,24 @@ const _schema = i.schema({
         on: "messages",
         has: "one",
         label: "thread",
+        onDelete: "cascade",
       },
       reverse: {
         on: "threads",
         has: "many",
         label: "messages",
+      },
+    },
+    profilesUser: {
+      forward: {
+        on: "profiles",
+        has: "one",
+        label: "user",
+      },
+      reverse: {
+        on: "$users",
+        has: "one",
+        label: "profile",
       },
     },
     threadsUser: {
@@ -64,10 +80,6 @@ const _schema = i.schema({
         has: "many",
         label: "threads",
       },
-    },
-    userProfile: {
-      forward: { on: "profiles", has: "one", label: "user" },
-      reverse: { on: "$users", has: "one", label: "profile" },
     },
   },
   rooms: {},
