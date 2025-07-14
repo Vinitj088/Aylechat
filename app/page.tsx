@@ -7,7 +7,6 @@ import dynamic from 'next/dynamic';
 import { ChatInputHandle } from './component/ChatInput';
 import MobileSearchUI from './component/MobileSearchUI';
 import DesktopSearchUI from './component/DesktopSearchUI';
-import Sidebar from './component/Sidebar';
 import { fetchResponse } from './api/apiService';
 import modelsData from '../models.json';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -66,10 +65,6 @@ const DynamicChatInput = dynamic(() => import('./component/ChatInput'), {
   ssr: false
 });
 
-const DynamicSidebar = dynamic(() => import('./component/Sidebar'), {
-  ssr: false
-});
-
 // Create a new component that uses useSearchParams
 function PageContent() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -89,7 +84,6 @@ function PageContent() {
   ]);
   const { pinned, setPinned } = useSidebarPin();
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
-  const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { user, isLoading: authLoading, openAuthDialog } = useAuth();
   const router = useRouter();
@@ -106,7 +100,6 @@ function PageContent() {
   const prevGuestMessageCount = useRef(guestMessageCount);
   const [quotedText, setQuotedText] = useState('');
   const [retriedMessageId, setRetriedMessageId] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
   const { enhancerMode } = useQueryEnhancer();
 
@@ -711,38 +704,6 @@ function PageContent() {
     setSelectedModel(modelId as ModelType);
   };
 
-  const toggleSidebar = () => {
-    if (pinned) {
-      setPinned(false);
-    } else {
-      setIsSidebarOpen(true);
-    }
-  };
-
-  // Handle successful auth
-  const handleAuthSuccess = async () => {
-    // Refresh sidebar to show latest threads
-    setRefreshSidebar(prev => prev + 1);
-    
-    // Process pending input if any
-    if (input.trim()) {
-      setTimeout(() => {
-        const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-        handleSubmit(fakeEvent);
-      }, 300);
-    }
-  };
-
-  // Triggered when authentication state changes - load threads
-  useEffect(() => {
-    if (isAuthenticated) {
-      // Only trigger sidebar refresh on auth state change
-      setRefreshSidebar(prev => prev + 1);
-    }
-  }, [isAuthenticated]);
-
-  
-
   // Derived variables
   const isExa = selectedModel === 'exa';
   const selectedModelObj = models.find(model => model.id === selectedModel);
@@ -906,17 +867,10 @@ function PageContent() {
   });
 
   return (
-    <div className={cn(
-      pinned ? "ayle-grid-layout" : "",
-      "min-h-screen w-full"
-    )}>
-      <main className={cn(
-        "flex flex-col flex-1 min-h-screen",
-        pinned ? "ayle-main-pinned" : ""
-      )}>
+    <>
         {/* Header - Mobile only */}
         <div className="lg:hidden">
-          <Header toggleSidebar={toggleSidebar} />
+          <Header />
         </div>
         {/* Fixed Ayle Logo - Desktop only */}
         <Link
@@ -940,15 +894,6 @@ function PageContent() {
             Ayle
           </span>
         </Link>
-        {/* Sidebar: always render, for both guests and authenticated users */}
-        <DynamicSidebar 
-          isOpen={pinned || isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          onSignInClick={openAuthDialog}
-          refreshTrigger={refreshSidebar}
-          pinned={pinned}
-          setPinned={setPinned}
-        />
         {!hasMessages ? (
           isMobile ? (
             <MobileSearchUI 
@@ -1035,8 +980,7 @@ function PageContent() {
         <div className={cn("hidden lg:block fixed bottom-4 left-4 z-50", pinned ? "sidebar-pinned-fixed" : "")}> 
           <ThemeToggle />
         </div>
-      </main>
-    </div>
+    </>
   );
 }
 

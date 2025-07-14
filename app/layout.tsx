@@ -9,6 +9,9 @@ import { Sentient, MagnetBold, gebukRegular, ppeditorial } from './fonts';
 import BorderRadiusInitializer from './component/BorderRadiusInitializer';
 import { SidebarPinProvider } from '../context/SidebarPinContext';
 import FontInitializer from './component/FontInitializer';
+import { SidebarProvider } from '@/context/SidebarContext';
+import LayoutClient from './LayoutClient';
+
 
 const GeistSans = Geist({
   subsets: ['latin'],
@@ -58,11 +61,13 @@ export default function RootLayout({
       <body className={GeistSans.className}>
         <Providers>
           <SidebarPinProvider>
-            <BorderRadiusInitializer />
-            <FontInitializer />
-            <div className="w-full overflow-x-hidden">
-              {children}
-            </div>
+            <SidebarProvider>
+              <BorderRadiusInitializer />
+              <FontInitializer />
+              <LayoutClient>
+                {children}
+              </LayoutClient>
+            </SidebarProvider>
           </SidebarPinProvider>
         </Providers>
         <Analytics />

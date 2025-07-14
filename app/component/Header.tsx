@@ -7,15 +7,13 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { AuthDialog } from '@/components/AuthDialog';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { useSidebar } from '@/context/SidebarContext';
 
-interface HeaderProps {
-  toggleSidebar: () => void;
-}
-
-const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
+const Header: React.FC = () => {
   const router = useRouter();
   const { user, signOut, openAuthDialog } = useAuth();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const { toggleSidebar } = useSidebar();
 
   const handleHomeClick = (e: React.MouseEvent) => {
     e.preventDefault();

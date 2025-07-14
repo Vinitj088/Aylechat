@@ -5,7 +5,6 @@ import { Message, Model, ModelType, FileAttachment } from '../../types';
 import Header from '../../component/Header';
 import ChatMessages from '../../component/ChatMessages';
 import ChatInput, { ChatInputHandle } from '../../component/ChatInput';
-import Sidebar from '../../component/Sidebar';
 import { fetchResponse } from '../../api/apiService';
 import modelsData from '../../../models.json';
 import { AuthDialog } from '@/components/AuthDialog';
@@ -53,8 +52,6 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
   const [models, setModels] = useState<Model[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [refreshSidebar, setRefreshSidebar] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { user, isLoading: authLoading, openAuthDialog } = useAuth();
   const router = useRouter();
@@ -143,14 +140,6 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
   const handleModelChange = (modelId: string) => {
     setSelectedModel(modelId as ModelType);
-  };
-
-  const toggleSidebar = () => {
-    if (pinned) {
-      setPinned(false);
-    } else {
-      setIsSidebarOpen(true);
-    }
   };
 
   // --- MAIN SUBMIT HANDLER (Optimistic UI) ---
@@ -297,17 +286,10 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
   if (isThreadLoading || authLoading) {
     return (
-      <div className={cn(
-        pinned ? "ayle-grid-layout" : "",
-        "min-h-screen w-full"
-      )}>
-        <main className={cn(
-          "flex flex-col flex-1 min-h-screen",
-          pinned ? "ayle-main-pinned" : ""
-        )}>
+      <>
         {/* Header - Mobile only */}
         <div className="lg:hidden">
-          <Header toggleSidebar={toggleSidebar} />
+          <Header />
         </div>
         {/* Fixed Ayle Logo - Desktop only */}
         <Link
@@ -331,14 +313,6 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
             Ayle
           </span>
         </Link>
-        <Sidebar
-          isOpen={pinned || isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          onSignInClick={openAuthDialog}
-            refreshTrigger={refreshSidebar}
-            pinned={pinned}
-            setPinned={setPinned}
-        />
         {/* ChatMessages skeleton or empty space while loading */}
           <div className="flex-1">
             {/* Optionally, you can add a skeleton here for ChatMessages */}
@@ -366,23 +340,15 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
           <div className={cn("hidden lg:block fixed bottom-4 left-4 z-50", pinned ? "sidebar-pinned-fixed" : "")}>
           <ThemeToggle />
         </div>
-      </main>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className={cn(
-      pinned ? "ayle-grid-layout" : "",
-      "min-h-screen w-full"
-    )}>
-      <main className={cn(
-        "flex flex-col flex-1 min-h-screen",
-        pinned ? "ayle-main-pinned" : ""
-      )}>
+    <>
          {/* Header - Mobile only */}
 <div className="lg:hidden">
-  <Header toggleSidebar={toggleSidebar} />
+  <Header />
 </div>
 {/* Fixed Ayle Logo - Desktop only */}
 <Link
@@ -406,14 +372,6 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     Ayle
   </span>
 </Link>
-      <Sidebar
-        isOpen={pinned || isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        onSignInClick={openAuthDialog}
-        refreshTrigger={refreshSidebar}
-          pinned={pinned}
-          setPinned={setPinned}
-      />
 
       <ChatMessages
         messages={sortedMessages}
@@ -451,15 +409,13 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       {/* Auth Dialog */}
       <AuthDialog
         onSuccess={() => {
-          setRefreshSidebar(prev => prev + 1);
         }}
       />
       {/* Fixed Theme Toggle - Desktop only, only for lg and up */}
         <div className={cn("hidden lg:block fixed bottom-4 left-4 z-50", pinned ? "sidebar-pinned-fixed" : "")}>
         <ThemeToggle />
       </div>
-    </main>
-    </div>
+    </>
   );
 }
 
