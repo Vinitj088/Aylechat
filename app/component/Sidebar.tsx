@@ -36,6 +36,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   const [isHovered, setIsHovered] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [threadToDelete, setThreadToDelete] = useState<string | null>(null)
+  const [showPinButton, setShowPinButton] = useState(false);
 
   const router = useRouter()
   const pathname = usePathname()
@@ -79,6 +80,15 @@ const profile = profileData?.profiles?.[0];
       });
     }
   }, [threads, router]);
+
+  useEffect(() => {
+    const checkScreenWidth = () => {
+      setShowPinButton(window.innerWidth >= 1300);
+    };
+    checkScreenWidth();
+    window.addEventListener('resize', checkScreenWidth);
+    return () => window.removeEventListener('resize', checkScreenWidth);
+  }, []);
 
 
   // Detect mobile device
@@ -236,7 +246,7 @@ const profile = profileData?.profiles?.[0];
             </h2>
             <div className="flex items-center gap-1">
               {/* Pin/unpin button - desktop only */}
-              {!isMobile && setPinned && (
+              {showPinButton && setPinned && (
                 <button
                   onClick={() => setPinned(!pinned)}
                   className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"

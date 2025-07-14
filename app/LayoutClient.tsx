@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import Sidebar from './component/Sidebar';
 import Header from './component/Header';
 import { cn } from '@/lib/utils';
+import { useEffect } from 'react';
 
 export default function LayoutClient({
   children,
@@ -15,6 +16,19 @@ export default function LayoutClient({
   const { isSidebarOpen, closeSidebar } = useSidebar();
   const { pinned, setPinned } = useSidebarPin();
   const { openAuthDialog } = useAuth();
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1300 && pinned) {
+        setPinned(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Check on initial render
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, [pinned, setPinned]);
 
   return (
     <div className={cn(
