@@ -479,7 +479,7 @@ export default function Sidebar({
                     
                   </div>
 
-                  <button className="w-full bg-white text-black text-sm font-medium py-2 rounded-md hover:bg-gray-100 transition-colors">
+                  <button className="w-full bg-white dark:bg-[var(--secondary-darkest)] text-black text-sm font-medium py-2 rounded-md hover:bg-gray-100 transition-colors">
                     Get unlimited
                   </button>
                 </div>
