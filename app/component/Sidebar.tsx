@@ -1,11 +1,28 @@
 "use client"
-
-import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { toast } from "sonner"
-import { X, Trash2, LogOut, Clock, User, AlertTriangle, Pin, PinOff, Folder } from "lucide-react"
+import {
+  X,
+  Trash2,
+  LogOut,
+  User,
+  AlertTriangle,
+  Pin,
+  PinOff,
+  Folder,
+  Home,
+  Search,
+  MessageSquare,
+  Plus,
+  ChevronDown,
+  ChevronRight,
+  MoreHorizontal,
+  HelpCircle,
+  Users,
+  ThumbsUp,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   AlertDialog,
@@ -17,10 +34,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
-import Link from 'next/link'
+import { Progress } from "@/components/ui/progress"
+import Link from "next/link"
 import { db } from "@/lib/db"
-import { CollapsibleSection } from "./CollapsibleSection"
 
 interface SidebarProps {
   isOpen: boolean
@@ -31,12 +55,23 @@ interface SidebarProps {
   setPinned?: (pinned: boolean) => void
 }
 
-export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger = 0, pinned = false, setPinned }: SidebarProps) {
+export default function Sidebar({
+  isOpen,
+  onClose,
+  onSignInClick,
+  refreshTrigger = 0,
+  pinned = false,
+  setPinned,
+}: SidebarProps) {
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [threadToDelete, setThreadToDelete] = useState<string | null>(null)
-  const [showPinButton, setShowPinButton] = useState(false);
+  const [showPinButton, setShowPinButton] = useState(false)
+  const [chatsExpanded, setChatsExpanded] = useState(true)
+  const [foldersExpanded, setFoldersExpanded] = useState(true)
+  const [showMoreChats, setShowMoreChats] = useState(false)
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
 
   const router = useRouter()
   const pathname = usePathname()
@@ -44,95 +79,67 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   const isAuthenticated = !!user
 
   // Query for the current user's profile directly
-  const { data: profileData, isLoading: profileLoading, error: profileError } = db.useQuery(
-    user ? {
-      profiles: {
-        $: { where: { userId: user.id } },
-        user: {}
-      }
-    } : null
-  );
-  const profile = profileData?.profiles?.[0];
+  const {
+    data: profileData,
+    isLoading: profileLoading,
+    error: profileError,
+  } = db.useQuery(
+    user
+      ? {
+          profiles: {
+            $: { where: { userId: user.id } },
+            user: {},
+          },
+        }
+      : null,
+  )
+
+  const profile = profileData?.profiles?.[0]
 
   // Only run threads query if user?.id is defined
   const { data, isLoading, error } = db.useQuery(
-    user?.id ? {
-      threads: {
-        $: {
-          where: { 'user.id': user.id },
-          order: { updatedAt: 'desc' }
-        },
-        user: {
-          profile: {}
-        },
-      }
-    } : null
-  );
-  const threads = data?.threads || [];
+    user?.id
+      ? {
+          threads: {
+            $: {
+              where: { "user.id": user.id },
+              order: { updatedAt: "desc" },
+            },
+            user: {
+              profile: {},
+            },
+          },
+        }
+      : null,
+  )
 
-  // Group threads by time
-  const groupThreads = (threads: any[]) => {
-    const now = new Date();
-    const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-    const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const threads = data?.threads || []
 
-    const groups = {
-      "Latest": [],
-      "Last 12 hours": [],
-      "Last 7 days": [],
-      "Last 30 days": [],
-      "Long ago": [],
-    };
+  // Mock usage data - replace with actual data from your backend
+  const usageData = {
+    plan: "Free",
+    aiWords: { used: 0, limit: 1000 },
+    imports: { used: 0, limit: 5 },
+    recordings: { used: 0, limit: 1 },
+  }
 
-    threads.forEach(thread => {
-      const updatedAt = new Date(thread.updatedAt);
-      if (updatedAt > threeHoursAgo) {
-        (groups["Latest"] as any[]).push(thread);
-      } else if (updatedAt > twelveHoursAgo) {
-        (groups["Last 12 hours"] as any[]).push(thread);
-      } else if (updatedAt > sevenDaysAgo) {
-        (groups["Last 7 days"] as any[]).push(thread);
-      } else if (updatedAt > thirtyDaysAgo) {
-        (groups["Last 30 days"] as any[]).push(thread);
-      } else {
-        (groups["Long ago"] as any[]).push(thread);
-      }
-    });
-
-    return groups;
-  };
-
-  const groupedThreads = groupThreads(threads);
-
-
-  // Prefetch threads to make navigation faster
-  useEffect(() => {
-    if (threads && threads.length > 0) {
-      threads.forEach(thread => {
-        // Prefetching the top 20 threads as per the discussion
-        router.prefetch(`/chat/${thread.id}`);
-      });
-    }
-  }, [threads, router]);
+  // Show limited number of chats initially
+  const visibleChats = showMoreChats ? threads : threads.slice(0, 5)
 
   useEffect(() => {
     const checkScreenWidth = () => {
-      setShowPinButton(window.innerWidth >= 1300);
-    };
-    checkScreenWidth();
-    window.addEventListener('resize', checkScreenWidth);
-    return () => window.removeEventListener('resize', checkScreenWidth);
-  }, []);
-
+      setShowPinButton(window.innerWidth >= 1300)
+    }
+    checkScreenWidth()
+    window.addEventListener("resize", checkScreenWidth)
+    return () => window.removeEventListener("resize", checkScreenWidth)
+  }, [])
 
   // Detect mobile device
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
-
     checkMobile()
     window.addEventListener("resize", checkMobile)
     return () => window.removeEventListener("resize", checkMobile)
@@ -141,33 +148,29 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   // For desktop: show sidebar when hovering near left edge
   useEffect(() => {
     if (isMobile) return
-
     const handleMouseMove = (e: MouseEvent) => {
+      if (isProfileDropdownOpen) return // Prevent closing when dropdown is open
       const windowWidth = window.innerWidth
-      // Show sidebar when mouse is within 20px of right edge
       if (e.clientX >= windowWidth - 20) {
         setIsHovered(true)
-      }
-      // Hide sidebar when mouse moves away from sidebar area (beyond 280px from right)
-      else if (e.clientX < windowWidth - 280) {
+      } else if (e.clientX < windowWidth - 280) {
         setIsHovered(false)
       }
     }
 
     const handleMouseLeave = () => {
+      if (isProfileDropdownOpen) return // Prevent closing when dropdown is open
       setIsHovered(false)
     }
 
     document.addEventListener("mousemove", handleMouseMove)
     document.addEventListener("mouseleave", handleMouseLeave)
-
     return () => {
       document.removeEventListener("mousemove", handleMouseMove)
       document.removeEventListener("mouseleave", handleMouseLeave)
     }
-  }, [isMobile])
+  }, [isMobile, isProfileDropdownOpen])
 
-  // Determine if sidebar should be visible
   const shouldShowSidebar = isMobile ? isOpen : isHovered
 
   const handleThreadClick = (threadId: string) => {
@@ -179,7 +182,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
 
   const handleDeleteThread = async (threadId: string) => {
     try {
-      await db.transact(db.tx.threads[threadId].delete());
+      await db.transact(db.tx.threads[threadId].delete())
       if (pathname === `/chat/${threadId}`) {
         router.push("/")
       }
@@ -193,9 +196,9 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   }
 
   const handleConfirmDeleteThread = async () => {
-    if (!threadToDelete) return;
-    await handleDeleteThread(threadToDelete);
-    setThreadToDelete(null);
+    if (!threadToDelete) return
+    await handleDeleteThread(threadToDelete)
+    setThreadToDelete(null)
   }
 
   const handleSignOut = async () => {
@@ -221,10 +224,9 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
   const handleConfirmClearAll = async () => {
     setIsClearConfirmOpen(false)
     const toastId = toast.loading("Clearing all chat history...")
-
     try {
-      const txs = threads.map(t => db.tx.threads[t.id].delete());
-      await db.transact(txs);
+      const txs = threads.map((t) => db.tx.threads[t.id].delete())
+      await db.transact(txs)
       toast.success("Chat history cleared successfully", { id: toastId })
       if (pathname && pathname.startsWith("/chat/")) {
         router.push("/")
@@ -241,44 +243,33 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
     }
   }
 
-  const renderThreads = (threads: any[]) => (
-    <ul className="space-y-2.5">
-      {threads.map((thread) => (
-        <li key={thread.id} className="relative group">
-          <div
-            className={cn(
-              "w-full text-left p-2 !rounded-md border transition-all duration-200 cursor-pointer",
-              pathname === `/chat/${thread.id}`
-                ? "bg-[var(--brand-fainter)] border-[var(--brand-muted)] shadow-[0_0_0_1px_var(--brand-faint)]"
-                : "border-[var(--secondary-darkest)] hover:bg-[var(--secondary-darker)] hover:border-[var(--secondary-darkest)]",
-            )}
-            onClick={() => handleThreadClick(thread.id)}
-          >
-            <div className="flex justify-between items-start">
-              <div
-                className="font-medium truncate pr-2 text-sm text-[var(--text-light-default)]"
-              >
-                {thread.title}
-              </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setThreadToDelete(thread.id);
-                }}
-                className={cn(
-                  "p-1 text-[var(--text-light-muted)] hover:text-[var(--accent-red)] hover:bg-[var(--accent-maroon-light)] rounded-full transition-colors",
-                  isMobile ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                )}
-                title="Delete thread"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
+  const renderThread = (thread: any) => (
+    <div
+      key={thread.id}
+      className={cn(
+        "group flex items-center gap-2 w-full text-left p-2 rounded-md transition-all duration-200 cursor-pointer",
+        pathname === `/chat/${thread.id}`
+          ? "bg-[var(--brand-fainter)] text-[var(--brand-default)]"
+          : "text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)]",
+      )}
+      onClick={() => handleThreadClick(thread.id)}
+    >
+       <span className="truncate text-sm">{thread.title}</span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          setThreadToDelete(thread.id)
+        }}
+        className={cn(
+          "ml-auto p-1 text-[var(--text-light-muted)] hover:text-[var(--accent-red)] rounded transition-colors",
+          isMobile ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+        )}
+        title="Delete thread"
+      >
+        <Trash2 className="h-3 w-3" />
+      </button>
+    </div>
+  )
 
   return (
     <>
@@ -293,7 +284,7 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
         />
       )}
 
-      {/* Hover trigger area for desktop - invisible area at right edge */}
+      {/* Hover trigger area for desktop */}
       {!isMobile && !pinned && (
         <div
           className="fixed right-0 top-0 w-5 h-full z-30 pointer-events-auto"
@@ -304,150 +295,221 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed inset-y-0 right-0 z-50 w-64 bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-fainter)] border-l border-[var(--secondary-darkest)] shadow-lg transform transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 right-0 z-50 w-64 bg-[var(--secondary-default)] border-l border-[var(--secondary-darkest)] shadow-lg transform transition-transform duration-300 ease-in-out flex flex-col",
           shouldShowSidebar || pinned ? "translate-x-0" : "translate-x-full",
         )}
         onMouseEnter={() => !isMobile && setIsHovered(true)}
-        onMouseLeave={() => !isMobile && setIsHovered(false)}
-        style={pinned ? { right: 0 } : {}}
+        onMouseLeave={() => !isMobile && !isProfileDropdownOpen && setIsHovered(false)}
       >
-        {/* Sidebar content */}
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="px-4 py-3 border-b border-[var(--secondary-darkest)] bg-[var(--secondary-default)] flex items-center justify-between">
-            <h2 className="text-base font-medium text-[var(--text-light-default)] flex items-center">
-              <Clock className="h-4 w-4 mr-2 text-[var(--brand-default)]" />
-              Chat History
-            </h2>
-            <div className="flex items-center gap-1">
-              {/* Pin/unpin button - desktop only */}
-              {showPinButton && setPinned && (
-                <button
-                  onClick={() => setPinned(!pinned)}
-                  className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
-                  aria-label={pinned ? "Unpin sidebar" : "Pin sidebar"}
-                >
-                  {pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-                </button>
-              )}
-              {/* Only show close button on mobile */}
-              {isMobile && (
-                <button
-                  onClick={onClose}
-                  className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
-                  aria-label="Close sidebar"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
-            {/* Folder Area */}
-            <div className="p-2 mb-4 border border-dashed border-[var(--secondary-darker)] rounded-md">
-              <div className="flex items-center text-sm text-[var(--text-light-muted)]">
-                <Folder className="h-4 w-4 mr-2" />
-                <span>Folders (coming soon)</span>
-              </div>
-            </div>
-
-            {!isAuthenticated ? (
-              <div className="flex flex-col items-center justify-center h-full space-y-4">
-                <p className="text-sm text-[var(--text-light-muted)]">Sign in to view your chat history</p>
-                <button
-                  onClick={onSignInClick || openAuthDialog}
-                  className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all"
-                >
-                  Sign In
-                </button>
-              </div>
-            ) : isLoading ? (
-              <ul className="space-y-2.5">
-                {[...Array(6)].map((_, i) => (
-                  <li key={i} className="relative">
-                    <div className="w-full text-left p-2 rounded-md border border-[var(--secondary-darkest)] bg-[var(--secondary-fainter)]">
-                      <div className="flex justify-between items-start">
-                        {/* Title skeleton */}
-                        <Skeleton className="h-4 w-32 mb-2" />
-                        {/* Delete button skeleton */}
-                        <Skeleton className="h-5 w-5 rounded-full" />
-                      </div>
-                      {/* Time skeleton */}
-                      <Skeleton className="h-3 w-20 mt-2" />
+        {isAuthenticated && user ? (
+          <>
+            {/* Profile Header */}
+            <div className="p-3 border-b border-[var(--secondary-darkest)]">
+              <div className="flex items-center justify-between">
+                <DropdownMenu open={isProfileDropdownOpen} onOpenChange={setIsProfileDropdownOpen}>
+                  <DropdownMenuTrigger className="flex items-center gap-2 text-left hover:bg-[var(--secondary-darker)] rounded-md p-2 transition-colors">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-fainter)] text-[var(--brand-default)]">
+                      <User className="h-3.5 w-3.5" />
                     </div>
-                  </li>
-                ))}
-              </ul>
-            ) : error ? (
-              <div className="text-center py-4 px-3 bg-[var(--accent-maroon-light)] border border-[var(--accent-maroon-dark)] rounded-md">
-                <p className="text-[var(--accent-red)] text-sm">{error.message}</p>
-              </div>
-            ) : threads.length === 0 ? (
-              <div className="text-center py-6 px-3 bg-[var(--secondary-fainter)] rounded-md border border-dashed border-[var(--secondary-darker)]">
-                <p className="text-[var(--text-light-muted)] text-sm">No chat history yet</p>
-                <p className="text-xs text-[var(--text-light-faint)] mt-1">Start a new chat to see your history here</p>
-              </div>
-            ) : (
-              <>
-                {Object.entries(groupedThreads).map(([group, threads]) =>
-                  threads.length > 0 ? (
-                    <CollapsibleSection key={group} title={group}>
-                      {renderThreads(threads)}
-                    </CollapsibleSection>
-                  ) : null
-                )}
+                    <span className="font-medium text-[var(--text-light-default)] text-sm">
+                      {profileLoading ? (
+                        <Skeleton className="h-4 w-16" />
+                      ) : (
+                        profile?.firstName || user.email?.split("@")[0] || "User"
+                      )}
+                    </span>
+                    <ChevronDown className="h-3 w-3 text-[var(--text-light-muted)]" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-48">
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings" className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Account Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-                {threads.length > 0 && (
-                  <div className="pt-3 border-t border-dashed border-[var(--secondary-darker)] mt-3">
+                <div className="flex items-center gap-1">
+                  {showPinButton && setPinned && (
                     <button
-                      onClick={handleClearAllHistory}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-[var(--accent-red)] hover:bg-[var(--accent-maroon-light)] rounded-md transition-colors"
+                      onClick={() => setPinned(!pinned)}
+                      className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
+                      aria-label={pinned ? "Unpin sidebar" : "Pin sidebar"}
                     >
-                      <Trash2 className="h-4 w-4" />
-                      Clear All History
+                      {pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
                     </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {isAuthenticated && user && (
-            <div className="p-3 border-t border-[var(--secondary-darkest)] bg-gradient-to-b from-[var(--secondary-faint)] to-[var(--secondary-default)]">
-              <div className="flex justify-between items-center">
-                <Link
-                  href="/settings"
-                  className="text-sm truncate flex items-center text-[var(--text-light-default)] hover:text-[var(--brand-default)] focus:text-[var(--brand-default)] transition-colors cursor-pointer outline-none"
-                  tabIndex={0}
-                  title="Account settings"
-                >
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-fainter)] text-[var(--brand-default)] mr-2">
-                    <User className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="font-medium">
-                    {profileLoading ? (
-                      <Skeleton className="h-4 w-16" />
-                    ) : (
-                      profile?.firstName || user.email?.split('@')[0] || user.email || 'User'
-                    )}
-                  </span>
-                </Link>
-                <button
-                  onClick={handleSignOut}
-                  className="px-2 py-1.5 text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md flex items-center gap-1.5 text-xs transition-colors"
-                  title="Sign out"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  <span>Sign Out</span>
-                </button>
+                  )}
+                  {isMobile && (
+                    <button
+                      onClick={onClose}
+                      className="p-1.5 rounded-full hover:bg-[var(--secondary-darker)] text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] transition-colors"
+                      aria-label="Close sidebar"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          )}
-        </div>
+
+            
+
+            {/* Main Content Area */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-4 no-scrollbar">
+              {/* Folders Section */}
+              {/* <div>
+                <button
+                  onClick={() => setFoldersExpanded(!foldersExpanded)}
+                  className="flex items-center gap-2 w-full text-left text-sm font-medium text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md p-2 transition-colors"
+                >
+                  {foldersExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  Folders
+                </button>
+
+                {foldersExpanded && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md transition-colors cursor-pointer">
+                      <Folder className="h-4 w-4" />
+                      <span className="truncate">Age reversal research</span>
+                    </div>
+                    <div className="text-center py-2 px-3">
+                      <p className="text-xs text-[var(--text-light-muted)]">Create folders to organize chats</p>
+                    </div>
+                  </div>
+                )}
+              </div> */}
+              {/* Chats Section */}
+              <div>
+                <button
+                  onClick={() => setChatsExpanded(!chatsExpanded)}
+                  className="flex items-center gap-2 w-full text-left text-sm font-medium text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md p-2 transition-colors"
+                >
+                  {chatsExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  Chats
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      router.push("/")
+                    }}
+                    className="ml-auto p-1 hover:bg-[var(--secondary-darkest)] rounded transition-colors"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </button>
+
+                {chatsExpanded && (
+                  <div className="mt-2 space-y-1">
+                    {!isLoading ? (
+                      threads.length === 0 ? (
+                        <div className="text-center py-4 px-3">
+                          <p className="text-xs text-[var(--text-light-muted)]">No chats yet</p>
+                        </div>
+                      ) : (
+                        <>
+                          {visibleChats.map(renderThread)}
+                          {threads.length > 5 && (
+                            <button
+                              onClick={() => setShowMoreChats(!showMoreChats)}
+                              className="flex items-center gap-2 w-full text-left p-2 text-sm text-[var(--text-light-muted)] hover:bg-[var(--secondary-darker)] rounded-md transition-colors"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                              {showMoreChats ? "Show less" : `${threads.length - 5} more`}
+                            </button>
+                          )}
+                        </>
+                      )
+                    ) : (
+                      <div className="space-y-1">
+                        {[...Array(3)].map((_, i) => (
+                          <div key={i} className="flex items-center gap-2 p-2">
+                            <Skeleton className="h-4 w-4" />
+                            <Skeleton className="h-4 flex-1" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              
+
+              {threads.length > 0 && (
+                <div className="pt-2 border-t border-dashed border-[var(--secondary-darker)]">
+                  <button
+                    onClick={handleClearAllHistory}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-[var(--accent-red)] hover:bg-[var(--accent-maroon-light)] rounded-md transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Clear All History
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Usage Tracker & Footer */}
+            {isAuthenticated && (
+              <div className="p-3 border-t border-[var(--secondary-darkest)] space-y-3">
+                {/* Plan Usage */}
+                <div className="bg-[var(--secondary-fainter)] rounded-lg p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-[var(--text-light-default)]">Plan usage</span>
+                    <span className="text-xs px-2 py-1 bg-[var(--brand-fainter)] text-[var(--brand-default)] rounded">
+                      {usageData.plan}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[var(--text-light-default)]">AI words/day</span>
+                        <span className="text-[var(--text-light-muted)]">
+                          {usageData.aiWords.used}/{usageData.aiWords.limit}
+                        </span>
+                      </div>
+                      <Progress value={(usageData.aiWords.used / usageData.aiWords.limit) * 100} className="h-1 mt-1" />
+                    </div>
+
+                    
+                  </div>
+
+                  <button className="w-full bg-white text-black text-sm font-medium py-2 rounded-md hover:bg-gray-100 transition-colors">
+                    Get unlimited
+                  </button>
+                </div>
+
+                {/* Footer Links */}
+                <div className="space-y-1">
+                 
+
+                  <button className="flex items-center gap-2 w-full text-left px-2 py-1.5 text-sm text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded transition-colors">
+                    <HelpCircle className="h-4 w-4" />
+                    Support
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-1 items-center justify-center">
+            <button
+              onClick={onSignInClick || openAuthDialog}
+              className="flex items-center gap-2 text-sm font-medium text-[var(--brand-default)] hover:bg-[var(--secondary-darker)] rounded-md p-3 transition-colors"
+            >
+              <User className="h-4 w-4" />
+              Sign In
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* Alert Dialogs */}
       <AlertDialog open={isClearConfirmOpen} onOpenChange={setIsClearConfirmOpen}>
         <AlertDialogContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
           <AlertDialogHeader>
@@ -469,8 +531,12 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Thread delete dialog */}
-      <AlertDialog open={!!threadToDelete} onOpenChange={(open) => { if (!open) setThreadToDelete(null); }}>
+      <AlertDialog
+        open={!!threadToDelete}
+        onOpenChange={(open) => {
+          if (!open) setThreadToDelete(null)
+        }}
+      >
         <AlertDialogContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -478,7 +544,8 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
               Delete this chat thread?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete this chat thread and remove its data from our servers.
+              This action cannot be undone. This will permanently delete this chat thread and remove its data from our
+              servers.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -492,4 +559,3 @@ export default function Sidebar({ isOpen, onClose, onSignInClick, refreshTrigger
     </>
   )
 }
-
