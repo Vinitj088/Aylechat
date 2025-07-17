@@ -74,7 +74,8 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   }, [threadId, data, isThreadLoading]);
 
   useEffect(() => {
-    // Add models from different providers
+    // Add models from different providers in a specific order
+    const providerOrder = ['google', 'cerebras', 'groq', 'openrouter', 'xai', 'together'];
     const allModels = [
       {
         id: 'exa',
@@ -85,7 +86,9 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         toolCallType: 'native',
         searchMode: true
       },
-      ...modelsData.models.filter(model => ['groq', 'google', 'openrouter', 'cerebras', 'xai', 'together'].includes(model.providerId))
+      ...providerOrder.flatMap(providerId =>
+        modelsData.models.filter(model => model.providerId === providerId && model.enabled)
+      )
     ];
     setModels(allModels);
   }, []);
