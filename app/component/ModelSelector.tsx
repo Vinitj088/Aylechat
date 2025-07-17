@@ -20,7 +20,8 @@ import {
   Gemma,
   Grok,
   Exa,
-  Flux
+  Flux,
+  Moonshot
 } from '@lobehub/icons';
 
 interface ModelSelectorProps {
@@ -90,6 +91,8 @@ const getProviderIconByAvatarType = (avatarType: string) => {
       return <Qwen.Avatar size={20} />;
     case 'together':
       return <Flux.Avatar size={20} />;
+      case 'moonshotai':
+        return <Moonshot.Avatar size={20} />;
     case 'exa':
       return <Exa.Avatar size={20} />;
     default:
