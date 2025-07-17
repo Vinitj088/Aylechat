@@ -490,11 +490,15 @@ export default function Sidebar({
                 {/* Footer Links */}
                 <div className="space-y-1">
                  
-
-                  <button className="flex items-center gap-2 w-full text-left px-2 py-1.5 text-sm text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded transition-colors">
+                  <a
+                    href="https://github.com/Vinitj088/Aylechat/issues/new"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 w-full text-left px-2 py-1.5 text-sm text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded transition-colors"
+                  >
                     <HelpCircle className="h-4 w-4" />
                     Support
-                  </button>
+                  </a>
                 </div>
               </div>
             )}
