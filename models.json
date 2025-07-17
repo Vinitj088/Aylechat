@@ -76,6 +76,15 @@
       "toolCallType": "native"
     },
     {
+      "id": "moonshotai/kimi-k2-instruct",
+      "name": "Kimi K2",
+      "provider": "Groq",
+      "providerId": "groq",
+      "avatarType": "moonshotai",
+      "enabled": true,
+      "toolCallType": "manual"
+    },
+    {
       "id": "deepseek-r1-distill-llama-70b",
       "name": "DeepSeek R1 Distill LLaMA 70B",
       "provider": "Groq",
@@ -102,15 +111,7 @@
       "enabled": true,
       "toolCallType": "manual"
     },
-    {
-      "id": "moonshotai/kimi-k2-instruct",
-      "name": "Kimi K2",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "moonshotai",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
+    
     {
       "id": "llama-3.3-70b-versatile",
       "name": "LLaMA 3.3 70B Versatile",
