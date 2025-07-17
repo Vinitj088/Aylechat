@@ -320,7 +320,10 @@ export default function Sidebar({
                     </span>
                     <ChevronDown className="h-3 w-3 text-[var(--text-light-muted)]" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuContent
+                    align="start"
+                    className="w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg"
+                  >
                     <DropdownMenuItem asChild>
                       <Link href="/settings" className="flex items-center gap-2">
                         <User className="h-4 w-4" />
@@ -457,7 +460,7 @@ export default function Sidebar({
             {isAuthenticated && (
               <div className="p-3 border-t border-[var(--secondary-darkest)] space-y-3">
                 {/* Plan Usage */}
-                <div className="bg-[var(--secondary-fainter)] rounded-lg p-3 space-y-3">
+                {/* <div className="bg-[var(--secondary-fainter)] rounded-lg p-3 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-[var(--text-light-default)]">Plan usage</span>
                     <span className="text-xs px-2 py-1 bg-[var(--brand-fainter)] text-[var(--brand-default)] rounded">
@@ -482,7 +485,7 @@ export default function Sidebar({
                   <button className="w-full bg-white dark:bg-[var(--secondary-darkest)] text-black text-sm font-medium py-2 rounded-md hover:bg-gray-100 transition-colors">
                     Get unlimited
                   </button>
-                </div>
+                </div> */}
 
                 {/* Footer Links */}
                 <div className="space-y-1">

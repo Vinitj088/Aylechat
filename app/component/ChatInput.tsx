@@ -42,7 +42,7 @@ const prefetchAPI = async (modelId: string) => {
     const modelsConfig = await import('../../models.json');
     // Find the model configuration
     const modelConfig = modelsConfig.models.find((m: any) => m.id === modelId);
-    
+
     if (modelId === 'exa') {
       apiEndpoint = '/api/exaanswer';
     } else if (modelConfig?.toolCallType === 'openrouter') {
@@ -50,12 +50,12 @@ const prefetchAPI = async (modelId: string) => {
     } else if (modelId.includes('gemini')) {
       apiEndpoint = '/api/gemini';
     }
-    
+
     // Send a prefetch (warmup) request to the API
     fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         warmup: true,
         model: modelId
       }),
@@ -143,15 +143,15 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   const handleModelChangeWithPrefetch = useCallback((modelId: string) => {
     // Call original handler
     handleModelChange(modelId);
-    
+
     // Trigger API prefetch for the newly selected model
     prefetchAPI(modelId);
-    
+
     // Clear attachments if switching to a non-Gemini model
     if (!modelId.includes('gemini') && attachments.length > 0) {
       setAttachments([]);
     }
-    
+
     // Update the last model reference
     lastModelRef.current = modelId;
   }, [handleModelChange, attachments]);
@@ -176,20 +176,20 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
     if (!files || files.length === 0) return;
 
     const newAttachments: Attachment[] = [];
-    
+
     Array.from(files).forEach(file => {
       // Create preview URL for images
       let previewUrl: string | undefined;
       if (file.type.startsWith('image/')) {
         previewUrl = URL.createObjectURL(file);
       }
-      
+
       newAttachments.push({ file, previewUrl });
     });
 
     const updatedAttachments = [...attachments, ...newAttachments];
     setAttachments(updatedAttachments);
-    
+
     // Reset the file input value so the same file can be selected again
     e.target.value = '';
   };
@@ -258,7 +258,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
       textareaRef.current.style.height = 'auto';
       const newHeight = textareaRef.current.scrollHeight;
       const maxHeight = 120;
-      
+
       if (newHeight > maxHeight) {
         textareaRef.current.style.height = `${maxHeight}px`;
         textareaRef.current.style.overflowY = 'auto';
@@ -404,7 +404,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           </div>
         )}
 
-        {/* Attachments Preview - MOVED TO TOP */}
+        {/* Attachments Preview */}
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2 border-b border-[var(--secondary-darkest)] pb-2">
             {attachments.map((attachment, index) => (
@@ -449,7 +449,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
         <form onSubmit={handleSubmitWithAttachments} className="relative flex flex-col w-full">
           {/* Quote block UI */}
           {quotedText && quotedText.trim().length > 0 && (
-            <div className="flex items-start bg-[var(--secondary-faint)] border-l-4 border-[var(--brand-default)] rounded-md p-3 mb-2 relative">
+            <div className="flex items-start bg-[var(--secondary-darker)] border-l-4 border-[var(--brand-default)] rounded-md p-3 mb-2 relative">
               <span className="text-[var(--text-light-muted)] text-sm flex-1 whitespace-pre-line">{getTruncatedQuote(quotedText)}</span>
               {setQuotedText && (
                 <button
@@ -463,38 +463,17 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
               )}
             </div>
           )}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center flex-shrink overflow-hidden max-w-[65%] sm:max-w-none">
-              <label htmlFor="chat-model-selector" className="text-sm text-[var(--text-light-muted)] mr-2 hidden sm:inline font-medium">Model:</label>
-              
-              <div className="max-w-[160px] sm:max-w-[200px] md:max-w-none">
-                <ModelSelector
-                  selectedModel={selectedModel}
-                  handleModelChange={handleModelChangeWithPrefetch}
-                  models={models}
-                />
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onNewChat}
-              className="text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] group flex items-center gap-1 flex-shrink-0 transition-all duration-200 ease-in-out transform hover:scale-105 focus:scale-105"
-            >
-              <Plus className="h-4 w-4 group-hover:text-[var(--brand-default)] transition-transform duration-200 ease-in-out group-hover:rotate-90" />
-              <span className="font-medium">New chat</span>
-            </Button>
-          </div>
-          
-          <div className="relative flex w-full">
-            {/* Conditionally render command icon */} 
+
+          {/* Textarea with no background and border */}
+          <div className="relative flex w-full mb-2">
+            {/* Conditionally render command icon */}
             {commandMode === 'movies' && (
               <Film className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-light-muted)] pointer-events-none" />
             )}
             {commandMode === 'tv' && (
               <Tv className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-light-muted)] pointer-events-none" />
             )}
-            
+
             <Textarea
               ref={textareaRef}
               value={input}
@@ -506,45 +485,19 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
               rows={1}
               className={cn(
                 "w-full p-3 resize-none min-h-[50px] max-h-[120px]",
-                "bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] rounded-md",
-                "focus:outline-none focus:ring-1 focus:ring-[var(--brand-default)] focus:border-[var(--brand-default)]",
-                "placeholder:text-[var(--text-light-subtle)] text-[var(--text-light-default)] font-medium shadow-sm dark:focus:ring-0 dark:focus:outline-none",
+                "bg-transparent !bg-transparent border-none", // Force transparent background
+                "!focus:outline-none !focus:ring-0 !outline-none", // Remove focus outline as well
+                "placeholder:text-[var(--text-light-subtle)] text-[var(--text-light-default)] font-medium",
                 commandMode !== 'none' ? "pl-9" : "pl-3",
-                enhancerMode === 'manual' 
-                  ? (isMobile ? 'pr-[95px]' : 'pr-[140px]') 
-                  : 'pr-[90px]',
+                "pr-12",
                 "scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]"
               )}
+              style={{ background: "transparent" }}
               disabled={isLoading}
             />
-            
-            <div className="absolute right-2 bottom-2 flex items-center gap-1.5">
-              {isGeminiModel && (
-                <button
-                  type="button"
-                  onClick={handleFileButtonClick}
-                  disabled={isLoading}
-                  className="p-2 text-[var(--text-light-muted)] hover:text-[var(--brand-default)] rounded-full hover:bg-[var(--secondary-faint)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FileUp className="h-4 w-4" />
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    multiple
-                  />
-                </button>
-              )}
-              
-              <QueryEnhancer 
-                input={input} 
-                setInput={(value: string) => handleInputChange(value)} 
-                isLoading={isLoading} 
-                isMobile={isMobile}
-              />
 
+            {/* Only send button in textarea */}
+            <div className="absolute right-2 bottom-2">
               <Button
                 type="submit"
                 size="icon"
@@ -558,13 +511,64 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
               </Button>
             </div>
           </div>
-          <div className="mt-1 text-[10px] text-[var(--text-light-muted)] text-center">
-            Press <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Shift</kbd> + <kbd className="px-1 py-0.5 bg-[var(--secondary-darker)] rounded text-[var(--text-light-default)] font-mono">Enter</kbd> for new line
+
+          {/* Bottom row with model selector, buttons, and keyboard shortcut */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center flex-shrink max-w-[65%] sm:max-w-none">
+
+                {/* Model selector with transparent background */}
+                <div className="max-w-[160px] sm:max-w-[200px] md:max-w-none">
+                  <div className="!bg-transparent"> {/* Wrap in transparent container */}
+                    <ModelSelector
+                      selectedModel={selectedModel}
+                      handleModelChange={handleModelChangeWithPrefetch}
+                      models={models}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Enhance and file buttons */}
+
+            </div>
+
+            <div className=" text-[10px] text-[var(--text-light-muted)] text-right pr-2">
+              <div className="flex items-center gap-1.5">
+                {isGeminiModel && (
+                  <button
+                    type="button"
+                    onClick={handleFileButtonClick}
+                    disabled={isLoading}
+                    className="p-2 text-[var(--text-light-muted)] hover:text-[var(--brand-default)] rounded-full hover:bg-[var(--secondary-darker)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <FileUp className="h-4 w-4" />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      multiple
+                    />
+                  </button>
+                )}
+
+                <QueryEnhancer
+                  input={input}
+                  setInput={(value: string) => handleInputChange(value)}
+                  isLoading={isLoading}
+                  isMobile={isMobile}
+                />
+              </div>            
+            </div>
           </div>
         </form>
       </div>
     </div>
   );
+
+
 });
 
 ChatInput.displayName = 'ChatInput';
