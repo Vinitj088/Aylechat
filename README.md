@@ -15,6 +15,8 @@ AyleChat is an open-source custom-built AI chat application that integrates mult
 - **Language**: TypeScript
 - **Hosting**: [Vercel](https://vercel.com/)
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FVinitj088%2FAylechat)
+
 > ## 🚀 Getting Started
 ### Prerequisites
 - Node.js 18+ installed
