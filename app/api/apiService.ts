@@ -589,6 +589,9 @@ export const fetchResponse = async (
       } else if (modelConfig?.providerId === 'perplexity') {
         // Route to the Perplexity handler
         apiEndpoint = getAssetPath('/api/perplexity');
+      } else if (modelConfig?.providerId === 'inception') {
+        // Route to the Inception AI handler
+        apiEndpoint = getAssetPath('/api/inception');
       } else {
         apiEndpoint = getAssetPath('/api/groq');
       }

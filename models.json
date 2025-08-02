@@ -243,6 +243,24 @@
       "enabled": true,
       "toolCallType": "native",
       "searchMode": true
+    },
+    {
+      "id": "mercury",
+      "name": "Mercury",
+      "provider": "Inception AI",
+      "providerId": "inception",
+      "avatarType": "inception",
+      "enabled": true,
+      "toolCallType": "native"
+    },
+    {
+      "id": "mercury-coder",
+      "name": "Mercury Coder",
+      "provider": "Inception AI",
+      "providerId": "inception",
+      "avatarType": "inception",
+      "enabled": true,
+      "toolCallType": "native"
     }
   ]
 }

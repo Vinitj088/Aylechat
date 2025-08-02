@@ -127,6 +127,7 @@ function PageContent() {
     const xaiModels = modelsData.models.filter(model => model.providerId === 'xai');
     const togetherModels = modelsData.models.filter(model => model.providerId === 'together');
     const perplexityModels = modelsData.models.filter(model => model.providerId === 'perplexity');
+    const inceptionModels = modelsData.models.filter(model => model.providerId === 'inception');
     // Start with just the Exa model and then add the others
     setModels([
       {
@@ -144,6 +145,7 @@ function PageContent() {
       ...openRouterModels,
       ...groqModels,
       ...togetherModels,
+      ...inceptionModels,
     ]);
     
     // Get search params

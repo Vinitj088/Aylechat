@@ -70,6 +70,32 @@ const getCapabilityIcon = (capability: string) => {
   }
 };
 
+// Theme-aware Inception icon component
+const InceptionIcon = () => {
+  return (
+    <div className="h-5 w-5 flex items-center justify-center rounded-sm overflow-hidden">
+      {/* Dark mode image */}
+      <Image 
+        src="/inceptionai.png" 
+        alt="Inception" 
+        width={20} 
+        height={20} 
+        className="object-contain dark:block hidden"
+        unoptimized
+      />
+      {/* Light mode image */}
+      <Image 
+        src="/inceptionai-lightmode.png" 
+        alt="Inception" 
+        width={20} 
+        height={20} 
+        className="object-contain block dark:hidden"
+        unoptimized
+      />
+    </div>
+  );
+};
+
 const getProviderIconByAvatarType = (avatarType: string) => {
   switch (avatarType) {
     case 'google':
@@ -98,6 +124,8 @@ const getProviderIconByAvatarType = (avatarType: string) => {
       return <Exa.Avatar size={20} />;
     case 'perplexity':
       return <Perplexity size={20} />;
+    case 'inception':
+      return <InceptionIcon />;
     default:
       return (
         <div className="h-5 w-5 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700">
