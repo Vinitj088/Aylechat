@@ -1,136 +1,108 @@
 # 💬 AyleChat App
-
 An open-source chat app showcasing powerful AI capabilities with multiple model integrations.
-
 ![capture](/public/homepage.png)
-
 ### ✨ Try it yourself:
-
 - [Live Demo](https://ayle.chat/) - See the chat app in action
 
-<br>
-
-## 🎯 What is Ayle Chat?
-
+> ## 🎯 What is Ayle Chat?
 AyleChat is an open-source custom-built AI chat application that integrates multiple AI providers including Groq, Google's Gemini, OpenRouter, Cerebras, and Exa Search for unparalleled speed and providing immediate access to cutting-edge Large Language Models (LLMs).
 
-<br>
-
-## 💻 Tech Stack
+> ## 💻 Tech Stack
 - **Frontend**: [Next.js 15](https://nextjs.org/docs) with App Router and Turbopack
-- **Authentication**: [Supabase Auth](https://supabase.com/auth) for user management
-- **Database**: Supabase PostgreSQL for user data, [Upstash Redis](https://upstash.com/) for chat threads
+- **Authentication**: [InstantDB](https://instantdb.com) for user authentication and management
+- **Database**: [InstantDB](https://instantdb.com) for primary user/chat threads storage and Supabase bucket for image storage
 - **Styling**: [TailwindCSS](https://tailwindcss.com) with [shadcn/ui](https://ui.shadcn.com/)
 - **Language**: TypeScript
 - **Hosting**: [Vercel](https://vercel.com/)
 
-<br>
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FVinitj088%2FAylechat)
 
-## 🚀 Getting Started
-
+> ## 🚀 Getting Started
 ### Prerequisites
 - Node.js 18+ installed
 - API keys for your chosen model providers
-- Supabase account for authentication
-- Upstash Redis for chat history
-- Backend services (Supabase and Upstash Redis) configured as detailed in the 'Backend Setup' section.
+- InstantDB account for authentication and database
+- Supabase account for image generation features
+- Backend services (InstantDB and Supabase) configured as detailed in the 'Backend Setup' section.
 
 ### Installation
-
 1. Clone the repository
 ```bash
 git clone https://github.com/Vinitj088/AyleChat.git
 cd AyleChat
 ```
-
 2. Install dependencies
 ```bash
 npm install
 ```
-
 3. Set up environment variables
 ```bash
 cp .env.example .env.local
 ```
-Then add your API keys and service URLs to `.env.local`. The necessary Supabase and Upstash variables are detailed in the 'Backend Setup' section. You will also need to add API keys for any AI model providers you intend to use.
-
+Then add your API keys and service URLs to `.env.local`. The necessary InstantDB and Supabase variables are detailed in the 'Backend Setup' section. You will also need to add API keys for any AI model providers you intend to use.
 4. Run the development server
 ```bash
 npm run dev
 ```
-
 5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-<br>
+> ## Backend Setup
 
-## Backend Setup
+### InstantDB Setup
+InstantDB serves as the primary database for user authentication and chat/thread storage:
+
+1. **Create an InstantDB account** at [https://instantdb.com](https://instantdb.com)
+2. **Create a new app** in your InstantDB dashboard
+3. **Configure your environment variables**:
+   * Find your **App ID** and **Admin Token** in your InstantDB dashboard
+   * Add these to your `.env.local` file:
+   ```env
+   NEXT_PUBLIC_INSTANT_APP_ID=YOUR_INSTANT_APP_ID
+   INSTANT_ADMIN_TOKEN=YOUR_INSTANT_ADMIN_TOKEN
+   ```
 
 ### Supabase Setup
-To set up Supabase for this project, follow these steps:
+Supabase provides additional authentication features and user data storage:
 
-1.  **Create a Supabase Project:**
-    *   Go to [supabase.com](https://supabase.com), create an account or log in.
-    *   Set up a new project.
-    *   Choose a strong password for your database and save it securely.
+1. **Create a Supabase account** at [https://supabase.com](https://supabase.com)
+2. **Create a new project**
+3. **Get your credentials**:
+   * Go to Settings > API in your Supabase dashboard
+   * Find your **Project URL** and **anon/public key**
+   * Add these to your `.env.local` file:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_PROJECT_URL
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+   ```
 
-2.  **Run SQL Schema:**
-    *   Navigate to the **SQL Editor** in your Supabase project dashboard (usually found in the left sidebar under "Database").
-    *   Copy the entire content of `supabase-schema.sql` (located at the root of this repository) from this repository.
-    *   Paste the copied SQL into the Supabase SQL Editor and click **Run**. This will set up the necessary tables (`profiles`, `threads`, `thread_messages`) and Row Level Security (RLS) policies.
+> ## Database Schema & Permissions
 
-3.  **Configure Supabase Storage:**
-    *   Navigate to the **Storage** section in your Supabase project dashboard.
-    *   Click on **Create a new bucket**.
-    *   Name the bucket `ai-generated-images`.
-    *   Ensure this bucket is set to **Public**. This can typically be done via a toggle or policy setting during bucket creation, or by editing the bucket's settings/policies after creation to allow public read access (the `supabase-storage.sql` script also includes a command to attempt to set the bucket to public, but it's good to verify in the UI).
-    *   Go back to the **SQL Editor**.
-    *   Copy the entire content of `supabase-storage.sql` (located at the root of this repository) from this repository.
-    *   Paste the copied SQL into the Supabase SQL Editor and click **Run**. This will configure the necessary policies for the storage bucket, allowing public read access and restricted write access.
+This application uses **InstantDB** as the primary database for authentication and chat/thread storage. InstantDB provides real-time synchronization and built-in authentication capabilities that streamline the development process.
 
-4.  **Environment Variables:**
-    *   In your Supabase project settings, navigate to the **API** section (usually under "Project Settings").
-    *   Find your **Project URL** and **anon key**.
-    *   Add these to your `.env.local` file in the root of this project:
-        ```env
-        NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_PROJECT_URL
-        NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-        ```
+### InstantDB Usage
+- **Authentication**: Handles user registration, login, and session management
+- **Chat Storage**: Stores all chat messages, threads, and conversation history
+- **Real-time Updates**: Provides live synchronization across all connected clients
 
-### Upstash Redis Setup
-Upstash Redis is used for storing chat history to ensure persistence and performance, especially for streaming responses and managing conversation threads.
+### Schema & Permissions Reference
+The database schema and permissions configuration can be found in the following files within this repository:
+- **Schema Definition**: `instant.schema.ts` - Contains the database table definitions and relationships
+- **Permissions Configuration**: `instant.perms.ts` - Defines user access controls and data permissions
 
-1.  **Create an Upstash Account and Database:**
-    *   If you don't have an account, go to [upstash.com](https://upstash.com) and sign up.
-    *   Create a new Redis database. Choose a region closest to your users or your Vercel deployment region for optimal performance.
+These files serve as a reference for setting up your InstantDB instance and understanding the data structure used by the application.
 
-2.  **Environment Variables:**
-    *   From the Upstash console, navigate to your Redis database details page.
-    *   Find your **REST URL** (sometimes labeled as Endpoint) and **Token** (sometimes labeled as Password or Read/Write Token).
-    *   Add these to your `.env.local` file:
-        ```env
-        UPSTASH_REDIS_REST_URL=YOUR_UPSTASH_REDIS_REST_URL
-        UPSTASH_REDIS_REST_TOKEN=YOUR_UPSTASH_REDIS_REST_TOKEN
-        ```
-
-<br>
-
-## 🔐 Authentication System
-
-This application uses Supabase Auth as the primary authentication system:
+> ## 🔐 Authentication System
+This application uses InstantDB as the primary authentication system:
 
 ### Features
-
-- Secure credential-based authentication
+- Secure credential-based authentication via InstantDB
 - JWT session management
 - Persistent user sessions
-- Database integration with Supabase PostgreSQL
+- Database integration with InstantDB for primary storage
 - Custom signup and profile management
 - Protected API routes and pages
 
-<br>
-
-## ⭐ Supported AI Models
-
+> ## ⭐ Supported AI Models
 This application integrates with several AI model providers:
 
 ### Google Gemini
@@ -159,14 +131,11 @@ This application integrates with several AI model providers:
 ### Exa Search
 - Web search integration with AI answer processing
 
-<br>
-
-## 🛠️ Features
-
+> ## 🛠️ Features
 - Multi-provider model support (Google, Groq, OpenRouter, Cerebras, Exa)
 - Real-time streaming responses
 - User-specific conversation history
-- Secure authentication with Supabase
+- Secure authentication with InstantDB and Supabase
 - Mobile-responsive design
 - Math formula support with KaTeX
 - Code syntax highlighting
@@ -177,16 +146,50 @@ This application integrates with several AI model providers:
 - Prompt enhancing using QueryEnhancer
 - Live URL answers Support (pass Webpage URLs and chat with the LLM)
 - Attachments Support in Chat Input
+- Quote assistant responses and ask follow up questions
 
 ## Deployment
-
 This application can be deployed on Vercel:
-
 1. Push your code to GitHub
 2. Import the repository in Vercel
 3. Configure the environment variables
 4. Deploy!
 
----
 
-Built with ❤️ using [Next.js](https://nextjs.org), [Supabase](https://supabase.com), and various AI model providers
+# For `upstash-redis` branch if you want to use redis for chat thread storage and supabase for auth
+
+### Upstash Redis Setup [deprecated] [switch to upstash-redis branch to use this]
+Upstash Redis is used for chat thread storage and caching:
+
+1. **Create an Upstash account** at [https://upstash.com](https://upstash.com)
+2. **Create a Redis database**:
+   * Choose a region close to your deployment
+   * Select the free tier for development
+3. **Get your credentials**:
+   * In your database dashboard, go to the **Details** tab
+   * Find your **REST URL** (sometimes labeled as Endpoint) and **Token** (sometimes labeled as Password or Read/Write Token).
+   * Add these to your `.env.local` file:
+   ```env
+   UPSTASH_REDIS_REST_URL=YOUR_UPSTASH_REDIS_REST_URL
+   UPSTASH_REDIS_REST_TOKEN=YOUR_UPSTASH_REDIS_REST_TOKEN
+   ```
+ 
+### Supabase Setup
+Supabase provides additional authentication features and user data storage:
+
+1. **Create a Supabase account** at [https://supabase.com](https://supabase.com)
+2. **Create a new project**
+3. **Setup auth providers in authentication menu and add required details**
+3. **Get your credentials**:
+   * Go to Settings > API in your Supabase dashboard
+   * Find your **Project URL** and **anon/public key**
+   * Add these to your `.env.local` file:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_PROJECT_URL
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+   SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
+   `
+---
+Refer to `supabase-storage.sql` and `supabase-schema.sql` for further details about configuring policies on bucket and tables respectively.
+
+Built with ❤️ using [Next.js](https://nextjs.org), [InstantDB](https://instantdb.com), [Supabase](https://supabase.com), and various AI model providers
