@@ -29,7 +29,7 @@ export default function SharedThreadPage() {
     return (
       <main className="flex min-h-screen flex-col">
         <div className="md:hidden">
-          <Header toggleSidebar={() => {}} />
+          <Header />
         </div>
         <Link
           href="/"
@@ -70,7 +70,7 @@ export default function SharedThreadPage() {
     return (
       <main className="flex min-h-screen flex-col">
         <div className="md:hidden">
-          <Header toggleSidebar={() => {}} />
+          <Header />
         </div>
         <Link
           href="/"
@@ -122,7 +122,7 @@ export default function SharedThreadPage() {
   return (
     <main className="flex min-h-screen flex-col">
       <div className="md:hidden">
-        <Header toggleSidebar={() => {}} />
+        <Header />
       </div>
       <Link
         href="/"
@@ -146,7 +146,7 @@ export default function SharedThreadPage() {
         </span>
       </Link>
       <div className="flex-1 flex flex-col">
-        <div className="w-full max-w-full md:max-w-4xl mx-auto px-4 py-6">
+        <div className="w-full max-w-full md:max-w-4xl mx-auto px-4 pt-20">
           <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
             <h2 className="text-lg font-medium mb-2">{thread.title}</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">

@@ -419,7 +419,7 @@ const ChatMessages = memo(function ChatMessages({
         <div ref={messagesEndRef} />
       </div>
 
-      {showScrollButton && (
+      {showScrollButton && !isSharedPage && (
         <div
           className={cn(
             "fixed bottom-[150px] md:bottom-[160px] z-10 transition-all duration-300 ease-in-out",
