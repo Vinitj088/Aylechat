@@ -7,7 +7,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronDown, Info, Globe, FileText, Brain, Code, Eye, Clock, Image as ImageIcon } from 'lucide-react';
+import { Check, ChevronDown, Info, Globe, FileText, Brain, Code, Eye, Zap, Image as ImageIcon } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Google,
@@ -33,17 +33,24 @@ interface ModelSelectorProps {
 
 // Model capabilities based on model IDs
 const modelCapabilities: Record<string, string[]> = {
-  'mistralai/mistral-small-3.1-24b-instruct:free': ['docs'],
-  'gemini-2.0-flash': ['vision', 'web', 'docs'],
-  'gemini-2.0-flash-exp-image-generation': ['images', 'experimental'],
-  'black-forest-labs/FLUX.1-schnell-Free': ['images'],
-  'gemma3-27b': ['docs'],
-  'llama-3.3-70b-versatile': ['docs'],
+  'gemini-2.0-flash': ['vision', 'quick-responses'],
+  'gemini-2.0-flash-exp-image-generation': ['images'],
+  'gemini-2.5-flash': ['reasoning', 'vision'],
+  'gemini-2.0-flash-thinking-exp-01-21': ['reasoning'],
+  'gemini-2.5-flash-lite-preview-06-17': ['reasoning', 'quick-responses'],
+  'black-forest-labs/FLUX.1-schnell-Free': ['images', 'quick-responses'],
   'deepseek-r1-distill-llama-70b': ['reasoning'],
-  'deepseek-r1-distill-qwen-32b': ['reasoning', 'docs'],
+  'deepseek-r1-distill-qwen-32b': ['reasoning'],
   'qwen-qwq-32b': ['reasoning'],
-  'deepseek/deepseek-r1:free': ['reasoning', 'code', 'docs'],
-  'qwen-2.5-coder-32b': ['code', 'docs'],
+  'deepseek/deepseek-r1:free': ['reasoning', 'code'],
+  'qwen-2.5-coder-32b': ['code'],
+  'mercury-coder': ['code'],
+  'mercury': ['quick-responses'],
+  'sonar': ['quick-responses', 'web'],
+  'sonar-pro': ['web'],
+  'llama-3.1-8b-instant': ['quick-responses'],
+  'moonshotai/kimi-k2-instruct': ['code'],
+
 };
 
 // Function to get capability icon
@@ -52,19 +59,16 @@ const getCapabilityIcon = (capability: string) => {
     case 'vision':
       return <span title="Vision capability" className="text-blue-600 dark:text-blue-400"><Eye size={16} /></span>;
     case 'web':
-      return <span title="Web search capability" className="text-purple-600 dark:text-purple-400"><Globe size={16} /></span>;
-    case 'docs':
-      return <span title="Document analysis capability" className="text-green-600 dark:text-green-400"><FileText size={16} /></span>;
+      return <span title="Web search capability" className="text-gray-600 dark:text-neutral-200"><Globe size={16} /></span>;
     case 'reasoning':
       return <span title="Advanced reasoning capability" className="text-amber-600 dark:text-amber-400"><Brain size={16} /></span>;
     case 'code':
       return <span title="Code generation capability" className="text-cyan-600 dark:text-cyan-400"><Code size={16} /></span>;
-    case 'quick responses':
-      return <span title="Quick Response times" className="text-amber-600 dark:text-amber-400"><Clock size={16} /></span>;
+    case 'quick-responses':
+      return <span title="Quick Response times" className="text-amber-600 dark:text-amber-400"><Zap size={16} /></span>;
     case 'images':
       return <span title="Image generation capability" className="text-pink-600 dark:text-pink-400"><ImageIcon size={16} /></span>;
-    case 'experimental':
-      return <span title="Experimental feature" className="text-red-600 dark:text-red-400">⚠️</span>;
+
     default:
       return null;
   }
@@ -251,9 +255,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, handleMode
                                   <ul className="text-xs list-disc pl-3 mt-1">
                                     {capabilities.includes('vision') && <li>Vision</li>}
                                     {capabilities.includes('web') && <li>Web access</li>}
-                                    {capabilities.includes('docs') && <li>Document analysis</li>}
                                     {capabilities.includes('reasoning') && <li>Advanced reasoning</li>}
                                     {capabilities.includes('code') && <li>Code generation</li>}
+                                    {capabilities.includes('quick-responses') && <li>Quick responses</li>}
+                                    {capabilities.includes('images') && <li>Image generation</li>}
+
+
                                   </ul>
                                 </div>
                               )}

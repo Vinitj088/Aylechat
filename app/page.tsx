@@ -142,10 +142,11 @@ function PageContent() {
       ...perplexityModels,
       ...googleModels,
       ...cerebrasModels,
+      ...inceptionModels,
       ...openRouterModels,
       ...groqModels,
-      ...togetherModels,
-      ...inceptionModels,
+      ...togetherModels
+      
     ]);
     
     // Get search params
