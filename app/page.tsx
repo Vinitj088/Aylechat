@@ -107,6 +107,11 @@ function PageContent() {
 
   const isAuthenticated = !!user;
 
+  // Set homepage document title
+  useEffect(() => {
+    document.title = 'Ayle';
+  }, []);
+
   // Prefetch API modules and data when the app loads
   useEffect(() => {
     // Prefetch all API modules and data for faster initial response times

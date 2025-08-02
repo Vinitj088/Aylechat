@@ -66,6 +66,17 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
   const isAuthenticated = !!user;
 
+  // Update document title when thread title is available
+  useEffect(() => {
+    if (!isThreadLoading && thread) {
+      if (thread.title) {
+        document.title = `${thread.title} - Ayle Chat`;
+      } else {
+        document.title = 'Ayle Chat';
+      }
+    }
+  }, [thread, isThreadLoading]);
+
   // Sync local messages state with DB on thread load/change
   useEffect(() => {
     if (!isThreadLoading) {
