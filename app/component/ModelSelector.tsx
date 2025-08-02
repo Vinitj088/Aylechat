@@ -21,7 +21,8 @@ import {
   Grok,
   Exa,
   Flux,
-  Moonshot
+  Moonshot,
+  Perplexity
 } from '@lobehub/icons';
 
 interface ModelSelectorProps {
@@ -95,6 +96,8 @@ const getProviderIconByAvatarType = (avatarType: string) => {
         return <Moonshot.Avatar size={20} />;
     case 'exa':
       return <Exa.Avatar size={20} />;
+    case 'perplexity':
+      return <Perplexity size={20} />;
     default:
       return (
         <div className="h-5 w-5 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700">

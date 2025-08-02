@@ -75,7 +75,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
   useEffect(() => {
     // Add models from different providers in a specific order
-    const providerOrder = ['google', 'cerebras', 'groq', 'openrouter', 'xai', 'together'];
+    const providerOrder = ['perplexity', 'google', 'cerebras', 'groq', 'openrouter', 'together' ];
     const allModels = [
       {
         id: 'exa',

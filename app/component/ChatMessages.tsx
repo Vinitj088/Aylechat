@@ -198,7 +198,7 @@ const ChatMessage = memo(
                   completed={message.completed}
                 />
               </div>
-              {message.citations && message.citations.length > 0 && <Citation citations={message.citations} />}
+              {message.citations && message.citations.length > 0 && <Citation citations={message.citations} provider={message.provider} completed={message.completed} />}
               {/* Action row for assistant (share/copy) - always visible on mobile, hover on desktop */}
               {!isUser && !isSharedPage && message.content && message.content.length > 0 && (
                 <div className="mt-2 flex items-center justify-end gap-2 pt-2 border-0 px-1 md:px-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">

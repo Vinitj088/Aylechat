@@ -395,15 +395,15 @@ export default function Sidebar({
                 >
                   {chatsExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                   Chats
-                  <button
+                  <div
                     onClick={(e) => {
                       e.stopPropagation()
                       router.push("/")
                     }}
-                    className="ml-auto p-1 hover:bg-[var(--secondary-darkest)] rounded transition-colors"
+                    className="ml-auto p-1 hover:bg-[var(--secondary-darkest)] rounded transition-colors cursor-pointer"
                   >
                     <Plus className="h-3 w-3" />
-                  </button>
+                  </div>
                 </button>
 
                 {chatsExpanded && (

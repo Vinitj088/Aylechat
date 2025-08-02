@@ -45,6 +45,8 @@ const getProviderDescription = (providerName: string | undefined): string => {
       return 'Groq delivers lightning-fast inference using LPUs.';
     case 'together ai':
       return 'Together AI provides cutting-edge image generation capabilities.';
+    case 'perplexity':
+      return 'Perplexity provides real-time search and web-aware AI responses.';
     // Add more cases as needed
     default:
       return `${providerName || 'This provider'} offers fast AI inference.`; // Default message
@@ -124,6 +126,7 @@ function PageContent() {
     const cerebrasModels = modelsData.models.filter(model => model.providerId === 'cerebras');
     const xaiModels = modelsData.models.filter(model => model.providerId === 'xai');
     const togetherModels = modelsData.models.filter(model => model.providerId === 'together');
+    const perplexityModels = modelsData.models.filter(model => model.providerId === 'perplexity');
     // Start with just the Exa model and then add the others
     setModels([
       {
@@ -135,13 +138,12 @@ function PageContent() {
         toolCallType: 'native',
         searchMode: true
       },
-      
+      ...perplexityModels,
       ...googleModels,
       ...cerebrasModels,
       ...openRouterModels,
       ...groqModels,
       ...togetherModels,
-      ...xaiModels
     ]);
     
     // Get search params

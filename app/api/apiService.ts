@@ -586,6 +586,9 @@ export const fetchResponse = async (
       } else if (modelConfig?.providerId === 'xai') {
         // Route to the new xAI handler (needs implementation)
         apiEndpoint = getAssetPath('/api/xai'); 
+      } else if (modelConfig?.providerId === 'perplexity') {
+        // Route to the Perplexity handler
+        apiEndpoint = getAssetPath('/api/perplexity');
       } else {
         apiEndpoint = getAssetPath('/api/groq');
       }
@@ -763,7 +766,17 @@ export const fetchResponse = async (
             }
             if (data.choices && data.choices[0]?.delta?.content) {
               const newContent = data.choices[0].delta.content;
-              content += newContent;
+              
+              // Simple fix: only add space if content starts with a number and previous content ends with a letter
+              let processedContent = newContent;
+              
+              if (content.length > 0 && 
+                  /[a-zA-Z]$/.test(content) && 
+                  /^\d/.test(newContent)) {
+                processedContent = ' ' + newContent;
+              }
+              
+              content += processedContent;
               if (startTime === null && newContent.length > 0) {
                 startTime = Date.now();
               }

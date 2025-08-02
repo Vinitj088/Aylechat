@@ -223,6 +223,26 @@
       "avatarType": "meta",
       "enabled": true,
       "toolCallType": "manual"
+    },
+    {
+      "id": "sonar",
+      "name": "Sonar",
+      "provider": "Perplexity",
+      "providerId": "perplexity",
+      "avatarType": "perplexity",
+      "enabled": true,
+      "toolCallType": "native",
+      "searchMode": true
+    },
+    {
+      "id": "sonar-pro",
+      "name": "Sonar Pro",
+      "provider": "Perplexity",
+      "providerId": "perplexity",
+      "avatarType": "perplexity",
+      "enabled": true,
+      "toolCallType": "native",
+      "searchMode": true
     }
   ]
 }
