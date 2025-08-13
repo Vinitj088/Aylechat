@@ -4,6 +4,7 @@ import Markdown from 'markdown-to-jsx';
 import ModelSelector from './ModelSelector';
 import QueryEnhancer from './QueryEnhancer';
 import { FileUp, X } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 // Import markdown options from MessageContent for consistent rendering
 import { markdownOptions, processMarkdown } from './MessageContent';
@@ -76,12 +77,18 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isRounded, setIsRounded] = useState(false);
+  const { user, isLoading: authLoading } = useAuth();
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("roundedCorners");
       setIsRounded(stored === "on");
     }
+  }, []);
+
+  useEffect(() => {
+    setHydrated(true);
   }, []);
 
   const disableInput = isGuest && guestMessageCount >= guestMessageLimit;
@@ -159,6 +166,16 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   const MainContainer = (
     <div className={`w-full max-w-full md:max-w-3xl mb-8 ${sidebarPinned ? 'text-left' : 'mx-auto text-center'}`}>
       <div className="mb-8 text-center">
+        {hydrated && !authLoading && !user && (
+          <button
+            onClick={openAuthDialog}
+            className="inline-block mb-4 px-4 py-1 rounded-full font-semibold text-sm
+              bg-[var(--brand-default)] text-white dark:bg-[var(--brand-fainter)] dark:text-[var(--text-light-default)]
+              shadow hover:bg-[var(--brand-dark)] dark:hover:bg-[var(--brand-muted)] transition-colors"
+          >
+            Sign in to better experience
+          </button>
+        )}
         <h1 className="text-5xl font-bold mb-2 text-[var(--text-light-default)]">
           The web, <span className="text-[var(--brand-default)]" style={{ fontFamily: 'var(--font-heading)' }}>organized</span>
         </h1>

@@ -4,6 +4,7 @@ import Markdown from 'markdown-to-jsx';
 import ModelSelector from './ModelSelector';
 import QueryEnhancer from './QueryEnhancer';
 import { FileUp, X } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 // Import markdown options from MessageContent for consistent rendering
 import { markdownOptions, processMarkdown } from './MessageContent';
@@ -74,12 +75,18 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isRounded, setIsRounded] = useState(false);
+  const { user, isLoading: authLoading } = useAuth();
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("roundedCorners");
       setIsRounded(stored === "on");
     }
+  }, []);
+
+  useEffect(() => {
+    setHydrated(true);
   }, []);
 
   const disableInput = isGuest && guestMessageCount >= guestMessageLimit;
@@ -231,6 +238,16 @@ const MobileSearchUI: React.FC<MobileSearchUIProps> = ({
 
       <div className="w-full max-w-full mx-auto p-4">
         <div className="mb-6 text-center">
+          {hydrated && !authLoading && !user && (
+            <button
+              onClick={openAuthDialog}
+              className="inline-block mb-4 px-4 py-1 rounded-full font-semibold text-xs
+                bg-[var(--brand-default)] text-white dark:bg-[var(--brand-fainter)] dark:text-[var(--text-light-default)]
+                shadow hover:bg-[var(--brand-dark)] dark:hover:bg-[var(--brand-muted)] transition-colors"
+            >
+              Sign in to better experience
+            </button>
+          )}
           <h1 className="text-3xl font-bold mb-2 text-[var(--text-light-default)]">
             <span className="text-[var(--brand-default)]" style={{ fontFamily: 'var(--font-heading)' }}>The Web, </span> Organised
           </h1>
