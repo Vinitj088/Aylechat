@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install react-window @types/react-window)",
+      "Bash(npm install @pinecone-database/pinecone openai)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

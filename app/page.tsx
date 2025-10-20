@@ -32,6 +32,10 @@ import { db } from '@/lib/db';
 import { id } from '@instantdb/react';
 import { cn } from '@/lib/utils';
 
+// Agentic imports
+import { planComplexTask, executeTaskStep, TaskPlan, TaskStep } from './api/services/taskPlanner';
+import TaskExecutionPanel from './component/TaskExecutionPanel';
+
 // Helper function to get provider description
 const getProviderDescription = (providerName: string | undefined): string => {
   switch (providerName?.toLowerCase()) {
@@ -105,6 +109,10 @@ function PageContent() {
   const isMobile = useIsMobile();
   const { enhancerMode } = useQueryEnhancer();
 
+  // Agentic state
+  const [taskPlan, setTaskPlan] = useState<TaskPlan | null>(null);
+  const [isExecutingPlan, setIsExecutingPlan] = useState(false);
+
   const isAuthenticated = !!user;
 
   // Set homepage document title
@@ -120,7 +128,30 @@ function PageContent() {
     });
   }, []);
 
-  
+  // Extract memories every 5 messages (Agentic feature)
+  useEffect(() => {
+    console.log(`💭 Message count: ${messages.length} | User: ${user ? user.id.substring(0, 8) : 'NOT LOGGED IN'} | Trigger: ${messages.length % 5 === 0 ? 'YES' : 'NO'}`);
+
+    if (!user) {
+      console.log('⚠️ Cannot extract memories: User not authenticated');
+      return;
+    }
+
+    if (messages.length > 0 && messages.length % 5 === 0) {
+      console.log(`🔄 Triggering memory extraction for ${messages.length} messages`);
+      console.log('📤 Sending to /api/agent/extract-memories...');
+
+      fetch('/api/agent/extract-memories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages, userId: user.id })
+      })
+      .then(res => res.json())
+      .then(data => console.log('✅ Memory extraction response:', data))
+      .catch(err => console.error('❌ Memory extraction error:', err));
+    }
+  }, [messages.length, user]);
+
 
   // Load models and set initially selected model
   useEffect(() => {
@@ -276,6 +307,7 @@ function PageContent() {
   const removeActiveFile = useCallback((uri: string) => {
     setActiveChatFiles(prev => prev.filter(f => f.uri !== uri));
   }, []);
+
 
   // The form submit handler 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -542,10 +574,123 @@ function PageContent() {
         return; // Exit early, we're done with image generation
       }
 
+      // AGENTIC: Check if query needs multi-step task execution
+      const complexTaskPlan = await planComplexTask(fullInput, messages);
+
+      if (complexTaskPlan) {
+        console.log('🤖 Complex task detected, creating autonomous plan:', complexTaskPlan);
+        setIsExecutingPlan(true);
+        setTaskPlan(complexTaskPlan);
+
+        // Execute each step autonomously
+        const stepResults = new Map<string, string>();
+
+        for (let i = 0; i < complexTaskPlan.steps.length; i++) {
+          const step = complexTaskPlan.steps[i];
+
+          // Update step to in_progress
+          complexTaskPlan.steps[i].status = 'in_progress';
+          complexTaskPlan.currentStepIndex = i;
+          setTaskPlan({ ...complexTaskPlan });
+
+          try {
+            // Execute step
+            const result = await executeTaskStep(step, complexTaskPlan, stepResults);
+
+            if (result.success) {
+              complexTaskPlan.steps[i].status = 'completed';
+              complexTaskPlan.steps[i].result = result.result;
+              stepResults.set(step.id, result.result);
+
+              // Add step result as assistant message
+              const stepMessage: Message = {
+                id: `step-${step.id}`,
+                role: 'assistant',
+                content: `**Step ${i + 1}/${complexTaskPlan.steps.length} Complete:** ${step.description}\n\n${result.result.substring(0, 500)}${result.result.length > 500 ? '...' : ''}`,
+                createdAt: new Date(),
+                completed: true,
+              };
+
+              setMessages(prev => [...prev, stepMessage]);
+            } else {
+              complexTaskPlan.steps[i].status = 'failed';
+              complexTaskPlan.steps[i].error = result.error;
+            }
+
+            setTaskPlan({ ...complexTaskPlan });
+          } catch (error) {
+            complexTaskPlan.steps[i].status = 'failed';
+            complexTaskPlan.steps[i].error = error instanceof Error ? error.message : 'Unknown error';
+            setTaskPlan({ ...complexTaskPlan });
+            break;
+          }
+        }
+
+        // Mark plan as completed
+        complexTaskPlan.status = complexTaskPlan.steps.every(s => s.status === 'completed') ? 'completed' : 'failed';
+        setTaskPlan({ ...complexTaskPlan });
+        setIsExecutingPlan(false);
+        setIsLoading(false);
+
+        // Final summary message
+        const summaryMessage: Message = {
+          id: `plan-complete-${Date.now()}`,
+          role: 'assistant',
+          content: `✅ **Multi-Step Task Complete!**\n\nSuccessfully executed ${complexTaskPlan.steps.filter(s => s.status === 'completed').length}/${complexTaskPlan.steps.length} steps autonomously.`,
+          createdAt: new Date(),
+          completed: true,
+        };
+
+        setMessages(prev => [...prev, summaryMessage]);
+
+        // Store in database if we have a thread
+        if (currentThreadId && user) {
+          await db.transact([
+            db.tx.messages.update(assistantMessage.id, {
+              content: summaryMessage.content,
+              completed: true,
+            }),
+          ]);
+        }
+
+        return; // Exit early, task execution complete
+      }
+
+      // Enrich query with memory if user is authenticated
+      let finalQuery = fullInput;
+      if (user) {
+        console.log(`🔍 Attempting to enrich query: "${fullInput.substring(0, 50)}..."`);
+        try {
+          const response = await fetch('/api/agent/enrich-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: fullInput, userId: user.id })
+          });
+
+          if (response.ok) {
+            const { enrichedQuery, memories } = await response.json();
+            console.log(`📊 Found ${memories.length} memories for enrichment`);
+            if (memories.length > 0) {
+              finalQuery = enrichedQuery;
+              console.log(`🧠 Enriched query with ${memories.length} relevant memories`);
+              console.log('Memories:', memories.map(m => m.content));
+            } else {
+              console.log('ℹ️ No relevant memories found, using original query');
+            }
+          } else {
+            console.log('⚠️ Enrichment API returned non-OK status:', response.status);
+          }
+        } catch (err) {
+          console.error('❌ Query enrichment error:', err);
+        }
+      } else {
+        console.log('⚠️ Skipping enrichment: User not authenticated');
+      }
+
       // Regular text response flow - only execute this if not an image generation model
       // Capture the complete assistant message object from fetchResponse
       const completedAssistantMessage = await fetchResponse(
-        fullInput,
+        finalQuery, // Use enriched query if available
         messages, // Pass current messages state for context
         selectedModel,
         abortControllerRef.current,
@@ -944,7 +1089,20 @@ function PageContent() {
           )
         ) : (
           <>
-            <ChatMessages 
+            {/* Agentic: Task Execution Panel */}
+            {taskPlan && (
+              <div className="px-4 mb-4">
+                <TaskExecutionPanel
+                  plan={taskPlan}
+                  onCancel={() => {
+                    setTaskPlan(null);
+                    setIsExecutingPlan(false);
+                  }}
+                />
+              </div>
+            )}
+
+            <ChatMessages
               messages={sortedMessages}
               isLoading={isLoading}
               selectedModel={selectedModel}
@@ -955,6 +1113,7 @@ function PageContent() {
               onQuote={setQuotedText}
               onRetry={handleRetryMessage}
             />
+
             {/* Chat input: block for guest after 3 messages */}
             {(!isGuest || guestMessageCount < GUEST_MESSAGE_LIMIT) ? (
               hasMessages && (

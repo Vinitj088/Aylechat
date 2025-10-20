@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, memo } from "react"
 import { useTheme } from "next-themes"
 import Markdown from "markdown-to-jsx"
 import hljs from "highlight.js"
@@ -730,8 +730,8 @@ const FileAttachmentView = ({ attachments }: { attachments: FileAttachment[] }) 
   )
 }
 
-// Component for message content with Markdown
-const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, attachments, provider, onQuote, completed }) => {
+// Component for message content with Markdown - Memoized for performance
+const MessageContent: React.FC<MessageContentProps> = memo(({ content, role, images, attachments, provider, onQuote, completed }) => {
   const { thinking, visible } = parseMessageContent(content || "")
   const [copied, setCopied] = useState(false)
   const [showQuoteMenu, setShowQuoteMenu] = useState(false)
@@ -866,6 +866,8 @@ const MessageContent: React.FC<MessageContentProps> = ({ content, role, images, 
       )}
     </div>
   )
-}
+})
+
+MessageContent.displayName = "MessageContent"
 
 export default MessageContent

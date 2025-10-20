@@ -6,55 +6,20 @@ import { toast } from 'sonner';
 import modelsConfig from '../../models.json';
 import { availableTools, Tool } from '../tools';
 
+// Import service modules
+import { scrapeUrlContent } from './services/urlScraper';
+import { analyzeQueryForTools } from './services/toolAnalyzer';
+import {
+  truncateConversationHistory,
+  selectSystemPrompt,
+  SYSTEM_PROMPTS,
+  ASSISTANT_SYSTEM_PROMPT,
+} from './services/contextManager';
+
 // --- Add URL Regex ---
 // Basic regex to find potential URLs. Can be refined for more complex cases.
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 // --- End Add ---
-
-// Character limits for context windows
-const MODEL_LIMITS = {
-  exa: 4000,    // Reduced limit for Exa to prevent timeouts
-  groq: 128000, // Groq models have a much larger limit
-  google: 64000, // Google Gemini models
-  default: 8000 // Fallback limit
-};
-
-// Phase 4: Define K for buffer memory (number of message PAIRS)
-const K_MESSAGE_PAIRS = 5; // Retain last 5 user/assistant pairs (10 messages total)
-
-// Function to truncate conversation history to fit within context window
-const truncateConversationHistory = (messages: Message[], modelId: string): Message[] => {
-  // For Exa, include limited context (last few messages) to support follow-up questions
-  if (modelId === 'exa') {
-    // Get the last 3 messages (or fewer if there aren't that many)
-    // This provides enough context for follow-ups without being too much
-    const recentMessages = [...messages].slice(-3);
-    
-    // Make sure the last message is always included (should be a user message)
-    if (recentMessages.length > 0 && recentMessages[recentMessages.length - 1].role !== 'user') {
-      // If the last message isn't from the user, find the last user message
-      const userMessages = messages.filter(msg => msg.role === 'user');
-      if (userMessages.length > 0) {
-        // Replace the last message with the most recent user message
-        recentMessages[recentMessages.length - 1] = userMessages[userMessages.length - 1];
-      }
-    }
-    
-    return recentMessages;
-  }
-  
-  // Phase 4: K-Window Buffer Memory for LLMs (Groq, Gemini, etc.)
-  const maxMessages = K_MESSAGE_PAIRS * 2;
-
-  // If the total number of messages is already within the limit, return them all
-  if (messages.length <= maxMessages) {
-    return messages;
-  }
-  
-  // Otherwise, return only the last `maxMessages` messages
-  console.log(`Truncating history from ${messages.length} to ${maxMessages} messages (K=${K_MESSAGE_PAIRS}).`);
-  return messages.slice(-maxMessages);
-};
 
 // Helper type for message updater function
 type MessageUpdater = ((messages: Message[]) => void) | React.Dispatch<React.SetStateAction<Message[]>>;
@@ -82,125 +47,6 @@ const updateMessages = (
     }
   }
 };
-
-// --- Tool Calling Analysis Function ---
-async function analyzeQueryForTools(query: string, messages: Message[]): Promise<{ command: string; query: string; text: string; } | null> {
-  const model = 'llama-3.1-8b-instant'; // A fast model is good for this
-  const toolsString = availableTools.map(t => `- ${t.command} - ${t.description}`).join('\n');
-  
-  // Format previous messages to provide context
-  const history = messages.slice(-3).map(m => `${m.role}: ${m.content}`).join('\n');
-
-  const systemPrompt = `You are an expert AI assistant that analyzes a user's query and conversation history to determine if the query can be better answered using one of the available tools. Your primary goal is to distinguish between requests for **real-time, specific data** (which tools can provide) and **general knowledge questions** (which you should answer directly).
-
-Your task is to respond with a JSON object. The JSON object should have one of two formats:
-1. If a tool is applicable for real-time data: {"tool": "/command_name", "query": "argument for the command", "text": "Short phrase for a button, e.g., 'Get Weather'"}
-2. If no tool is applicable (i.e., it's a general knowledge question): {"tool": null}
-
-Available Tools:
-${toolsString}
-
-Conversation History (for context):
----
-${history}
----
-
-Rules:
-- **Crucial Rule**: Use the conversation history to resolve pronouns or ambiguous references (e.g., "there," "that movie").
-- **CRITICAL**: You MUST only use a tool command from the "Available Tools" list. If no tool in the list is appropriate, you MUST respond with {"tool": null}. Do NOT invent a tool.
-- Only use a tool if the user is asking for specific, current information. For example, use the weather tool for "what is the weather *right now* in Paris?", but NOT for "is Paris *usually* cold in winter?". The latter is a general knowledge question.
-- ONLY respond with the JSON object. Do not include any other text, explanations, or markdown.
-- If the user's question is general, conceptual, historical, or a statement to be verified, respond with {"tool": null}.
-
-Examples:
-User Query: "what is the weather like in london?"
-Response: {"tool": "/weather", "query": "london", "text": "Get Weather for London"}
-
-User Query (after a conversation about Paris): "what about there?"
-Response: {"tool": "/weather", "query": "paris", "text": "Get Weather for Paris"}
-
-User Query: "weather all around the year in paris is snowy, isnt it?"
-Response: {"tool": null}
-`;
-
-  try {
-    const response = await fetch('/api/groq', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: query,
-        model: model,
-        systemPrompt: systemPrompt,
-        stream: false, // We need a single JSON response, not a stream
-        temperature: 0.0,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('Tool analysis API call failed:', response.status);
-      return null;
-    }
-
-    const result = await response.json();
-    const content = result.choices[0]?.message?.content;
-
-    if (!content) {
-      console.error('Tool analysis returned no content.');
-      return null;
-    }
-
-    // Extract the JSON object from the response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('Tool analysis response was not valid JSON:', content);
-      return null;
-    }
-
-    const toolJson = JSON.parse(jsonMatch[0]);
-
-    if (toolJson.tool && toolJson.query && toolJson.text) {
-      // Validate that the tool is one of the available tools
-      const isToolValid = availableTools.some(t => t.command === toolJson.tool);
-      if (isToolValid) {
-        console.log('Tool suggestion analysis result:', toolJson);
-        return { command: toolJson.tool, query: toolJson.query, text: toolJson.text };
-      } else {
-        console.warn(`Model suggested an unavailable tool: '${toolJson.tool}'. Ignoring suggestion.`);
-        return null;
-      }
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error during tool analysis:', error);
-    return null;
-  }
-}
-// --- End Tool Calling Analysis ---
-
-// High-quality system prompt for the main assistant
-const ASSISTANT_SYSTEM_PROMPT = `
-You are an expert AI coding assistant. Your responses must be clear, concise, and highly informative. When providing answers, always use high-quality Markdown with proper tags and formatting, including:
-
-- Headings (#, ##, etc.) for structure
-- Lists (ordered/unordered) for steps or options
-- Code blocks (with language specified) for all code, commands, or config
-- Tables for comparisons or structured data
-- Blockquotes for highlighting important notes or warnings
-- Bold/italic for emphasis where appropriate
-
-Instructions:
-- Always use semantic Markdown structure for readability.
-- Ensure all code is properly formatted and syntax-highlighted.
-- Provide explanations and context for your answers.
-- Include examples where helpful.
-- Suggest best practices and modern conventions.
-- Point out potential improvements or alternatives if relevant.
-- Avoid unnecessary verbosity or filler.
-- For long answers, provide a brief summary or TL;DR at the end.
-
-If the user's question is ambiguous, ask clarifying questions before answering.
-`;
 
 // Function to enhance a query using llama-3.3-70b-versatile instant
 export const enhanceQuery = async (query: string): Promise<string> => {
@@ -266,99 +112,7 @@ export const enhanceQuery = async (query: string): Promise<string> => {
   }
 };
 
-// --- Add function to call backend scraper ---
-// Updated to handle hybrid caching (instantdb validity + localStorage content)
-const scrapeUrlContent = async (url: string, abortController: AbortController): Promise<string | null> => {
-  const cacheKey = `scrape_cache_${url}`;
-  const now = Date.now();
-  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
-  // 1. Check localStorage for a cached version
-  try {
-    const cachedItem = localStorage.getItem(cacheKey);
-    if (cachedItem) {
-      const { timestamp, markdownContent } = JSON.parse(cachedItem);
-      if (now - timestamp < ONE_DAY_MS) {
-        console.log(`[Scrape Cache] HIT for URL: ${url}`);
-        toast.success('URL Content Loaded from Cache', {
-          description: 'Using recently scraped content for this URL.',
-          duration: 3000,
-        });
-        return markdownContent;
-      } else {
-        console.log(`[Scrape Cache] STALE for URL: ${url}`);
-        localStorage.removeItem(cacheKey); // Remove stale item
-      }
-    }
-  } catch (e) {
-    console.error("[Scrape Cache] Error reading from localStorage:", e);
-  }
-
-  // 2. If cache miss or stale, fetch from the API
-  console.log(`[Scrape Cache] MISS for URL: ${url}. Fetching from API.`);
-  const scrapeApiEndpoint = getAssetPath('/api/scrape');
-
-  try {
-    const response = await fetch(scrapeApiEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      signal: abortController.signal,
-      body: JSON.stringify({ urlToScrape: url }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Failed to parse scrape error response' }));
-      toast.warning('URL Scraping Failed', {
-        description: `Could not get content for the URL. Error: ${errorData.message || response.statusText}`,
-        duration: 5000,
-      });
-      return null;
-    }
-
-    const result = await response.json();
-
-    if (result.success && result.markdownContent) {
-      // 3. Store the new data in localStorage
-      try {
-        const newItem = {
-          timestamp: now,
-          markdownContent: result.markdownContent,
-        };
-        localStorage.setItem(cacheKey, JSON.stringify(newItem));
-        console.log(`[Scrape Cache] SET for URL: ${url}`);
-      } catch (e) {
-        console.error("[Scrape Cache] Error writing to localStorage:", e);
-      }
-
-      toast.success('URL Content Scraped', {
-        description: 'Fresh content from the URL will be used.',
-        duration: 3000,
-      });
-      return result.markdownContent;
-    } else {
-      toast.warning('URL Scraping Issue', {
-        description: result.message || 'Scraping completed but no content was returned.',
-        duration: 5000,
-      });
-      return null;
-    }
-
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      console.log('[Scrape] Request aborted.');
-      return null;
-    }
-    console.error('[Scrape] Error calling backend scrape endpoint:', error);
-    toast.error('Scraping Error', {
-      description: `An error occurred while trying to scrape the URL: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      duration: 5000,
-    });
-    return null;
-  }
-};
-// --- End Add ---
+// URL scraping logic is now in ./services/urlScraper.ts
 
 // Format previous messages to pass to API
 export const fetchResponse = async (
@@ -379,13 +133,19 @@ export const fetchResponse = async (
   let finalInput = trimmedInput; // Use a new variable for potentially modified input
 
   // --- Automatically enhance query for non-commands/URLs ---
-  if (enhancerMode === 'auto' && !finalInput.startsWith('/') && !finalInput.match(URL_REGEX) && selectedModel !== 'exa') {
+  // Skip enhancement for short queries (< 10 words) to save tokens and processing time
+  const wordCount = finalInput.trim().split(/\s+/).length;
+  const shouldEnhance = wordCount >= 10 && !finalInput.startsWith('/') && !finalInput.match(URL_REGEX) && selectedModel !== 'exa';
+
+  if (enhancerMode === 'auto' && shouldEnhance) {
     const enhanced = await enhanceQuery(finalInput);
     if (enhanced.trim().toLowerCase() !== finalInput.toLowerCase()) {
       console.log(`Query auto-corrected from "${finalInput}" to "${enhanced}"`);
       finalInput = enhanced; // Use the enhanced query
       toast.info(`Auto enhanced query: "${enhanced}"`);
     }
+  } else if (enhancerMode === 'auto' && wordCount < 10) {
+    console.log(`Skipping query enhancement for short query (${wordCount} words)`);
   }
   // --- End auto-enhancement ---
 
@@ -637,13 +397,16 @@ export const fetchResponse = async (
         // --- End FormData Creation ---
       } else {
         // --- Use JSON Body for other requests or Gemini without Attachments ---
-        const jsonPayload = selectedModel === 'exa' 
-          ? { query: finalInput, messages: truncatedMessages } 
+        // Select dynamic system prompt based on query type for token optimization
+        const dynamicSystemPrompt = selectSystemPrompt(trimmedInput);
+
+        const jsonPayload = selectedModel === 'exa'
+          ? { query: finalInput, messages: truncatedMessages }
           : modelConfig?.providerId === 'together' && modelConfig?.imageGenerationMode
             ? { model: selectedModel, prompt: finalInput, dimensions: { width: 1024, height: 768 } }
-            : { query: fullQuery, model: selectedModel, messages: truncatedMessages, systemPrompt: ASSISTANT_SYSTEM_PROMPT };
+            : { query: fullQuery, model: selectedModel, messages: truncatedMessages, systemPrompt: dynamicSystemPrompt };
         requestBody = JSON.stringify(jsonPayload);
-        console.log("Using JSON body for the request.");
+        console.log("Using JSON body for the request with", dynamicSystemPrompt === SYSTEM_PROMPTS.casual ? "casual" : dynamicSystemPrompt === SYSTEM_PROMPTS.code ? "code" : "detailed", "system prompt");
         // --- End JSON Body Creation ---
       }
       
@@ -731,7 +494,7 @@ export const fetchResponse = async (
         throw new Error(errorText || `API request failed with status ${response.status}`);
       }
       
-      // --- Existing Stream Handling Logic --- 
+      // --- Optimized Stream Handling Logic with Batched Updates ---
       if (!response.body) {
         throw new Error('Response body is null');
       }
@@ -740,6 +503,49 @@ export const fetchResponse = async (
       let content = '';
       let citations: any[] | undefined = undefined; // Use any[] to match type def
       let startTime: number | null = null;
+
+      // Batching optimization: Update UI every 50ms instead of on every chunk
+      let lastUpdateTime = Date.now();
+      let pendingUpdate = false;
+      let updateTimeout: NodeJS.Timeout | null = null;
+
+      const scheduleBatchUpdate = (isEndOfStream: boolean = false) => {
+        const now = Date.now();
+        const timeSinceLastUpdate = now - lastUpdateTime;
+
+        // Immediate update if end of stream or 50ms has passed
+        if (isEndOfStream || timeSinceLastUpdate >= 50) {
+          if (updateTimeout) {
+            clearTimeout(updateTimeout);
+            updateTimeout = null;
+          }
+          updateMessages(setMessages, (prev: Message[]) =>
+            prev.map((msg: Message) =>
+              msg.id === assistantMessage.id
+                ? { ...msg, content: content, completed: isEndOfStream, startTime: startTime ?? undefined, citations }
+                : msg
+            )
+          );
+          lastUpdateTime = now;
+          pendingUpdate = false;
+        } else if (!pendingUpdate) {
+          // Schedule a batched update
+          pendingUpdate = true;
+          const delay = 50 - timeSinceLastUpdate;
+          updateTimeout = setTimeout(() => {
+            updateMessages(setMessages, (prev: Message[]) =>
+              prev.map((msg: Message) =>
+                msg.id === assistantMessage.id
+                  ? { ...msg, content: content, completed: false, startTime: startTime ?? undefined, citations }
+                  : msg
+              )
+            );
+            lastUpdateTime = Date.now();
+            pendingUpdate = false;
+            updateTimeout = null;
+          }, delay);
+        }
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -751,10 +557,11 @@ export const fetchResponse = async (
             const data = JSON.parse(line);
             if (data.citations) {
               citations = data.citations;
-              updateMessages(setMessages, (prev: Message[]) => 
-                prev.map((msg: Message) => 
-                  msg.id === assistantMessage.id 
-                    ? { ...msg, citations: data.citations } 
+              // Citations are important, update immediately
+              updateMessages(setMessages, (prev: Message[]) =>
+                prev.map((msg: Message) =>
+                  msg.id === assistantMessage.id
+                    ? { ...msg, citations: data.citations }
                     : msg
                 )
               );
@@ -769,32 +576,40 @@ export const fetchResponse = async (
             }
             if (data.choices && data.choices[0]?.delta?.content) {
               const newContent = data.choices[0].delta.content;
-              
+
               // Simple fix: only add space if content starts with a number and previous content ends with a letter
               let processedContent = newContent;
-              
-              if (content.length > 0 && 
-                  /[a-zA-Z]$/.test(content) && 
+
+              if (content.length > 0 &&
+                  /[a-zA-Z]$/.test(content) &&
                   /^\d/.test(newContent)) {
                 processedContent = ' ' + newContent;
               }
-              
+
               content += processedContent;
               if (startTime === null && newContent.length > 0) {
                 startTime = Date.now();
               }
               const isEndOfStream = line.includes('"finish_reason"') || line.includes('"done":true') || data.choices[0]?.finish_reason;
-              updateMessages(setMessages, (prev: Message[]) => 
-                prev.map((msg: Message) => 
-                  msg.id === assistantMessage.id 
-                    ? { ...msg, content: content, completed: isEndOfStream, startTime: startTime ?? undefined } 
-                    : msg
-                )
-              );
+
+              // Use batched updates instead of updating on every chunk
+              scheduleBatchUpdate(isEndOfStream);
             }
           } catch { continue; }
         }
       }
+
+      // Ensure final update is sent if there's a pending update
+      if (updateTimeout) {
+        clearTimeout(updateTimeout);
+      }
+      updateMessages(setMessages, (prev: Message[]) =>
+        prev.map((msg: Message) =>
+          msg.id === assistantMessage.id
+            ? { ...msg, content: content, completed: true, startTime: startTime ?? undefined, citations }
+            : msg
+        )
+      );
 
       // After streaming completes, calculate TPS and make final update
       const endTime = Date.now();
