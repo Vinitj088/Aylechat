@@ -214,9 +214,11 @@ export default function LeftSidebar({
       <aside
         suppressHydrationWarning
         className={cn(
-          "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] shadow-lg flex flex-col h-screen transition-all duration-300 ease-in-out fixed left-0 top-0 overflow-hidden",
-          // Mobile: slide off-screen when collapsed, Desktop: show collapsed
-          isExpanded ? "w-64 translate-x-0 z-50" : "w-64 -translate-x-full md:w-14 md:translate-x-0 md:z-50"
+          "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] shadow-lg flex flex-col h-screen transition-all duration-300 ease-in-out fixed top-0 overflow-hidden",
+          // Mobile: slide from right, Desktop: fixed on left
+          isExpanded
+            ? "w-64 right-0 translate-x-0 z-50 md:left-0"
+            : "w-64 right-0 translate-x-full md:left-0 md:w-14 md:translate-x-0 md:z-50"
         )}
       >
         {/* Header with Toggle and Logo */}
