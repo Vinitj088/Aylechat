@@ -329,9 +329,10 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
             "h-screen flex flex-col transition-all duration-300",
             isExpanded ? "ml-64" : "ml-14"
           )}>
-            <div className="flex-1 overflow-y-auto">
-              {/* Loading skeleton */}
-            </div>
+            <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-full flex flex-col">
+              <div className="flex-1 overflow-y-auto">
+                {/* Loading skeleton */}
+              </div>
             <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
               <ChatInput
                 ref={chatInputRef}
@@ -351,6 +352,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
                 quotedText={quotedText}
                 setQuotedText={setQuotedText}
               />
+            </div>
             </div>
           </div>
         </div>
@@ -423,8 +425,9 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
           "h-screen flex flex-col transition-all duration-300",
           isExpanded ? "ml-64" : "ml-14"
         )}>
-          <div className="flex-1 overflow-y-auto">
-            <ChatMessages
+          <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-full flex flex-col">
+            <div className="flex-1 overflow-y-auto">
+              <ChatMessages
               messages={sortedMessages}
               isLoading={isLoading}
               selectedModel={selectedModel}
@@ -457,6 +460,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
               quotedText={quotedText}
               setQuotedText={setQuotedText}
             />
+            </div>
           </div>
         </div>
       </div>
