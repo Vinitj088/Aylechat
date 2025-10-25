@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import { ChatInputHandle } from './component/ChatInput';
 import MobileSearchUI from './component/MobileSearchUI';
 import DesktopSearchUI from './component/DesktopSearchUI';
+import LeftSidebar from './component/LeftSidebar';
 import { fetchResponse } from './api/apiService';
 import modelsData from '../models.json';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -25,7 +26,6 @@ import { Button } from "@/components/ui/button";
 import { prefetchAll } from './api/prefetch';
 import { FileUp, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { useSidebarPin } from '../context/SidebarPinContext';
 import useIsMobile from './hooks/useIsMobile';
 import { QueryEnhancerProvider, useQueryEnhancer } from '@/context/QueryEnhancerContext';
 import { db } from '@/lib/db';
@@ -88,7 +88,8 @@ function PageContent() {
       searchMode: true
     }
   ]);
-  const { pinned, setPinned } = useSidebarPin();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [sidebarMounted, setSidebarMounted] = useState(false);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const { user, isLoading: authLoading, openAuthDialog } = useAuth();
@@ -119,6 +120,22 @@ function PageContent() {
   useEffect(() => {
     document.title = 'Ayle';
   }, []);
+
+  // Load sidebar state from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebarExpanded');
+    if (saved) {
+      setIsExpanded(JSON.parse(saved));
+    }
+    setSidebarMounted(true);
+  }, []);
+
+  // Persist sidebar expanded state
+  useEffect(() => {
+    if (sidebarMounted) {
+      localStorage.setItem('sidebarExpanded', JSON.stringify(isExpanded));
+    }
+  }, [isExpanded, sidebarMounted]);
 
   // Prefetch API modules and data when the app loads
   useEffect(() => {
@@ -1005,15 +1022,6 @@ function PageContent() {
       model.providerId === 'cerebras'
   );
 
-  // Auto-unpin sidebar on mobile
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 1300 && pinned) setPinned(false);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [pinned, setPinned]);
-
   // Always sort messages by createdAt ascending before rendering
   const sortedMessages = [...messages].sort((a, b) => {
     const aDate = typeof a.createdAt === 'string' ? a.createdAt : a.createdAt?.toISOString?.() || '';
@@ -1023,71 +1031,45 @@ function PageContent() {
 
   return (
     <>
-        {/* Header - Mobile only */}
-        <div className="lg:hidden">
+        {/* Mobile Header */}
+        <div className="md:hidden">
           <Header />
         </div>
-        {/* Fixed Ayle Logo - Desktop only */}
-        <Link
-          href="/"
-          className={cn("hidden lg:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]", pinned ? "sidebar-pinned-fixed" : "")}
-          onClick={(e) => {
-            e.preventDefault();
-            window.location.href = '/';
-          }}
-        >
-          <span 
-            className="text-3xl text-[var(--brand-default)]"
-            style={{ 
-              fontFamily: 'var(--font-gebuk-regular)',
-              letterSpacing: '0.05em',
-              fontWeight: 'normal',
-              position: 'relative',
-              padding: '0 4px'
-            }}
-          >
-            Ayle
-          </span>
-        </Link>
-        {!hasMessages ? (
-          isMobile ? (
-            <MobileSearchUI 
-              input={input}
-              handleInputChange={handleInputChange}
-              handleSubmit={handleSubmit}
-              isLoading={isLoading}
-              selectedModel={selectedModel}
-              handleModelChange={handleModelChange}
-              models={isGuest ? guestModels : models}
-              setInput={setInput}
-              messages={messages}
-              description={description}
-              onAttachmentsChange={setAttachments}
-              isGuest={isGuest}
-              guestMessageCount={guestMessageCount}
-              guestMessageLimit={GUEST_MESSAGE_LIMIT}
-              openAuthDialog={openAuthDialog}
-            />
-          ) : (
-            <DesktopSearchUI 
-              input={input}
-              handleInputChange={handleInputChange}
-              handleSubmit={handleSubmit}
-              isLoading={isLoading}
-              selectedModel={selectedModel}
-              handleModelChange={handleModelChange}
-              models={isGuest ? guestModels : models}
-              setInput={setInput}
-              description={description}
-              messages={messages}
-              onAttachmentsChange={setAttachments}
-              isGuest={isGuest}
-              guestMessageCount={guestMessageCount}
-              guestMessageLimit={GUEST_MESSAGE_LIMIT}
-              openAuthDialog={openAuthDialog}
-            />
-          )
-        ) : (
+
+        {/* Desktop & Tablet Layout - Fixed sidebar */}
+        <div className="hidden md:block min-h-screen">
+          {/* Left Sidebar - Tablet and Desktop */}
+          <LeftSidebar
+            onNewChat={handleNewChat}
+            isExpanded={isExpanded}
+            setIsExpanded={setIsExpanded}
+            isHydrating={!sidebarMounted}
+          />
+
+          {/* Main Content with responsive scaling */}
+          <div className={cn(
+            "min-h-screen md:scale-[0.85] lg:scale-90 xl:scale-95 2xl:scale-100 origin-top-left transition-all duration-300",
+            isExpanded ? "ml-64" : "ml-14"
+          )}>
+            {!hasMessages ? (
+              <DesktopSearchUI
+                input={input}
+                handleInputChange={handleInputChange}
+                handleSubmit={handleSubmit}
+                isLoading={isLoading}
+                selectedModel={selectedModel}
+                handleModelChange={handleModelChange}
+                models={isGuest ? guestModels : models}
+                setInput={setInput}
+                description={description}
+                messages={messages}
+                onAttachmentsChange={setAttachments}
+                isGuest={isGuest}
+                guestMessageCount={guestMessageCount}
+                guestMessageLimit={GUEST_MESSAGE_LIMIT}
+                openAuthDialog={openAuthDialog}
+              />
+            ) : (
           <>
             {/* Agentic: Task Execution Panel */}
             {taskPlan && (
@@ -1117,8 +1099,84 @@ function PageContent() {
             {/* Chat input: block for guest after 3 messages */}
             {(!isGuest || guestMessageCount < GUEST_MESSAGE_LIMIT) ? (
               hasMessages && (
-                <DynamicChatInput 
-                  ref={chatInputRef}
+                <div className="sticky bottom-0 w-full bg-[var(--secondary-default)] z-10">
+                  <DynamicChatInput
+                    ref={chatInputRef}
+                    input={input}
+                    handleInputChange={handleInputChange}
+                    handleSubmit={handleSubmit}
+                    isLoading={isLoading}
+                    selectedModel={selectedModel}
+                    handleModelChange={handleModelChange}
+                    models={isGuest ? guestModels : models}
+                    isExa={isExa}
+                    onNewChat={handleNewChat}
+                    onAttachmentsChange={setAttachments}
+                    activeChatFiles={activeChatFiles}
+                    removeActiveFile={removeActiveFile}
+                    onActiveFilesHeightChange={handleActiveFilesHeightChange}
+                    quotedText={quotedText}
+                    setQuotedText={setQuotedText}
+                  />
+                </div>
+              )
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                <p className="text-lg font-semibold mb-2 text-gray-300">Sign in to unlock unlimited messages and advanced features</p>
+                <button className="px-4 py-2 text-sm font-medium text-white bg-[#C85D3F] hover:bg-[#d66b4d] rounded-lg transition-colors" onClick={openAuthDialog}>Sign In</button>
+              </div>
+            )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile Content */}
+        <div className="md:hidden min-h-screen">
+          {!hasMessages ? (
+            <MobileSearchUI
+              input={input}
+              handleInputChange={handleInputChange}
+              handleSubmit={handleSubmit}
+              isLoading={isLoading}
+              selectedModel={selectedModel}
+              handleModelChange={handleModelChange}
+              models={isGuest ? guestModels : models}
+              setInput={setInput}
+              messages={messages}
+              description={description}
+              onAttachmentsChange={setAttachments}
+              isGuest={isGuest}
+              guestMessageCount={guestMessageCount}
+              guestMessageLimit={GUEST_MESSAGE_LIMIT}
+              openAuthDialog={openAuthDialog}
+            />
+          ) : (
+            <>
+              {taskPlan && (
+                <div className="px-4 mb-4">
+                  <TaskExecutionPanel
+                    plan={taskPlan}
+                    onCancel={() => {
+                      setTaskPlan(null);
+                      setIsExecutingPlan(false);
+                    }}
+                  />
+                </div>
+              )}
+
+              <ChatMessages
+                messages={sortedMessages}
+                isLoading={isLoading}
+                selectedModel={selectedModel}
+                selectedModelObj={selectedModelObj}
+                isExa={isExa}
+                currentThreadId={currentThreadId}
+              />
+
+              <div className="sticky bottom-0 w-full bg-[var(--secondary-default)] z-10">
+                <ChatInput
+                  ref={inputRef}
                   input={input}
                   handleInputChange={handleInputChange}
                   handleSubmit={handleSubmit}
@@ -1126,28 +1184,22 @@ function PageContent() {
                   selectedModel={selectedModel}
                   handleModelChange={handleModelChange}
                   models={isGuest ? guestModels : models}
-                  isExa={isExa}
-                  onNewChat={handleNewChat}
                   onAttachmentsChange={setAttachments}
-                  activeChatFiles={activeChatFiles}
-                  removeActiveFile={removeActiveFile}
-                  onActiveFilesHeightChange={handleActiveFilesHeightChange}
-                  quotedText={quotedText}
-                  setQuotedText={setQuotedText}
-                  sidebarPinned={pinned}
+                  isGuest={isGuest}
+                  guestMessageCount={guestMessageCount}
+                  guestMessageLimit={GUEST_MESSAGE_LIMIT}
+                  openAuthDialog={openAuthDialog}
                 />
-              )
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-                <p className="text-lg font-semibold mb-2">Sign in to unlock unlimited messages and advanced features</p>
-                <button className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all" onClick={openAuthDialog}>Sign In</button>
               </div>
-            )}
-          </>
-        )}
-        {/* Fixed Theme Toggle - Desktop only */}
-        <div className={cn("hidden lg:block fixed bottom-4 left-4 z-50", pinned ? "sidebar-pinned-fixed" : "")}> 
-          <ThemeToggle />
+
+              {isGuest && guestMessageCount >= GUEST_MESSAGE_LIMIT && (
+                <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                  <p className="text-lg font-semibold mb-2 text-gray-300">Sign in to unlock unlimited messages and advanced features</p>
+                  <button className="px-4 py-2 text-sm font-medium text-white bg-[#C85D3F] hover:bg-[#d66b4d] rounded-lg transition-colors" onClick={openAuthDialog}>Sign In</button>
+                </div>
+              )}
+            </>
+          )}
         </div>
     </>
   );

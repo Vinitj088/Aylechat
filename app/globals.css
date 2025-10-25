@@ -724,21 +724,16 @@ pre code {
     right: 256px !important;
     transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
   }
-  .ayle-grid-layout {
+  .ayle-grid-layout-left {
     display: grid;
-    grid-template-columns: 1fr 256px;
+    grid-template-columns: auto 1fr;
     width: 100vw;
     min-height: 100vh;
     transition: grid-template-columns 0.3s cubic-bezier(0.4,0,0.2,1);
   }
-  .ayle-main-pinned {
+  .ayle-main-pinned-left {
     max-width: 100% !important;
     margin: 0 !important;
-  }
-  /* Sidebar should be in the second column when pinned */
-  .ayle-grid-layout > .fixed.right-0 {
-    grid-column: 2;
-    grid-row: 1 / span 2;
   }
 }
 
@@ -1384,21 +1379,16 @@ pre code {
     right: 256px !important;
     transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
   }
-  .ayle-grid-layout {
+  .ayle-grid-layout-left {
     display: grid;
-    grid-template-columns: 1fr 256px;
+    grid-template-columns: auto 1fr;
     width: 100vw;
     min-height: 100vh;
     transition: grid-template-columns 0.3s cubic-bezier(0.4,0,0.2,1);
   }
-  .ayle-main-pinned {
+  .ayle-main-pinned-left {
     max-width: 100% !important;
     margin: 0 !important;
-  }
-  /* Sidebar should be in the second column when pinned */
-  .ayle-grid-layout > .fixed.right-0 {
-    grid-column: 2;
-    grid-row: 1 / span 2;
   }
 }
 

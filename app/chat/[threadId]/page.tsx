@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, Suspense, useCallback } from 'react';
 import { Message, Model, ModelType, FileAttachment } from '../../types';
 import Header from '../../component/Header';
+import LeftSidebar from '../../component/LeftSidebar';
 import ChatMessages from '../../component/ChatMessages';
 import ChatInput, { ChatInputHandle } from '../../component/ChatInput';
 import { fetchResponse } from '../../api/apiService';
@@ -16,7 +17,6 @@ import React from 'react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
-import { useSidebarPin } from '../../../context/SidebarPinContext';
 import { QueryEnhancerProvider, useQueryEnhancer } from '@/context/QueryEnhancerContext';
 import { db } from '@/lib/db';
 import { id } from '@instantdb/react';
@@ -61,10 +61,27 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
   const [quotedText, setQuotedText] = useState('');
   const [retriedMessageId, setRetriedMessageId] = useState<string | null>(null);
-  const { pinned, setPinned } = useSidebarPin();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [sidebarMounted, setSidebarMounted] = useState(false);
   const { enhancerMode } = useQueryEnhancer();
 
   const isAuthenticated = !!user;
+
+  // Load sidebar state from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebarExpanded');
+    if (saved) {
+      setIsExpanded(JSON.parse(saved));
+    }
+    setSidebarMounted(true);
+  }, []);
+
+  // Persist sidebar expanded state
+  useEffect(() => {
+    if (sidebarMounted) {
+      localStorage.setItem('sidebarExpanded', JSON.stringify(isExpanded));
+    }
+  }, [isExpanded, sidebarMounted]);
 
   // Update document title when thread title is available
   useEffect(() => {
@@ -282,15 +299,6 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     }, 100);
   }, []);
 
-  // Auto-unpin sidebar on mobile
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 1300 && pinned) setPinned(false);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [pinned, setPinned]);
-
   // Always sort messages by createdAt ascending before rendering
   const sortedMessages = [...messages].sort((a, b) => {
     const aDate = new Date(a.createdAt || 0).getTime();
@@ -301,42 +309,166 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   if (isThreadLoading || authLoading) {
     return (
       <>
-        {/* Header - Mobile only */}
-        <div className="lg:hidden">
+        {/* Mobile Header */}
+        <div className="md:hidden">
           <Header />
         </div>
-        {/* Fixed Ayle Logo - Desktop only */}
-        <Link
-          href="/"
-            className={cn("hidden lg:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]", pinned ? "sidebar-pinned-fixed" : "")}
-          onClick={(e) => {
-            e.preventDefault();
-            window.location.href = '/';
-          }}
-        >
-          <span 
-            className="text-3xl text-[var(--brand-default)]"
-            style={{ 
-              fontFamily: 'var(--font-gebuk-regular)',
-              letterSpacing: '0.05em',
-              fontWeight: 'normal',
-              position: 'relative',
-              padding: '0 4px'
-            }}
-          >
-            Ayle
-          </span>
-        </Link>
-        {/* ChatMessages skeleton or empty space while loading */}
-          <div className="flex-1">
-            {/* Optionally, you can add a skeleton here for ChatMessages */}
+
+        {/* Desktop & Tablet Layout - Fixed sidebar */}
+        <div className="hidden md:block h-screen overflow-hidden">
+          {/* Left Sidebar - Tablet and Desktop */}
+          <LeftSidebar
+            onNewChat={handleNewChat}
+            isExpanded={isExpanded}
+            setIsExpanded={setIsExpanded}
+            isHydrating={!sidebarMounted}
+          />
+
+          {/* Main Content with responsive scaling */}
+          <div className={cn(
+            "h-screen flex flex-col md:scale-[0.85] lg:scale-90 xl:scale-95 2xl:scale-100 origin-top-left transition-all duration-300",
+            isExpanded ? "ml-64" : "ml-14"
+          )}>
+            <div className="flex-1 overflow-y-auto">
+              {/* Loading skeleton */}
+            </div>
+            <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
+              <ChatInput
+                ref={chatInputRef}
+                input={input}
+                handleInputChange={handleInputChange}
+                handleSubmit={(e) => handleSubmit(e, attachments)}
+                isLoading={true}
+                selectedModel={selectedModel}
+                handleModelChange={handleModelChange}
+                models={models}
+                isExa={selectedModel === 'exa'}
+                onNewChat={handleNewChat}
+                onAttachmentsChange={setAttachments}
+                activeChatFiles={activeChatFiles}
+                removeActiveFile={removeActiveFile}
+                onActiveFilesHeightChange={handleActiveFilesHeightChange}
+                quotedText={quotedText}
+                setQuotedText={setQuotedText}
+              />
+            </div>
           </div>
+        </div>
+
+        {/* Mobile Content */}
+        <div className="md:hidden h-screen flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
+            {/* Loading skeleton */}
+          </div>
+          <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
+            <ChatInput
+              ref={chatInputRef}
+              input={input}
+              handleInputChange={handleInputChange}
+              handleSubmit={(e) => handleSubmit(e, attachments)}
+              isLoading={true}
+              selectedModel={selectedModel}
+              handleModelChange={handleModelChange}
+              models={models}
+              isExa={selectedModel === 'exa'}
+              onNewChat={handleNewChat}
+              onAttachmentsChange={setAttachments}
+              activeChatFiles={activeChatFiles}
+              removeActiveFile={removeActiveFile}
+              onActiveFilesHeightChange={handleActiveFilesHeightChange}
+              quotedText={quotedText}
+              setQuotedText={setQuotedText}
+            />
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {/* Mobile Header */}
+      <div className="md:hidden">
+        <Header />
+      </div>
+
+      {/* Desktop & Tablet Layout - Fixed sidebar */}
+      <div className="hidden md:block h-screen overflow-hidden">
+        {/* Left Sidebar - Tablet and Desktop */}
+        <LeftSidebar
+          onNewChat={handleNewChat}
+          isExpanded={isExpanded}
+          setIsExpanded={setIsExpanded}
+          isHydrating={!sidebarMounted}
+        />
+
+        {/* Main Content with responsive scaling */}
+        <div className={cn(
+          "h-screen flex flex-col md:scale-[0.85] lg:scale-90 xl:scale-95 2xl:scale-100 origin-top-left transition-all duration-300",
+          isExpanded ? "ml-64" : "ml-14"
+        )}>
+          <div className="flex-1 overflow-y-auto">
+            <ChatMessages
+              messages={sortedMessages}
+              isLoading={isLoading}
+              selectedModel={selectedModel}
+              selectedModelObj={selectedModelObj}
+              isExa={selectedModel === 'exa'}
+              currentThreadId={threadId}
+              threadTitle={thread?.title}
+              bottomPadding={chatInputHeightOffset}
+              onQuote={setQuotedText}
+              onRetry={handleRetryMessage}
+            />
+          </div>
+
+          <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
+            <ChatInput
+              ref={chatInputRef}
+              input={input}
+              handleInputChange={handleInputChange}
+              handleSubmit={(e) => handleSubmit(e, attachments)}
+              isLoading={isLoading}
+              selectedModel={selectedModel}
+              handleModelChange={handleModelChange}
+              models={models}
+              isExa={selectedModel === 'exa'}
+              onNewChat={handleNewChat}
+              onAttachmentsChange={setAttachments}
+              activeChatFiles={activeChatFiles}
+              removeActiveFile={removeActiveFile}
+              onActiveFilesHeightChange={handleActiveFilesHeightChange}
+              quotedText={quotedText}
+              setQuotedText={setQuotedText}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Content */}
+      <div className="md:hidden h-screen flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          <ChatMessages
+            messages={sortedMessages}
+            isLoading={isLoading}
+            selectedModel={selectedModel}
+            selectedModelObj={selectedModelObj}
+            isExa={selectedModel === 'exa'}
+            currentThreadId={threadId}
+            threadTitle={thread?.title}
+            bottomPadding={chatInputHeightOffset}
+            onQuote={setQuotedText}
+            onRetry={handleRetryMessage}
+          />
+        </div>
+
+        <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
           <ChatInput
             ref={chatInputRef}
             input={input}
             handleInputChange={handleInputChange}
             handleSubmit={(e) => handleSubmit(e, attachments)}
-            isLoading={true} // Show loading state
+            isLoading={isLoading}
             selectedModel={selectedModel}
             handleModelChange={handleModelChange}
             models={models}
@@ -348,87 +480,15 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
             onActiveFilesHeightChange={handleActiveFilesHeightChange}
             quotedText={quotedText}
             setQuotedText={setQuotedText}
-            sidebarPinned={pinned}
           />
-        {/* Fixed Theme Toggle - Desktop only, only for lg and up */}
-          <div className={cn("hidden lg:block fixed bottom-4 left-4 z-50", pinned ? "sidebar-pinned-fixed" : "")}>
-          <ThemeToggle />
         </div>
-      </>
-    );
-  }
-
-  return (
-    <>
-         {/* Header - Mobile only */}
-<div className="lg:hidden">
-  <Header />
-</div>
-{/* Fixed Ayle Logo - Desktop only */}
-<Link
-  href="/"
-          className={cn("hidden lg:flex fixed top-4 left-4 z-50 items-center transition-colors duration-200 hover:text-[#121212] dark:hover:text-[#ffffff]", pinned ? "sidebar-pinned-fixed" : "")}
-  onClick={(e) => {
-    e.preventDefault();
-    window.location.href = '/';
-  }}
->
-  <span 
-    className="text-3xl text-[var(--brand-default)]"
-    style={{ 
-      fontFamily: 'var(--font-gebuk-regular)',
-      letterSpacing: '0.05em',
-      fontWeight: 'normal',
-      position: 'relative',
-      padding: '0 4px'
-    }}
-  >
-    Ayle
-  </span>
-</Link>
-
-      <ChatMessages
-        messages={sortedMessages}
-        isLoading={isLoading}
-        selectedModel={selectedModel}
-        selectedModelObj={selectedModelObj}
-        isExa={selectedModel === 'exa'}
-        currentThreadId={threadId}
-        threadTitle={thread?.title}
-        bottomPadding={chatInputHeightOffset}
-        onQuote={setQuotedText}
-        onRetry={handleRetryMessage}
-      />
-
-      <ChatInput
-        ref={chatInputRef}
-        input={input}
-        handleInputChange={handleInputChange}
-        handleSubmit={(e) => handleSubmit(e, attachments)}
-        isLoading={isLoading}
-        selectedModel={selectedModel}
-        handleModelChange={handleModelChange}
-        models={models}
-        isExa={selectedModel === 'exa'}
-        onNewChat={handleNewChat}
-        onAttachmentsChange={setAttachments}
-        activeChatFiles={activeChatFiles}
-        removeActiveFile={removeActiveFile}
-        onActiveFilesHeightChange={handleActiveFilesHeightChange}
-        quotedText={quotedText}
-        setQuotedText={setQuotedText}
-          sidebarPinned={pinned}
-      />
+      </div>
 
       {/* Auth Dialog */}
       <AuthDialog
         onSuccess={() => {
         }}
       />
-      {/* Fixed Theme Toggle - Desktop only, only for lg and up */}
-        <div className={cn("hidden lg:block fixed bottom-4 left-4 z-50", pinned ? "sidebar-pinned-fixed" : "")}>
-        <ThemeToggle />
-      </div>
     </>
   );
 }
