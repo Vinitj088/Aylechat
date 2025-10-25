@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { prefetchAll } from './api/prefetch';
-import { FileUp, X } from 'lucide-react';
+import { FileUp, X, PanelLeft } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import useIsMobile from './hooks/useIsMobile';
 import { QueryEnhancerProvider, useQueryEnhancer } from '@/context/QueryEnhancerContext';
@@ -1134,7 +1134,34 @@ function PageContent() {
         </div>
 
         {/* Mobile Content */}
-        <div className="md:hidden h-screen flex flex-col">
+        <div className="md:hidden h-screen flex flex-col relative">
+          {/* Mobile hamburger menu button */}
+          {!isExpanded && (
+            <button
+              onClick={() => setIsExpanded(true)}
+              className="fixed top-4 left-4 z-30 p-2 bg-[var(--sidebar-bg)] border border-[var(--sidebar-border)] rounded-md shadow-lg"
+              aria-label="Open menu"
+            >
+              <PanelLeft className="h-6 w-6 text-[var(--text-light-default)]" />
+            </button>
+          )}
+
+          {/* Mobile Left Sidebar - Overlay */}
+          <LeftSidebar
+            onNewChat={handleNewChat}
+            isExpanded={isExpanded}
+            setIsExpanded={setIsExpanded}
+            isHydrating={!sidebarMounted}
+          />
+
+          {/* Overlay backdrop when sidebar is expanded */}
+          {isExpanded && (
+            <div
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={() => setIsExpanded(false)}
+            />
+          )}
+
           {!hasMessages ? (
             <MobileSearchUI
               input={input}

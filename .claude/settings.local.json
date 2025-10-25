@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(npm install react-window @types/react-window)",
-      "Bash(npm install @pinecone-database/pinecone openai)"
+      "Bash(npm install @pinecone-database/pinecone openai)",
+      "Read(//c/Users/vinit/OneDrive/Pictures/Screenshots 1/**)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

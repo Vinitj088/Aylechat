@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { QueryEnhancerProvider, useQueryEnhancer } from '@/context/QueryEnhancerContext';
 import { db } from '@/lib/db';
 import { id } from '@instantdb/react';
+import { PanelLeft } from 'lucide-react';
 
 function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const { data, isLoading: isThreadLoading, error } = db.useQuery({
@@ -356,7 +357,34 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         </div>
 
         {/* Mobile Content */}
-        <div className="md:hidden h-screen flex flex-col overflow-hidden">
+        <div className="md:hidden h-screen flex flex-col overflow-hidden relative">
+          {/* Mobile hamburger menu button */}
+          {!isExpanded && (
+            <button
+              onClick={() => setIsExpanded(true)}
+              className="fixed top-4 left-4 z-30 p-2 bg-[var(--sidebar-bg)] border border-[var(--sidebar-border)] rounded-md shadow-lg"
+              aria-label="Open menu"
+            >
+              <PanelLeft className="h-6 w-6 text-[var(--text-light-default)]" />
+            </button>
+          )}
+
+          {/* Mobile Left Sidebar - Overlay */}
+          <LeftSidebar
+            onNewChat={handleNewChat}
+            isExpanded={isExpanded}
+            setIsExpanded={setIsExpanded}
+            isHydrating={!sidebarMounted}
+          />
+
+          {/* Overlay backdrop when sidebar is expanded */}
+          {isExpanded && (
+            <div
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={() => setIsExpanded(false)}
+            />
+          )}
+
           <div className="flex-1 overflow-y-auto">
             {/* Loading skeleton */}
           </div>
@@ -446,7 +474,34 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       </div>
 
       {/* Mobile Content */}
-      <div className="md:hidden h-screen flex flex-col overflow-hidden">
+      <div className="md:hidden h-screen flex flex-col overflow-hidden relative">
+        {/* Mobile hamburger menu button */}
+        {!isExpanded && (
+          <button
+            onClick={() => setIsExpanded(true)}
+            className="fixed top-4 left-4 z-30 p-2 bg-[var(--sidebar-bg)] border border-[var(--sidebar-border)] rounded-md shadow-lg"
+            aria-label="Open menu"
+          >
+            <PanelLeft className="h-6 w-6 text-[var(--text-light-default)]" />
+          </button>
+        )}
+
+        {/* Mobile Left Sidebar - Overlay */}
+        <LeftSidebar
+          onNewChat={handleNewChat}
+          isExpanded={isExpanded}
+          setIsExpanded={setIsExpanded}
+          isHydrating={!sidebarMounted}
+        />
+
+        {/* Overlay backdrop when sidebar is expanded */}
+        {isExpanded && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setIsExpanded(false)}
+          />
+        )}
+
         <div className="flex-1 overflow-y-auto">
           <ChatMessages
             messages={sortedMessages}

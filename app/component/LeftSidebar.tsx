@@ -215,8 +215,8 @@ export default function LeftSidebar({
         suppressHydrationWarning
         className={cn(
           "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] shadow-lg flex flex-col h-screen transition-all duration-300 ease-in-out fixed left-0 top-0 z-50 overflow-hidden",
-          // Width transitions
-          isExpanded ? "w-64" : "w-14"
+          // Mobile: slide off-screen when collapsed, Desktop: show collapsed
+          isExpanded ? "w-64 translate-x-0" : "w-64 -translate-x-full md:w-14 md:translate-x-0"
         )}
       >
         {/* Header with Toggle and Logo */}
