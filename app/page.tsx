@@ -1048,7 +1048,7 @@ function PageContent() {
 
           {/* Main Content */}
           <div className={cn(
-            "min-h-screen transition-all duration-300",
+            "h-screen flex flex-col transition-all duration-300",
             isExpanded ? "ml-64" : "ml-14"
           )}>
             {!hasMessages ? (
@@ -1071,35 +1071,37 @@ function PageContent() {
               />
             ) : (
           <>
-            {/* Agentic: Task Execution Panel */}
-            {taskPlan && (
-              <div className="px-4 mb-4">
-                <TaskExecutionPanel
-                  plan={taskPlan}
-                  onCancel={() => {
-                    setTaskPlan(null);
-                    setIsExecutingPlan(false);
-                  }}
-                />
-              </div>
-            )}
+            <div className="flex-1 overflow-y-auto">
+              {/* Agentic: Task Execution Panel */}
+              {taskPlan && (
+                <div className="px-4 mb-4">
+                  <TaskExecutionPanel
+                    plan={taskPlan}
+                    onCancel={() => {
+                      setTaskPlan(null);
+                      setIsExecutingPlan(false);
+                    }}
+                  />
+                </div>
+              )}
 
-            <ChatMessages
-              messages={sortedMessages}
-              isLoading={isLoading}
-              selectedModel={selectedModel}
-              selectedModelObj={selectedModelObj}
-              isExa={isExa}
-              currentThreadId={currentThreadId}
-              bottomPadding={chatInputHeightOffset}
-              onQuote={setQuotedText}
-              onRetry={handleRetryMessage}
-            />
+              <ChatMessages
+                messages={sortedMessages}
+                isLoading={isLoading}
+                selectedModel={selectedModel}
+                selectedModelObj={selectedModelObj}
+                isExa={isExa}
+                currentThreadId={currentThreadId}
+                bottomPadding={chatInputHeightOffset}
+                onQuote={setQuotedText}
+                onRetry={handleRetryMessage}
+              />
+            </div>
 
             {/* Chat input: block for guest after 3 messages */}
             {(!isGuest || guestMessageCount < GUEST_MESSAGE_LIMIT) ? (
               hasMessages && (
-                <div className="sticky bottom-0 w-full bg-[var(--secondary-default)] z-10">
+                <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
                   <DynamicChatInput
                     ref={chatInputRef}
                     input={input}
@@ -1132,7 +1134,7 @@ function PageContent() {
         </div>
 
         {/* Mobile Content */}
-        <div className="md:hidden min-h-screen">
+        <div className="md:hidden h-screen flex flex-col">
           {!hasMessages ? (
             <MobileSearchUI
               input={input}
@@ -1153,28 +1155,30 @@ function PageContent() {
             />
           ) : (
             <>
-              {taskPlan && (
-                <div className="px-4 mb-4">
-                  <TaskExecutionPanel
-                    plan={taskPlan}
-                    onCancel={() => {
-                      setTaskPlan(null);
-                      setIsExecutingPlan(false);
-                    }}
-                  />
-                </div>
-              )}
+              <div className="flex-1 overflow-y-auto">
+                {taskPlan && (
+                  <div className="px-4 mb-4">
+                    <TaskExecutionPanel
+                      plan={taskPlan}
+                      onCancel={() => {
+                        setTaskPlan(null);
+                        setIsExecutingPlan(false);
+                      }}
+                    />
+                  </div>
+                )}
 
-              <ChatMessages
-                messages={sortedMessages}
-                isLoading={isLoading}
-                selectedModel={selectedModel}
-                selectedModelObj={selectedModelObj}
-                isExa={isExa}
-                currentThreadId={currentThreadId}
-              />
+                <ChatMessages
+                  messages={sortedMessages}
+                  isLoading={isLoading}
+                  selectedModel={selectedModel}
+                  selectedModelObj={selectedModelObj}
+                  isExa={isExa}
+                  currentThreadId={currentThreadId}
+                />
+              </div>
 
-              <div className="sticky bottom-0 w-full bg-[var(--secondary-default)] z-10">
+              <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
                 <ChatInput
                   ref={inputRef}
                   input={input}
