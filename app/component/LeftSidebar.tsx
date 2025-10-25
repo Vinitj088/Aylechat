@@ -214,7 +214,7 @@ export default function LeftSidebar({
       <aside
         suppressHydrationWarning
         className={cn(
-          "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] shadow-lg flex flex-col h-screen ease-in-out fixed top-0 overflow-hidden",
+          "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] shadow-lg flex flex-col h-screen transition-[width,transform] duration-300 ease-in-out fixed top-0 overflow-hidden",
           // Mobile: slide from right, Desktop: fixed on left
           isExpanded
             ? "w-64 right-0 translate-x-0 z-50 md:left-0"
