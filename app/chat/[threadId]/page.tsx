@@ -324,9 +324,9 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
             isHydrating={!sidebarMounted}
           />
 
-          {/* Main Content with responsive scaling */}
+          {/* Main Content */}
           <div className={cn(
-            "h-screen flex flex-col md:scale-[0.85] lg:scale-90 xl:scale-95 2xl:scale-100 origin-top-left transition-all duration-300",
+            "h-screen flex flex-col transition-all duration-300",
             isExpanded ? "ml-64" : "ml-14"
           )}>
             <div className="flex-1 overflow-y-auto">
@@ -402,9 +402,9 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
           isHydrating={!sidebarMounted}
         />
 
-        {/* Main Content with responsive scaling */}
+        {/* Main Content */}
         <div className={cn(
-          "h-screen flex flex-col md:scale-[0.85] lg:scale-90 xl:scale-95 2xl:scale-100 origin-top-left transition-all duration-300",
+          "h-screen flex flex-col transition-all duration-300",
           isExpanded ? "ml-64" : "ml-14"
         )}>
           <div className="flex-1 overflow-y-auto">

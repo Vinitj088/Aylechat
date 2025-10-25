@@ -1046,9 +1046,9 @@ function PageContent() {
             isHydrating={!sidebarMounted}
           />
 
-          {/* Main Content with responsive scaling */}
+          {/* Main Content */}
           <div className={cn(
-            "min-h-screen md:scale-[0.85] lg:scale-90 xl:scale-95 2xl:scale-100 origin-top-left transition-all duration-300",
+            "min-h-screen transition-all duration-300",
             isExpanded ? "ml-64" : "ml-14"
           )}>
             {!hasMessages ? (
