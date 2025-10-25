@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { prefetchAll } from './api/prefetch';
-import { FileUp, X, PanelLeft } from 'lucide-react';
+import { FileUp, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import useIsMobile from './hooks/useIsMobile';
 import { QueryEnhancerProvider, useQueryEnhancer } from '@/context/QueryEnhancerContext';
@@ -1033,7 +1033,7 @@ function PageContent() {
     <>
         {/* Mobile Header */}
         <div className="md:hidden">
-          <Header />
+          <Header onToggleSidebar={() => setIsExpanded(true)} />
         </div>
 
         {/* Desktop & Tablet Layout - Fixed sidebar */}
@@ -1135,17 +1135,6 @@ function PageContent() {
 
         {/* Mobile Content */}
         <div className="md:hidden h-screen flex flex-col relative">
-          {/* Mobile hamburger menu button */}
-          {!isExpanded && (
-            <button
-              onClick={() => setIsExpanded(true)}
-              className="fixed top-4 left-4 z-30 p-2 bg-[var(--sidebar-bg)] border border-[var(--sidebar-border)] rounded-md shadow-lg"
-              aria-label="Open menu"
-            >
-              <PanelLeft className="h-6 w-6 text-[var(--text-light-default)]" />
-            </button>
-          )}
-
           {/* Mobile Left Sidebar - Overlay */}
           <LeftSidebar
             onNewChat={handleNewChat}

@@ -7,13 +7,15 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { AuthDialog } from '@/components/AuthDialog';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { useSidebar } from '@/context/SidebarContext';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  onToggleSidebar?: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const router = useRouter();
   const { user, signOut, openAuthDialog } = useAuth();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const { toggleSidebar } = useSidebar();
 
   const handleHomeClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -108,15 +110,17 @@ const Header: React.FC = () => {
             </a> */}
 
             {/* Sidebar Toggle Button */}
-            <button
-              className="p-1.5 text-[var(--text-light-muted)] hover:bg-[var(--secondary-darker)] rounded-md transition-colors md:hidden"
-              onClick={toggleSidebar}
-              aria-label="Toggle sidebar"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </button>
+            {onToggleSidebar && (
+              <button
+                className="p-1.5 text-[var(--text-light-muted)] hover:bg-[var(--secondary-darker)] rounded-md transition-colors md:hidden"
+                onClick={onToggleSidebar}
+                aria-label="Toggle sidebar"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
 
