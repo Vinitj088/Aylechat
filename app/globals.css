@@ -87,6 +87,10 @@
   /* Typography - These are now handled by variables set in layout.tsx */
   /* --font-family-sans: 'Instrument Sans', sans-serif; */
   /* --font-family-serif: 'Space Grotesk', sans-serif; */
+
+  /* Sidebar colors - darker than main page */
+  --sidebar-bg: #e0e0e0; /* Darker than #f5f5f5 */
+  --sidebar-border: #d0d0d0; /* Darker border for light mode */
 }
 
 /* Dark Mode Variables */
@@ -138,6 +142,10 @@
   --accent-pink-dark: #fbcfe8;
   --accent-maroon-light: #450a0a;
   --accent-maroon-dark: #fca5a5;
+
+  /* Sidebar colors for dark mode - darker than main page */
+  --sidebar-bg: #101010; /* Darker than #141414 */
+  --sidebar-border: #1f1f1f; /* Slightly lighter border for visibility */
 }
 
 body {
@@ -787,6 +795,10 @@ pre code {
   --accent-pink-dark: #fbcfe8;
   --accent-maroon-light: #450a0a;
   --accent-maroon-dark: #fca5a5;
+
+  /* Sidebar colors for dark mode - darker than main page */
+  --sidebar-bg: #101010; /* Darker than #141414 */
+  --sidebar-border: #1f1f1f; /* Slightly lighter border for visibility */
 }
 
 body {

@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useLayoutEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { toast } from "sonner"
@@ -53,14 +53,27 @@ export default function LeftSidebar({
   isHydrating = false,
 }: LeftSidebarProps) {
   const [threadToDelete, setThreadToDelete] = useState<string | null>(null)
-  const [showMoreChats, setShowMoreChats] = useState(false)
+  const [showMoreChats, setShowMoreChats] = useState(() => {
+    // Initialize from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebarShowMoreChats')
+      return saved ? JSON.parse(saved) : false
+    }
+    return false
+  })
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
   const { theme, setTheme } = useTheme()
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const router = useRouter()
   const pathname = usePathname()
   const { user, signOut, openAuthDialog } = useAuth()
   const isAuthenticated = !!user
+
+  // Persist showMoreChats state
+  useEffect(() => {
+    localStorage.setItem('sidebarShowMoreChats', JSON.stringify(showMoreChats))
+  }, [showMoreChats])
 
   // Query for the current user's profile directly
   const {
@@ -100,6 +113,39 @@ export default function LeftSidebar({
 
   // Show limited number of chats initially
   const visibleChats = showMoreChats ? threads : threads.slice(0, 5)
+
+  // Save scroll position when scrolling
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    const handleScroll = () => {
+      const scrollPos = container.scrollTop
+      localStorage.setItem('sidebarScrollPosition', scrollPos.toString())
+    }
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [isExpanded])
+
+  // Restore scroll position after DOM updates
+  useEffect(() => {
+    if (isHydrating || isLoading) return
+
+    const savedScrollPosition = localStorage.getItem('sidebarScrollPosition')
+    if (savedScrollPosition && scrollContainerRef.current) {
+      const scrollPos = parseInt(savedScrollPosition, 10)
+
+      // Use multiple frames to ensure DOM is fully settled
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = scrollPos
+          }
+        })
+      })
+    }
+  }, [isHydrating, isLoading, pathname])
 
   const handleThreadClick = (threadId: string) => {
     router.push(`/chat/${threadId}`)
@@ -168,13 +214,13 @@ export default function LeftSidebar({
       <aside
         suppressHydrationWarning
         className={cn(
-          "bg-[var(--secondary-default)] border-r border-[var(--secondary-darkest)] shadow-lg flex flex-col h-screen transition-all duration-300 ease-in-out fixed left-0 top-0 z-50 overflow-hidden",
+          "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] shadow-lg flex flex-col h-screen transition-all duration-300 ease-in-out fixed left-0 top-0 z-50 overflow-hidden",
           // Width transitions
           isExpanded ? "w-64" : "w-14"
         )}
       >
         {/* Header with Toggle and Logo */}
-        <div className="border-b border-[var(--secondary-darkest)] flex flex-col items-start p-2 gap-2" suppressHydrationWarning>
+        <div className="border-b border-[var(--sidebar-border)] flex flex-col items-start p-2 gap-2" suppressHydrationWarning>
           {/* Row 1: Toggle and Ayle Logo */}
           <div className="flex items-center gap-2 w-full min-w-0">
             <button
@@ -227,7 +273,7 @@ export default function LeftSidebar({
             </div>
 
             {/* Footer Skeleton */}
-            <div className="border-t border-[var(--secondary-darkest)] p-2 space-y-1">
+            <div className="border-t border-[var(--sidebar-border)] p-2 space-y-1">
               <Skeleton className={cn(isExpanded ? "h-12 w-full" : "h-10 w-10")} />
               <Skeleton className={cn(isExpanded ? "h-12 w-full" : "h-10 w-10")} />
             </div>
@@ -235,7 +281,7 @@ export default function LeftSidebar({
         ) : isAuthenticated && user ? (
           <>
             {/* Main Content Area */}
-            <div className="flex-1 overflow-y-auto no-scrollbar p-2" suppressHydrationWarning>
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar p-2" suppressHydrationWarning>
               {/* New Chat Button - Always visible */}
               <button
                 onClick={onNewChat}
@@ -287,7 +333,7 @@ export default function LeftSidebar({
             </div>
 
             {/* Footer */}
-            <div className="border-t border-[var(--secondary-darkest)] p-2 space-y-1" suppressHydrationWarning>
+            <div className="border-t border-[var(--sidebar-border)] p-2 space-y-1" suppressHydrationWarning>
               {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
