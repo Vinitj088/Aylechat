@@ -374,7 +374,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   };
 
   return (
-    <div className={cn("fixed bottom-0 left-0 right-0 z-40 md:max-w-4xl mx-auto transition-all duration-300", sidebarPinned ? "sidebar-pinned-fixed" : "")}>
+    <div className="w-full md:max-w-4xl mx-auto">
       <div className="w-full bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] rounded-lg rounded-bl-none rounded-br-none shadow-lg p-3 relative scrollbar-none">
         {/* Step 6: Display Active Files - MOVED TO TOP */}
         {activeChatFiles && activeChatFiles.length > 0 && removeActiveFile && (
