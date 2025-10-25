@@ -356,7 +356,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         </div>
 
         {/* Mobile Content */}
-        <div className="md:hidden h-screen flex flex-col overflow-hidden relative">
+        <div className="md:hidden h-screen flex flex-col overflow-hidden relative pt-[60px]">
           {/* Mobile Left Sidebar - Overlay */}
           <LeftSidebar
             onNewChat={handleNewChat}
@@ -462,7 +462,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       </div>
 
       {/* Mobile Content */}
-      <div className="md:hidden h-screen flex flex-col overflow-hidden relative">
+      <div className="md:hidden h-screen flex flex-col overflow-hidden relative pt-[60px]">
         {/* Mobile Left Sidebar - Overlay */}
         <LeftSidebar
           onNewChat={handleNewChat}

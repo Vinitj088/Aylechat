@@ -1134,7 +1134,7 @@ function PageContent() {
         </div>
 
         {/* Mobile Content */}
-        <div className="md:hidden h-screen flex flex-col relative">
+        <div className="md:hidden h-screen flex flex-col relative pt-[60px]">
           {/* Mobile Left Sidebar - Overlay */}
           <LeftSidebar
             onNewChat={handleNewChat}
