@@ -187,7 +187,7 @@ export default function LeftSidebar({
     <div
       key={thread.id}
       className={cn(
-        "group flex items-center gap-2 w-full text-left p-2 rounded-md transition-all duration-200 cursor-pointer min-w-0",
+        "group flex items-center gap-2 w-full text-left p-2 rounded-md  cursor-pointer min-w-0",
         pathname === `/chat/${thread.id}`
           ? "bg-[var(--brand-fainter)] text-[var(--brand-default)]"
           : "text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)]",
@@ -200,7 +200,7 @@ export default function LeftSidebar({
           e.stopPropagation()
           setThreadToDelete(thread.id)
         }}
-        className="p-1 text-[var(--text-light-muted)] hover:text-[var(--accent-red)] rounded transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+        className="p-1 text-[var(--text-light-muted)] hover:text-[var(--accent-red)] rounded  opacity-0 group-hover:opacity-100 flex-shrink-0"
         title="Delete thread"
       >
         <Trash2 className="h-3 w-3" />
@@ -214,9 +214,9 @@ export default function LeftSidebar({
       <aside
         suppressHydrationWarning
         className={cn(
-          "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] shadow-lg flex flex-col h-screen transition-all duration-300 ease-in-out fixed left-0 top-0 z-50 overflow-hidden",
+          "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] shadow-lg flex flex-col h-screen transition-all duration-300 ease-in-out fixed left-0 top-0 overflow-hidden",
           // Mobile: slide off-screen when collapsed, Desktop: show collapsed
-          isExpanded ? "w-64 translate-x-0" : "w-64 -translate-x-full md:w-14 md:translate-x-0"
+          isExpanded ? "w-64 translate-x-0 z-50" : "w-64 -translate-x-full md:w-14 md:translate-x-0 md:z-50"
         )}
       >
         {/* Header with Toggle and Logo */}
@@ -313,7 +313,7 @@ export default function LeftSidebar({
                         {threads.length > 5 && (
                           <button
                             onClick={() => setShowMoreChats(!showMoreChats)}
-                            className="flex items-center gap-2 w-full text-left p-2 text-sm text-[var(--text-light-muted)] hover:bg-[var(--secondary-darker)] rounded-md transition-colors"
+                            className="flex items-center gap-2 w-full text-left p-2 text-sm text-[var(--text-light-muted)] hover:bg-[var(--secondary-darker)] rounded-md"
                           >
                             <MoreHorizontal className="h-4 w-4" />
                             {showMoreChats ? "Show less" : `${threads.length - 5} more`}
@@ -394,7 +394,7 @@ export default function LeftSidebar({
           <div className="flex flex-1 items-center justify-center p-4">
             <button
               onClick={openAuthDialog}
-              className="flex items-center gap-2 p-3 text-sm font-medium text-[var(--brand-default)] hover:bg-[var(--secondary-darker)] rounded-md transition-colors min-w-0"
+              className="flex items-center gap-2 p-3 text-sm font-medium text-[var(--brand-default)] hover:bg-[var(--secondary-darker)] rounded-md  min-w-0"
             >
               <User className="h-5 w-5 flex-shrink-0" />
               {isExpanded && <span className="whitespace-nowrap overflow-hidden">Sign In</span>}
