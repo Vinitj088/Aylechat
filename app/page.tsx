@@ -1197,8 +1197,8 @@ function PageContent() {
               </div>
 
               <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
-                <ChatInput
-                  ref={inputRef}
+                <DynamicChatInput
+                  ref={chatInputRef}
                   input={input}
                   handleInputChange={handleInputChange}
                   handleSubmit={handleSubmit}
@@ -1206,11 +1206,14 @@ function PageContent() {
                   selectedModel={selectedModel}
                   handleModelChange={handleModelChange}
                   models={isGuest ? guestModels : models}
+                  isExa={isExa}
+                  onNewChat={handleNewChat}
                   onAttachmentsChange={setAttachments}
-                  isGuest={isGuest}
-                  guestMessageCount={guestMessageCount}
-                  guestMessageLimit={GUEST_MESSAGE_LIMIT}
-                  openAuthDialog={openAuthDialog}
+                  activeChatFiles={activeChatFiles}
+                  removeActiveFile={removeActiveFile}
+                  onActiveFilesHeightChange={handleActiveFilesHeightChange}
+                  quotedText={quotedText}
+                  setQuotedText={setQuotedText}
                 />
               </div>
 
