@@ -1038,18 +1038,20 @@ function PageContent() {
 
         {/* Desktop & Tablet Layout - Fixed sidebar */}
         <div className="hidden md:block min-h-screen">
-          {/* Left Sidebar - Tablet and Desktop */}
-          <LeftSidebar
-            onNewChat={handleNewChat}
-            isExpanded={isExpanded}
-            setIsExpanded={setIsExpanded}
-            isHydrating={!sidebarMounted}
-          />
+          {/* Left Sidebar - Tablet and Desktop - Only show when logged in */}
+          {isAuthenticated && (
+            <LeftSidebar
+              onNewChat={handleNewChat}
+              isExpanded={isExpanded}
+              setIsExpanded={setIsExpanded}
+              isHydrating={!sidebarMounted}
+            />
+          )}
 
           {/* Main Content */}
           <div className={cn(
             "h-screen flex flex-col transition-all duration-300",
-            isExpanded ? "ml-64" : "ml-14"
+            isAuthenticated ? (isExpanded ? "ml-64" : "ml-14") : "ml-0"
           )}>
             <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-full flex flex-col">
             {!hasMessages ? (
@@ -1072,7 +1074,7 @@ function PageContent() {
               />
             ) : (
           <>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto no-scrollbar">
               {/* Agentic: Task Execution Panel */}
               {taskPlan && (
                 <div className="px-4 mb-4">
@@ -1173,7 +1175,7 @@ function PageContent() {
             />
           ) : (
             <>
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto no-scrollbar">
                 {taskPlan && (
                   <div className="px-4 mb-4">
                     <TaskExecutionPanel

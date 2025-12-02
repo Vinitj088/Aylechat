@@ -316,21 +316,23 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
         {/* Desktop & Tablet Layout - Fixed sidebar */}
         <div className="hidden md:block h-screen overflow-hidden">
-          {/* Left Sidebar - Tablet and Desktop */}
-          <LeftSidebar
-            onNewChat={handleNewChat}
-            isExpanded={isExpanded}
-            setIsExpanded={setIsExpanded}
-            isHydrating={!sidebarMounted}
-          />
+          {/* Left Sidebar - Tablet and Desktop - Only show when logged in */}
+          {isAuthenticated && (
+            <LeftSidebar
+              onNewChat={handleNewChat}
+              isExpanded={isExpanded}
+              setIsExpanded={setIsExpanded}
+              isHydrating={!sidebarMounted}
+            />
+          )}
 
           {/* Main Content */}
           <div className={cn(
             "h-screen flex flex-col transition-all duration-300",
-            isExpanded ? "ml-64" : "ml-14"
+            isAuthenticated ? (isExpanded ? "ml-64" : "ml-14") : "ml-0"
           )}>
             <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-full flex flex-col">
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto no-scrollbar">
                 {/* Loading skeleton */}
               </div>
             <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
@@ -360,22 +362,24 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         {/* Mobile Content */}
         <div className="md:hidden h-screen flex flex-col overflow-hidden relative pt-[60px]">
           {/* Mobile Left Sidebar - Overlay */}
-          <LeftSidebar
-            onNewChat={handleNewChat}
-            isExpanded={isExpanded}
-            setIsExpanded={setIsExpanded}
-            isHydrating={!sidebarMounted}
-          />
+          {isAuthenticated && (
+            <LeftSidebar
+              onNewChat={handleNewChat}
+              isExpanded={isExpanded}
+              setIsExpanded={setIsExpanded}
+              isHydrating={!sidebarMounted}
+            />
+          )}
 
           {/* Overlay backdrop when sidebar is expanded */}
-          {isExpanded && (
+          {isExpanded && isAuthenticated && (
             <div
               className="fixed inset-0 bg-black/50 z-40"
               onClick={() => setIsExpanded(false)}
             />
           )}
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto no-scrollbar">
             {/* Loading skeleton */}
           </div>
           <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
@@ -412,21 +416,23 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
       {/* Desktop & Tablet Layout - Fixed sidebar */}
       <div className="hidden md:block h-screen overflow-hidden">
-        {/* Left Sidebar - Tablet and Desktop */}
-        <LeftSidebar
-          onNewChat={handleNewChat}
-          isExpanded={isExpanded}
-          setIsExpanded={setIsExpanded}
-          isHydrating={!sidebarMounted}
-        />
+        {/* Left Sidebar - Tablet and Desktop - Only show when logged in */}
+        {isAuthenticated && (
+          <LeftSidebar
+            onNewChat={handleNewChat}
+            isExpanded={isExpanded}
+            setIsExpanded={setIsExpanded}
+            isHydrating={!sidebarMounted}
+          />
+        )}
 
         {/* Main Content */}
         <div className={cn(
           "h-screen flex flex-col transition-all duration-300",
-          isExpanded ? "ml-64" : "ml-14"
+          isAuthenticated ? (isExpanded ? "ml-64" : "ml-14") : "ml-0"
         )}>
           <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-full flex flex-col">
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto no-scrollbar">
               <ChatMessages
               messages={sortedMessages}
               isLoading={isLoading}
@@ -467,23 +473,25 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
       {/* Mobile Content */}
       <div className="md:hidden h-screen flex flex-col overflow-hidden relative pt-[60px]">
-        {/* Mobile Left Sidebar - Overlay */}
-        <LeftSidebar
-          onNewChat={handleNewChat}
-          isExpanded={isExpanded}
-          setIsExpanded={setIsExpanded}
-          isHydrating={!sidebarMounted}
-        />
+        {/* Mobile Left Sidebar - Overlay - Only show when logged in */}
+        {isAuthenticated && (
+          <LeftSidebar
+            onNewChat={handleNewChat}
+            isExpanded={isExpanded}
+            setIsExpanded={setIsExpanded}
+            isHydrating={!sidebarMounted}
+          />
+        )}
 
         {/* Overlay backdrop when sidebar is expanded */}
-        {isExpanded && (
+        {isExpanded && isAuthenticated && (
           <div
             className="fixed inset-0 bg-black/50 z-40"
             onClick={() => setIsExpanded(false)}
           />
         )}
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto no-scrollbar">
           <ChatMessages
             messages={sortedMessages}
             isLoading={isLoading}
