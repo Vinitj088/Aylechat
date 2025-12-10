@@ -1,82 +1,38 @@
 import React, { useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useState } from 'react';
 import { Model } from '../types';
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Send, Plus, FileUp, X, Paperclip, Film, Tv } from 'lucide-react';
+import { ArrowUp, Plus, X, Paperclip, Square, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import ModelSelector from './ModelSelector';
-import QueryEnhancer from './QueryEnhancer';
 import { useQueryEnhancer } from '@/context/QueryEnhancerContext';
-
-const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    // Ensure window is defined (for SSR safety)
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const checkDevice = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    window.addEventListener('resize', checkDevice);
-    checkDevice(); // Initial check on mount
-
-    return () => {
-      window.removeEventListener('resize', checkDevice);
-    };
-  }, []);
-
-  return isMobile;
-};
-
-// Function to prefetch API endpoints
-const prefetchAPI = async (modelId: string) => {
-  // Determine which API endpoint to prefetch based on the model
-  let apiEndpoint = '/api/groq'; // Default
-
-  try {
-    // Use a dynamic import to load the models.json file
-    const modelsConfig = await import('../../models.json');
-    // Find the model configuration
-    const modelConfig = modelsConfig.models.find((m: any) => m.id === modelId);
-
-    if (modelId === 'exa') {
-      apiEndpoint = '/api/exaanswer';
-    } else if (modelConfig?.toolCallType === 'openrouter') {
-      apiEndpoint = '/api/openrouter';
-    } else if (modelId.includes('gemini')) {
-      apiEndpoint = '/api/gemini';
-    }
-
-    // Send a prefetch (warmup) request to the API
-    fetch(apiEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        warmup: true,
-        model: modelId
-      }),
-      // Use no-store to ensure this goes through and isn't cached
-      cache: 'no-store'
-    }).catch(() => {
-      // Silently ignore errors in prefetch
-    });
-  } catch (e) {
-    // Silently ignore any errors during prefetching
-  }
-};
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Google,
+  Groq,
+  OpenRouter,
+  Meta,
+  DeepSeek,
+  Qwen,
+  Mistral,
+  Gemma,
+  Grok,
+  Exa,
+  Flux,
+  Moonshot,
+  Perplexity
+} from '@lobehub/icons';
+import Image from 'next/image';
 
 export interface ChatInputHandle {
   focus: () => void;
 }
 
-// Attachment type interface
 interface Attachment {
   file: File;
-  previewUrl?: string; // For image files
+  previewUrl?: string;
 }
 
 interface ChatInputProps {
@@ -96,10 +52,60 @@ interface ChatInputProps {
   quotedText?: string;
   setQuotedText?: (text: string) => void;
   sidebarPinned?: boolean;
+  onStop?: () => void;
 }
 
-// Define command mode state type
-type CommandMode = 'none' | 'movies' | 'tv';
+// Inception icon component
+const InceptionIcon = () => (
+  <div className="h-5 w-5 flex items-center justify-center rounded-sm overflow-hidden">
+    <Image
+      src="/inceptionai.png"
+      alt="Inception"
+      width={20}
+      height={20}
+      className="object-contain dark:block hidden"
+      unoptimized
+    />
+    <Image
+      src="/inceptionai-lightmode.png"
+      alt="Inception"
+      width={20}
+      height={20}
+      className="object-contain block dark:hidden"
+      unoptimized
+    />
+  </div>
+);
+
+const getProviderIcon = (avatarType: string, size = 18) => {
+  switch (avatarType) {
+    case 'google': return <Google.Avatar size={size} />;
+    case 'gemma': return <Gemma.Simple size={size} />;
+    case 'meta': return <Meta.Avatar size={size} />;
+    case 'deepseek': return <DeepSeek.Avatar size={size} />;
+    case 'groq': return <Groq.Avatar size={size} />;
+    case 'xai': return <Grok.Avatar size={size} />;
+    case 'openrouter': return <OpenRouter.Avatar size={size} />;
+    case 'mistral': return <Mistral.Avatar size={size} />;
+    case 'qwen': return <Qwen.Avatar size={size} />;
+    case 'together': return <Flux.Avatar size={size} />;
+    case 'moonshotai': return <Moonshot.Avatar size={size} />;
+    case 'exa': return <Exa.Avatar size={size} />;
+    case 'perplexity': return <Perplexity size={size} />;
+    case 'inception': return <InceptionIcon />;
+    default: return null;
+  }
+};
+
+// Group models by provider
+const groupByProvider = (models: Model[]): Record<string, Model[]> => {
+  const grouped: Record<string, Model[]> = {};
+  models.forEach(model => {
+    if (!grouped[model.provider]) grouped[model.provider] = [];
+    grouped[model.provider].push(model);
+  });
+  return grouped;
+};
 
 const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   input,
@@ -117,205 +123,96 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
   onActiveFilesHeightChange,
   quotedText,
   setQuotedText,
-  sidebarPinned = false
+  sidebarPinned = false,
+  onStop
 }, ref) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const lastModelRef = useRef<string>(selectedModel);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const activeFilesContainerRef = useRef<HTMLDivElement>(null);
-  const { enhancerMode } = useQueryEnhancer();
-  const isMobile = useIsMobile();
-  // State for command mode
-  const [commandMode, setCommandMode] = useState<CommandMode>('none');
 
-  // Check if current model is a Gemini model
   const isGeminiModel = selectedModel.includes('gemini');
+  const selectedModelObj = models.find(model => model.id === selectedModel);
+  const groupedModels = groupByProvider(models);
 
-  // Expose the focus method to parent components
   useImperativeHandle(ref, () => ({
-    focus: () => {
-      textareaRef.current?.focus();
-    }
+    focus: () => textareaRef.current?.focus()
   }));
 
-  // Cache the model change handler with useCallback to prevent unnecessary recreations
-  const handleModelChangeWithPrefetch = useCallback((modelId: string) => {
-    // Call original handler
-    handleModelChange(modelId);
-
-    // Trigger API prefetch for the newly selected model
-    prefetchAPI(modelId);
-
-    // Clear attachments if switching to a non-Gemini model
-    if (!modelId.includes('gemini') && attachments.length > 0) {
-      setAttachments([]);
-    }
-
-    // Update the last model reference
-    lastModelRef.current = modelId;
-  }, [handleModelChange, attachments]);
-
-  // Open the file browser
-  const handleFileButtonClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  // Update parent component when attachments change
+  // Update parent when attachments change
   useEffect(() => {
-    if (onAttachmentsChange) {
-      // Convert Attachment[] to File[]
-      const files = attachments.map(attachment => attachment.file);
-      onAttachmentsChange(files);
-    }
+    onAttachmentsChange?.(attachments.map(a => a.file));
   }, [attachments, onAttachmentsChange]);
 
-  // Handle file selection
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      const newHeight = Math.min(textareaRef.current.scrollHeight, 200);
+      textareaRef.current.style.height = `${newHeight}px`;
+    }
+  }, [input]);
+
+  // Measure active files height
+  useEffect(() => {
+    const height = activeFilesContainerRef.current?.clientHeight || 0;
+    onActiveFilesHeightChange?.(height);
+  }, [activeChatFiles, onActiveFilesHeightChange]);
+
+  // Cleanup URLs on unmount
+  useEffect(() => {
+    return () => {
+      attachments.forEach(a => a.previewUrl && URL.revokeObjectURL(a.previewUrl));
+    };
+  }, [attachments]);
+
+  const handleFileButtonClick = () => fileInputRef.current?.click();
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
+    if (!files) return;
 
-    const newAttachments: Attachment[] = [];
+    const newAttachments = Array.from(files).map(file => ({
+      file,
+      previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
+    }));
 
-    Array.from(files).forEach(file => {
-      // Create preview URL for images
-      let previewUrl: string | undefined;
-      if (file.type.startsWith('image/')) {
-        previewUrl = URL.createObjectURL(file);
-      }
-
-      newAttachments.push({ file, previewUrl });
-    });
-
-    const updatedAttachments = [...attachments, ...newAttachments];
-    setAttachments(updatedAttachments);
-
-    // Reset the file input value so the same file can be selected again
+    setAttachments(prev => [...prev, ...newAttachments]);
     e.target.value = '';
   };
 
-  // Remove an attachment by index
   const removeAttachment = (index: number) => {
     setAttachments(prev => {
       const updated = [...prev];
-      // Revoke object URL if it exists to prevent memory leaks
-      if (updated[index].previewUrl) {
-        URL.revokeObjectURL(updated[index].previewUrl);
-      }
+      if (updated[index].previewUrl) URL.revokeObjectURL(updated[index].previewUrl);
       updated.splice(index, 1);
       return updated;
     });
   };
 
-  // --- Modify handleInputChange to detect commands --- 
-  const handleInputChangeWithCommandDetection = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    handleInputChange(e); // Call original handler
-
-    if (value.startsWith('/movies ')) {
-      setCommandMode('movies');
-    } else if (value.startsWith('/tv ')) {
-      setCommandMode('tv');
-    } else {
-      setCommandMode('none');
-    }
-  }, [handleInputChange]);
-  // --- End Modify --- 
-
-  // Modified submit handler to include attachments and quote
   const handleSubmitWithAttachments = (e: React.FormEvent) => {
     e.preventDefault();
-    // Extract files from attachments
-    const files = attachments.map(att => att.file);
-    // Notify parent component about attachments if the callback exists
-    if (onAttachmentsChange) {
-      onAttachmentsChange(files);
-    }
-    // If there's a quote, prepend it as markdown to the input
-    if (quotedText && quotedText.trim().length > 0) {
-      // Call handleInputChange with the quoted text prepended
-      handleInputChange(`> ${quotedText.replace(/\n/g, '\n> ')}\n\n${input}`);
-      if (setQuotedText) setQuotedText('');
-      // Call the original handleSubmit after updating input
-      setTimeout(() => handleSubmit(e), 0);
-    } else {
-      handleSubmit(e);
-    }
-    // Clear attachments after submit
-    attachments.forEach(attachment => {
-      if (attachment.previewUrl) {
-        URL.revokeObjectURL(attachment.previewUrl);
-      }
-    });
+    if (!input.trim() && attachments.length === 0) return;
+
+    onAttachmentsChange?.(attachments.map(a => a.file));
+    handleSubmit(e);
+
+    attachments.forEach(a => a.previewUrl && URL.revokeObjectURL(a.previewUrl));
     setAttachments([]);
-    // Reset command mode on submit
-    setCommandMode('none');
   };
 
-  // Auto-resize textarea based on content
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      const newHeight = textareaRef.current.scrollHeight;
-      const maxHeight = 120;
-
-      if (newHeight > maxHeight) {
-        textareaRef.current.style.height = `${maxHeight}px`;
-        textareaRef.current.style.overflowY = 'auto';
-      } else {
-        textareaRef.current.style.height = `${newHeight}px`;
-        textareaRef.current.style.overflowY = 'hidden';
-      }
-    }
-  }, [input]);
-
-  // Prefetch API when component mounts or when model changes
-  useEffect(() => {
-    // Only prefetch if the model has changed
-    if (selectedModel !== lastModelRef.current) {
-      prefetchAPI(selectedModel);
-      lastModelRef.current = selectedModel;
-    }
-  }, [selectedModel]);
-
-  // Clean up attachment preview URLs on unmount
-  useEffect(() => {
-    return () => {
-      attachments.forEach(attachment => {
-        if (attachment.previewUrl) {
-          URL.revokeObjectURL(attachment.previewUrl);
-        }
-      });
-    };
-  }, [attachments]);
-
-  // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Check for mobile using touch events
-    // Adding navigator.maxTouchPoints > 0 for wider compatibility
-    // Added typeof window check for SSR safety
-    const isMobile = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    if (e.key === 'Enter' && e.shiftKey) return;
 
-    // If Shift + Enter is pressed, let the default behavior (newline) happen
-    if (e.key === 'Enter' && e.shiftKey) {
-      return; // Allow newline
-    }
-
-    // If Enter is pressed (without Shift)
     if (e.key === 'Enter' && !e.shiftKey) {
-      // If it's a mobile device, let the default behavior (newline) happen
-      if (isMobile) {
-        return; // Allow newline on mobile
-      }
+      const isMobile = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+      if (isMobile) return;
 
-      // If it's NOT mobile (desktop) and conditions are met, submit the form
       if (!isLoading && input.trim()) {
-        e.preventDefault(); // Prevent newline on desktop
-        handleSubmitWithAttachments(e as unknown as React.FormEvent); // Submit on desktop
-        // Reset command mode on submit via Enter key
-        setCommandMode('none');
+        e.preventDefault();
+        handleSubmitWithAttachments(e as unknown as React.FormEvent);
       } else {
-        // If input is empty or loading is true on desktop, prevent submission but also prevent newline
         e.preventDefault();
       }
     }
@@ -330,112 +227,100 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
       if (item.kind === 'file' && item.type.startsWith('image/')) {
         const file = item.getAsFile();
         if (file) {
-          const previewUrl = URL.createObjectURL(file);
-          newAttachments.push({ file, previewUrl });
+          newAttachments.push({ file, previewUrl: URL.createObjectURL(file) });
         }
       }
     }
 
     if (newAttachments.length > 0) {
-      e.preventDefault(); // Prevent default paste behavior only if we found images
+      e.preventDefault();
       setAttachments(prev => [...prev, ...newAttachments]);
     }
   };
 
-  // Step 1: Effect to measure active files height
-  useEffect(() => {
-    let height = 0;
-    if (activeFilesContainerRef.current) {
-      height = activeFilesContainerRef.current.clientHeight;
-    }
-    // console.log('Active files container height:', height); // Debug log
-    onActiveFilesHeightChange?.(height);
-  }, [activeChatFiles, onActiveFilesHeightChange]);
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    handleInputChange(e);
+  }, [handleInputChange]);
 
-  // --- Determine dynamic placeholder --- 
-  const getPlaceholder = () => {
-    if (isExa) return "Press / to search with Exa...";
-    switch (commandMode) {
-      case 'movies': return 'Search for movies...';
-      case 'tv': return 'Search for TV shows...';
-      default: return "Press / to ask a question...";
-    }
-  };
-  // --- End Determine --- 
-
-  // Helper to truncate quoted text for display
-  const getTruncatedQuote = (text: string) => {
-    if (!text) return '';
-    const words = text.split(/\s+/);
-    if (words.length > 100) {
-      return words.slice(0, 100).join(' ') + ' ...';
-    }
-    return text;
-  };
+  const placeholder = isExa ? "Search with Exa..." : "Message Ayle...";
 
   return (
-    <div className="w-full md:max-w-4xl mx-auto">
-      <div className="w-full bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] rounded-lg rounded-bl-none rounded-br-none shadow-lg p-3 relative scrollbar-none">
-        {/* Step 6: Display Active Files - MOVED TO TOP */}
-        {activeChatFiles && activeChatFiles.length > 0 && removeActiveFile && (
-          <div
-            ref={activeFilesContainerRef}
-            className="mb-2 flex gap-2 items-center border-b border-[var(--secondary-darkest)] pb-2 pt-1 overflow-x-auto whitespace-nowrap scrollbar-none"
-          >
-            <span className="text-xs font-medium text-[var(--text-light-muted)] mr-1 flex-shrink-0">Active:</span>
-            {activeChatFiles.map((file) => (
-              <div
-                key={file.uri}
-                className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-sm"
-                title={`${file.name} (${file.type}) - Referenced for follow-up questions`}
+    <div className="w-full max-w-3xl mx-auto px-4 pb-4 bg-transparent">
+      {/* Active Files */}
+      {activeChatFiles && activeChatFiles.length > 0 && removeActiveFile && (
+        <div
+          ref={activeFilesContainerRef}
+          className="mb-2 flex gap-2 flex-wrap"
+        >
+          {activeChatFiles.map((file) => (
+            <div
+              key={file.uri}
+              className="flex items-center gap-1.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-xs px-2.5 py-1.5 rounded-full"
+            >
+              <Paperclip className="h-3 w-3" />
+              <span className="truncate max-w-[120px]">{file.name}</span>
+              <button
+                type="button"
+                onClick={() => removeActiveFile(file.uri)}
+                className="ml-0.5 hover:text-neutral-900 dark:hover:text-white"
               >
-                <Paperclip className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate max-w-[150px]">{file.name}</span>
-                <button
-                  type="button"
-                  onClick={() => removeActiveFile(file.uri)}
-                  className="ml-1 p-0.5 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300"
-                  aria-label="Stop referencing this file"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
+      {/* Quote Block */}
+      {quotedText && quotedText.trim().length > 0 && (
+        <div className="mb-2 flex items-start bg-[var(--secondary-darker)] border-l-4 border-[var(--brand-default)] rounded-r-lg p-3 relative">
+          <span className="text-neutral-600 dark:text-neutral-400 text-sm flex-1 line-clamp-3">
+            {quotedText}
+          </span>
+          {setQuotedText && (
+            <button
+              type="button"
+              onClick={() => setQuotedText('')}
+              className="ml-2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Main Input Container */}
+      <div className="relative bg-[var(--secondary-dark)] dark:bg-[var(--secondary-faint)] rounded-lg border border-[var(--secondary-darkest)]">
         {/* Attachments Preview */}
         {attachments.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-2 border-b border-[var(--secondary-darkest)] pb-2">
+          <div className="px-4 pt-3 flex flex-wrap gap-2">
             {attachments.map((attachment, index) => (
-              <div key={index} className="relative group">
+              <div key={index} className="relative">
                 {attachment.previewUrl ? (
-                  <div className="relative w-16 h-16 rounded overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-600">
                     <img
                       src={attachment.previewUrl}
-                      alt={`Attachment ${index + 1}`}
+                      alt=""
                       className="w-full h-full object-cover"
                     />
                     <button
                       type="button"
                       onClick={() => removeAttachment(index)}
-                      className="absolute top-1 right-1 z-10 bg-gray-700 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 shadow-md border border-white/80 dark:border-gray-800"
-                      aria-label="Remove attachment"
+                      className="absolute -top-1 -right-1 bg-neutral-800 text-white rounded-full p-0.5 shadow"
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </div>
                 ) : (
-                  <div className="relative flex items-center justify-center w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-                    <span className="text-xs text-center overflow-hidden text-ellipsis px-1">
-                      {attachment.file.name.length > 12
-                        ? `${attachment.file.name.substring(0, 6)}...${attachment.file.name.substring(attachment.file.name.length - 3)}`
-                        : attachment.file.name}
+                  <div className="relative flex items-center gap-2 bg-neutral-200 dark:bg-neutral-700 rounded-lg px-3 py-2">
+                    <Paperclip className="h-4 w-4 text-neutral-500" />
+                    <span className="text-xs text-neutral-600 dark:text-neutral-300 max-w-[100px] truncate">
+                      {attachment.file.name}
                     </span>
                     <button
                       type="button"
                       onClick={() => removeAttachment(index)}
-                      className="absolute -top-1 -right-1 bg-gray-700 text-white rounded-full p-0.5 opacity-80 hover:opacity-100"
+                      className="text-neutral-400 hover:text-neutral-600"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -446,131 +331,160 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           </div>
         )}
 
-        <form onSubmit={handleSubmitWithAttachments} className="relative flex flex-col w-full">
-          {/* Quote block UI */}
-          {quotedText && quotedText.trim().length > 0 && (
-            <div className="flex items-start bg-[var(--secondary-darker)] border-l-4 border-[var(--brand-default)] rounded-md p-3 mb-2 relative">
-              <span className="text-[var(--text-light-muted)] text-sm flex-1 whitespace-pre-line">{getTruncatedQuote(quotedText)}</span>
-              {setQuotedText && (
+        {/* Textarea */}
+        <div className="px-4 py-3">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            placeholder={placeholder}
+            rows={1}
+            disabled={isLoading}
+            className={cn(
+              "w-full resize-none bg-transparent border-none outline-none",
+              "text-[var(--text-light-default)] placeholder:text-[var(--text-light-muted)]",
+              "text-base leading-relaxed min-h-[24px] max-h-[200px]",
+              "focus:ring-0 focus:outline-none focus:border-none"
+            )}
+            style={{ overflow: 'hidden' }}
+          />
+        </div>
+
+        {/* Bottom Actions Row */}
+        <div className="flex items-center justify-between px-3 pb-3">
+          {/* Left Actions */}
+          <div className="flex items-center gap-1">
+            {/* Attachment Button - Only for Gemini models */}
+            {isGeminiModel && (
+              <button
+                type="button"
+                onClick={handleFileButtonClick}
+                disabled={isLoading}
+                className={cn(
+                  "p-2 rounded-full transition-colors",
+                  "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200",
+                  "dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-700",
+                  "disabled:opacity-50 disabled:cursor-not-allowed"
+                )}
+                title="Attach files"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
+            )}
+
+            {/* Model Selector */}
+            <Popover open={modelSelectorOpen} onOpenChange={setModelSelectorOpen}>
+              <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="ml-2 text-gray-400 hover:text-gray-700 absolute top-2 right-2"
-                  onClick={() => setQuotedText('')}
-                  aria-label="Remove quote"
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-colors",
+                    "text-neutral-600 hover:bg-neutral-200",
+                    "dark:text-neutral-400 dark:hover:bg-neutral-800"
+                  )}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                  {selectedModelObj && getProviderIcon(selectedModelObj.avatarType || selectedModelObj.providerId, 16)}
+                  <span className="text-sm font-medium max-w-[100px] truncate">
+                    {selectedModelObj?.name?.split(' ')[0] || 'Model'}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5" />
                 </button>
-              )}
-            </div>
-          )}
-
-          {/* Textarea with no background and border */}
-          <div className="relative flex w-full mb-2">
-            {/* Conditionally render command icon */}
-            {commandMode === 'movies' && (
-              <Film className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-light-muted)] pointer-events-none" />
-            )}
-            {commandMode === 'tv' && (
-              <Tv className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-light-muted)] pointer-events-none" />
-            )}
-
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={handleInputChangeWithCommandDetection}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              autoFocus
-              placeholder={getPlaceholder()}
-              rows={1}
-              className={cn(
-                "w-full p-3 resize-none min-h-[50px] max-h-[120px]",
-                "bg-transparent !bg-transparent border-none", // Force transparent background
-                "!focus:outline-none !focus:ring-0 !outline-none", // Remove focus outline as well
-                "placeholder:text-[var(--text-light-subtle)] text-[var(--text-light-default)] font-medium",
-                commandMode !== 'none' ? "pl-9" : "pl-3",
-                "pr-12",
-                "scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]"
-              )}
-              style={{ background: "transparent" }}
-              disabled={isLoading}
-            />
-
-            {/* Only send button in textarea */}
-            <div className="absolute right-2 bottom-2">
-              <Button
-                type="submit"
-                size="icon"
-                disabled={(!input.trim() && attachments.length === 0) || isLoading}
-                className="h-9 w-9 flex-shrink-0
-                bg-[var(--brand-dark)] hover:bg-[var(--brand-muted)] text-white
-                disabled:opacity-50 disabled:cursor-not-allowed font-medium
-                rounded-md transition-all duration-200"
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-64 p-0 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 shadow-lg"
+                align="start"
+                sideOffset={8}
               >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Bottom row with model selector, buttons, and keyboard shortcut */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center flex-shrink max-w-[65%] sm:max-w-none">
-
-                {/* Model selector with transparent background */}
-                <div className="max-w-[160px] sm:max-w-[200px] md:max-w-none">
-                  <div className="!bg-transparent"> {/* Wrap in transparent container */}
-                    <ModelSelector
-                      selectedModel={selectedModel}
-                      handleModelChange={handleModelChangeWithPrefetch}
-                      models={models}
-                    />
-                  </div>
+                <div className="max-h-[300px] overflow-y-auto py-1">
+                  {Object.entries(groupedModels).map(([provider, providerModels]) => (
+                    <div key={provider} className="px-2 py-1">
+                      <div className="text-xs font-medium text-neutral-400 dark:text-neutral-500 px-2 py-1.5">
+                        {provider}
+                      </div>
+                      {providerModels.map(model => (
+                        <button
+                          key={model.id}
+                          type="button"
+                          onClick={() => {
+                            handleModelChange(model.id);
+                            setModelSelectorOpen(false);
+                          }}
+                          className={cn(
+                            "w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors",
+                            selectedModel === model.id
+                              ? "bg-neutral-100 dark:bg-neutral-800"
+                              : "hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                          )}
+                        >
+                          <div className="flex-shrink-0">
+                            {getProviderIcon(model.avatarType || model.providerId, 18)}
+                          </div>
+                          <span className="flex-1 text-sm text-neutral-700 dark:text-neutral-300 truncate">
+                            {model.name}
+                          </span>
+                          {selectedModel === model.id && (
+                            <Check className="h-4 w-4 text-[var(--brand-default)] flex-shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
                 </div>
-              </div>
-
-              {/* Enhance and file buttons */}
-
-            </div>
-
-            <div className=" text-[10px] text-[var(--text-light-muted)] text-right pr-2">
-              <div className="flex items-center gap-1.5">
-                {isGeminiModel && (
-                  <button
-                    type="button"
-                    onClick={handleFileButtonClick}
-                    disabled={isLoading}
-                    className="p-2 text-[var(--text-light-muted)] hover:text-[var(--brand-default)] rounded-full hover:bg-[var(--secondary-darker)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <FileUp className="h-4 w-4" />
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={handleFileChange}
-                      className="hidden"
-                      multiple
-                    />
-                  </button>
-                )}
-
-                <QueryEnhancer
-                  input={input}
-                  setInput={(value: string) => handleInputChange(value)}
-                  isLoading={isLoading}
-                  isMobile={isMobile}
-                />
-              </div>            
-            </div>
+              </PopoverContent>
+            </Popover>
           </div>
-        </form>
+
+          {/* Right Actions - Send/Stop Button */}
+          <div>
+            {isLoading && onStop ? (
+              <Button
+                type="button"
+                size="icon"
+                onClick={onStop}
+                className="h-8 w-8 rounded-full bg-neutral-800 hover:bg-neutral-700 dark:bg-neutral-200 dark:hover:bg-neutral-300"
+              >
+                <Square className="h-3.5 w-3.5 text-white dark:text-neutral-800" />
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="icon"
+                onClick={handleSubmitWithAttachments}
+                disabled={(!input.trim() && attachments.length === 0) || isLoading}
+                className={cn(
+                  "h-8 w-8 rounded-full transition-all",
+                  input.trim() || attachments.length > 0
+                    ? "bg-neutral-800 hover:bg-neutral-700 dark:bg-neutral-200 dark:hover:bg-neutral-300"
+                    : "bg-neutral-300 dark:bg-neutral-600 cursor-not-allowed"
+                )}
+              >
+                <ArrowUp className={cn(
+                  "h-4 w-4",
+                  input.trim() || attachments.length > 0
+                    ? "text-white dark:text-neutral-800"
+                    : "text-neutral-500 dark:text-neutral-400"
+                )} />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,.pdf"
+          onChange={handleFileChange}
+          className="hidden"
+          multiple
+        />
       </div>
     </div>
   );
-
-
 });
 
 ChatInput.displayName = 'ChatInput';
 
-export default ChatInput; 
+export default ChatInput;

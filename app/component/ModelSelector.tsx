@@ -57,13 +57,13 @@ const modelCapabilities: Record<string, string[]> = {
 const getCapabilityIcon = (capability: string) => {
   switch (capability) {
     case 'vision':
-      return <span title="Vision capability" className="text-blue-600 dark:text-blue-400"><Eye size={16} /></span>;
+      return <span title="Vision capability" className="text-[var(--brand-dark)] dark:text-[var(--brand-default)]"><Eye size={16} /></span>;
     case 'web':
-      return <span title="Web search capability" className="text-gray-600 dark:text-neutral-200"><Globe size={16} /></span>;
+      return <span title="Web search capability" className="text-[var(--text-light-muted)]"><Globe size={16} /></span>;
     case 'reasoning':
       return <span title="Advanced reasoning capability" className="text-amber-600 dark:text-amber-400"><Brain size={16} /></span>;
     case 'code':
-      return <span title="Code generation capability" className="text-cyan-600 dark:text-cyan-400"><Code size={16} /></span>;
+      return <span title="Code generation capability" className="text-[var(--brand-dark)] dark:text-[var(--brand-default)]"><Code size={16} /></span>;
     case 'quick-responses':
       return <span title="Quick Response times" className="text-amber-600 dark:text-amber-400"><Zap size={16} /></span>;
     case 'images':

@@ -459,8 +459,8 @@ const TaskListItem = ({ checked, children }: { checked?: boolean; children: Reac
         <div
           className={`w-4 h-4 border rounded ${
             checked
-              ? "bg-blue-500 border-blue-500 flex items-center justify-center"
-              : "border-gray-300 dark:border-gray-600"
+              ? "bg-[var(--brand-default)] border-[var(--brand-default)] flex items-center justify-center"
+              : "border-[var(--secondary-darkest)]"
           }`}
         >
           {checked && (
@@ -548,7 +548,7 @@ export const markdownOptions = {
           {...props}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-600 dark:text-blue-400 hover:underline"
+          className="text-[var(--brand-dark)] dark:text-[var(--brand-default)] hover:underline"
         >
           {children}
         </a>

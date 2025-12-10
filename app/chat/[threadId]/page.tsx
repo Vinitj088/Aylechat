@@ -1,35 +1,31 @@
 'use client';
 
 import { useState, useRef, useEffect, Suspense, useCallback } from 'react';
-import { Message, Model, ModelType, FileAttachment } from '../../types';
+import { Message, Model, ModelType } from '../../types';
 import Header from '../../component/Header';
 import LeftSidebar from '../../component/LeftSidebar';
 import ChatMessages from '../../component/ChatMessages';
 import ChatInput, { ChatInputHandle } from '../../component/ChatInput';
-import { fetchResponse } from '../../api/apiService';
+import { useAyleChat } from '../../hooks/useAyleChat';
 import modelsData from '../../../models.json';
 import { AuthDialog } from '@/components/AuthDialog';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
-import QueryEnhancer from '../../component/QueryEnhancer';
 import React from 'react';
-import Link from 'next/link';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
-import { QueryEnhancerProvider, useQueryEnhancer } from '@/context/QueryEnhancerContext';
+import { QueryEnhancerProvider } from '@/context/QueryEnhancerContext';
 import { db } from '@/lib/db';
-import { id } from '@instantdb/react';
 
 function ChatThreadPageContent({ threadId }: { threadId: string }) {
-  const { data, isLoading: isThreadLoading, error } = db.useQuery({
+  const { data, isLoading: isThreadLoading } = db.useQuery({
     threads: {
       $: { where: { id: threadId } },
       messages: {},
     },
   });
   const thread = data?.threads[0];
-  // Map messages to ensure role is typed correctly for Message
+
+  // Map messages from DB to ensure proper typing
   const dbMessages: Message[] = (thread?.messages || []).map((msg: any) => ({
     ...msg,
     role: (msg.role === 'user' || msg.role === 'assistant' || msg.role === 'system') ? msg.role : 'user',
@@ -46,13 +42,9 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     quotedText: msg.quotedText,
   }));
 
-  // --- Local state for optimistic UI ---
-  const [messages, setMessages] = useState<Message[]>(dbMessages);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  // Local state
   const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
   const [models, setModels] = useState<Model[]>([]);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const { user, isLoading: authLoading, openAuthDialog } = useAuth();
   const router = useRouter();
   const chatInputRef = useRef<ChatInputHandle>(null);
@@ -60,12 +52,25 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
   const [quotedText, setQuotedText] = useState('');
-  const [retriedMessageId, setRetriedMessageId] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [sidebarMounted, setSidebarMounted] = useState(false);
-  const { enhancerMode } = useQueryEnhancer();
 
   const isAuthenticated = !!user;
+
+  // Use the AI SDK powered chat hook
+  const chat = useAyleChat({
+    threadId,
+    userId: user?.id || null,
+    selectedModel,
+    initialMessages: dbMessages,
+  });
+
+  // Sync messages from DB when thread data changes
+  useEffect(() => {
+    if (!isThreadLoading && dbMessages.length > 0 && chat.messages.length === 0) {
+      // Messages will be synced through the hook's initialMessages
+    }
+  }, [isThreadLoading, dbMessages]);
 
   // Load sidebar state from localStorage on mount
   useEffect(() => {
@@ -94,16 +99,9 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     }
   }, [thread, isThreadLoading]);
 
-  // Sync local messages state with DB on thread load/change
+  // Load models
   useEffect(() => {
-    if (!isThreadLoading) {
-      setMessages(dbMessages);
-    }
-  }, [threadId, data, isThreadLoading]);
-
-  useEffect(() => {
-    // Add models from different providers in a specific order
-    const providerOrder = ['perplexity', 'google', 'cerebras', 'inception', 'groq', 'openrouter', 'together' ];
+    const providerOrder = ['perplexity', 'google', 'cerebras', 'inception', 'groq', 'openrouter', 'together'];
     const allModels = [
       {
         id: 'exa',
@@ -121,13 +119,14 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     setModels(allModels);
   }, []);
 
+  // Set model from thread when loaded
   useEffect(() => {
     if (thread) {
       setSelectedModel(thread.model as ModelType);
     }
   }, [thread]);
 
-  // Step 5: Callback to handle file uploaded event from backend
+  // Handle file uploaded event from backend
   const handleFileUploaded = useCallback((fileInfo: { name: string; type: string; uri: string }) => {
     setActiveChatFiles(prev => {
       if (!prev.some(f => f.uri === fileInfo.uri)) {
@@ -145,6 +144,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     setChatInputHeightOffset(height > 0 ? height + 8 : 0);
   }, []);
 
+  // Keyboard shortcut for focusing input
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -155,152 +155,69 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       ) {
         return;
       }
-      if (e.key === '/' && !isLoading) {
+      if (e.key === '/' && !chat.isLoading) {
         e.preventDefault();
         chatInputRef.current?.focus();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isLoading]);
+  }, [chat.isLoading]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement> | string) => {
     const value = typeof e === 'string' ? e : e.target.value;
-    setInput(value);
+    chat.setInput(value);
   };
 
   const handleModelChange = (modelId: string) => {
     setSelectedModel(modelId as ModelType);
   };
 
-  // --- MAIN SUBMIT HANDLER (Optimistic UI) ---
+  // Main submit handler using AI SDK
   const handleSubmit = async (e: React.FormEvent, files?: File[]) => {
     e.preventDefault();
-    if ((!input.trim() && (!files || files.length === 0)) || isLoading) return;
+    if ((!chat.input.trim() && (!files || files.length === 0)) || chat.isLoading) return;
     if (!isAuthenticated) {
       openAuthDialog();
       return;
     }
-    // Only use the user's input as the message content; quotedText is shown in the custom UI, not as a blockquote
-    const fullInput = input.trim();
-    const userMessageId = id();
-    const assistantMessageId = id();
-    const userMessage: Message = {
-      id: userMessageId,
-      role: 'user',
-      content: fullInput,
-      createdAt: new Date(),
-      ...(quotedText ? { quotedText } : {}),
-      ...(files && files.length > 0 ? { attachments: files.map(file => ({ name: file.name, type: file.type, size: file.size })) } : {})
-    };
-    const assistantMessage: Message = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '...',
-      createdAt: new Date(Date.now() + 1000),
-    };
-    setMessages(prev => [...prev, userMessage, assistantMessage]);
-    setInput('');
+
+    const inputText = chat.input.trim();
+
+    // Submit using the AI SDK hook
+    await chat.submit(inputText, {
+      attachments: files,
+      quotedText: quotedText || undefined,
+    });
+
+    // Clear quoted text after submit
     setQuotedText('');
-    setIsLoading(true);
-    abortControllerRef.current = new AbortController();
-    try {
-      const completedAssistantMessage = await fetchResponse(
-        fullInput,
-        [...messages, userMessage],
-        selectedModel,
-        abortControllerRef.current,
-        (updatedMessages: Message[]) => {
-          // Optionally stream updates
-          setMessages(updatedMessages);
-        },
-        assistantMessage,
-        files,
-        activeChatFiles,
-        handleFileUploaded,
-        enhancerMode,
-      );
-      setMessages(prev => prev.map(msg =>
-        msg.id === assistantMessage.id ? { ...completedAssistantMessage, id: assistantMessage.id } : msg
-      ));
-      // Persist both messages to InstantDB
-      await db.transact([
-        db.tx.messages[userMessageId].update({
-          role: userMessage.role,
-          content: userMessage.content,
-          createdAt: userMessage.createdAt ? (typeof userMessage.createdAt === 'string' ? userMessage.createdAt : userMessage.createdAt.toISOString()) : undefined,
-          citations: userMessage.citations,
-          completed: userMessage.completed,
-          startTime: userMessage.startTime,
-          endTime: userMessage.endTime,
-          tps: userMessage.tps,
-          mediaData: userMessage.mediaData,
-          weatherData: userMessage.weatherData,
-          images: userMessage.images,
-          attachments: userMessage.attachments,
-          provider: userMessage.provider,
-          quotedText: userMessage.quotedText,
-        }).link({ thread: threadId }),
-        db.tx.messages[assistantMessageId].update({
-          role: 'assistant',
-          content: completedAssistantMessage.content,
-          createdAt: new Date().toISOString(),
-          citations: completedAssistantMessage.citations,
-          completed: completedAssistantMessage.completed,
-          startTime: completedAssistantMessage.startTime,
-          endTime: completedAssistantMessage.endTime,
-          tps: completedAssistantMessage.tps,
-          mediaData: completedAssistantMessage.mediaData,
-          weatherData: completedAssistantMessage.weatherData,
-          images: completedAssistantMessage.images,
-          attachments: completedAssistantMessage.attachments,
-          provider: completedAssistantMessage.provider,
-          quotedText: completedAssistantMessage.quotedText,
-        }).link({ thread: threadId }),
-        db.tx.threads[threadId].update({ updatedAt: new Date().toISOString() }),
-      ]);
-    } catch (error: any) {
-      const errorMessage = error.message || 'Sorry, something went wrong.';
-      setMessages(prev => prev.map(msg =>
-        msg.id === assistantMessage.id ? { ...msg, content: errorMessage } : msg
-      ));
-      await db.transact([
-        db.tx.messages[assistantMessageId].update({
-          content: errorMessage,
-          createdAt: new Date().toISOString(),
-        })
-      ]);
-    } finally {
-      setIsLoading(false);
-      abortControllerRef.current = null;
-    }
   };
 
   const handleNewChat = () => {
     router.push('/');
-    // Step 5: Clear active files (will be handled by navigating to home/new chat)
     setActiveChatFiles([]);
   };
 
-  // Determine if the selected model is Exa
   const isExa = selectedModel === 'exa';
-
-  // Get the provider name for the selected model
   const selectedModelObj = models.find(model => model.id === selectedModel);
 
-  // Retry logic: fill input, remove old user+assistant pair, focus input
+  // Retry logic: fill input, focus
   const handleRetryMessage = useCallback((message: Message) => {
     if (message.role !== 'user') return;
-    setInput(message.content || '');
+    chat.setInput(message.content || '');
     setQuotedText(message.quotedText || '');
-    // This part needs to be adapted for InstantDB
     setTimeout(() => {
       chatInputRef.current?.focus();
     }, 100);
-  }, []);
+  }, [chat]);
 
-  // Always sort messages by createdAt ascending before rendering
-  const sortedMessages = [...messages].sort((a, b) => {
+  // Combine hook messages with DB messages for display
+  // Prefer hook messages when streaming, fall back to DB messages
+  const displayMessages = chat.messages.length > 0 ? chat.messages : dbMessages;
+
+  // Sort messages by createdAt ascending
+  const sortedMessages = [...displayMessages].sort((a, b) => {
     const aDate = new Date(a.createdAt || 0).getTime();
     const bDate = new Date(b.createdAt || 0).getTime();
     return aDate - bDate;
@@ -314,9 +231,8 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
           <Header onToggleSidebar={() => setIsExpanded(true)} />
         </div>
 
-        {/* Desktop & Tablet Layout - Fixed sidebar */}
+        {/* Desktop & Tablet Layout */}
         <div className="hidden md:block h-screen overflow-hidden">
-          {/* Left Sidebar - Tablet and Desktop - Only show when logged in */}
           {isAuthenticated && (
             <LeftSidebar
               onNewChat={handleNewChat}
@@ -326,26 +242,87 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
             />
           )}
 
-          {/* Main Content */}
           <div className={cn(
             "h-screen flex flex-col transition-all duration-300",
             isAuthenticated ? (isExpanded ? "ml-64" : "ml-14") : "ml-0"
           )}>
             <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-full flex flex-col">
-              <div className="flex-1 overflow-y-auto no-scrollbar">
-                {/* Loading skeleton */}
+              <div className="relative flex-1 flex flex-col overflow-hidden">
+                {/* Top fade gradient */}
+                <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[var(--secondary-default)] to-transparent z-10 pointer-events-none" />
+
+                <div className="flex-1 overflow-y-auto no-scrollbar">
+                  {/* Loading skeleton */}
+                </div>
+
+                {/* Bottom fade gradient */}
+                <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--secondary-default)] via-[var(--secondary-default)]/80 to-transparent z-10 pointer-events-none" />
+
+                <div className="absolute bottom-0 left-0 right-0 z-20">
+                  <ChatInput
+                    ref={chatInputRef}
+                    input={chat.input}
+                    handleInputChange={handleInputChange}
+                    handleSubmit={(e) => handleSubmit(e, attachments)}
+                    isLoading={true}
+                    selectedModel={selectedModel}
+                    handleModelChange={handleModelChange}
+                    models={models}
+                    isExa={isExa}
+                    onNewChat={handleNewChat}
+                    onAttachmentsChange={setAttachments}
+                    activeChatFiles={activeChatFiles}
+                    removeActiveFile={removeActiveFile}
+                    onActiveFilesHeightChange={handleActiveFilesHeightChange}
+                    quotedText={quotedText}
+                    setQuotedText={setQuotedText}
+                  />
+                </div>
               </div>
-            <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Content */}
+        <div className="md:hidden h-screen flex flex-col overflow-hidden relative">
+          {isAuthenticated && (
+            <LeftSidebar
+              onNewChat={handleNewChat}
+              isExpanded={isExpanded}
+              setIsExpanded={setIsExpanded}
+              isHydrating={!sidebarMounted}
+            />
+          )}
+
+          {isExpanded && isAuthenticated && (
+            <div
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={() => setIsExpanded(false)}
+            />
+          )}
+
+          <div className="relative flex-1 flex flex-col overflow-hidden">
+            {/* Top fade gradient */}
+            <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[var(--secondary-default)] to-transparent z-10 pointer-events-none" />
+
+            <div className="flex-1 overflow-y-auto no-scrollbar">
+              {/* Loading skeleton */}
+            </div>
+
+            {/* Bottom fade gradient */}
+            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[var(--secondary-default)] via-[var(--secondary-default)]/80 to-transparent z-10 pointer-events-none" />
+
+            <div className="absolute bottom-0 left-0 right-0 z-20">
               <ChatInput
                 ref={chatInputRef}
-                input={input}
+                input={chat.input}
                 handleInputChange={handleInputChange}
                 handleSubmit={(e) => handleSubmit(e, attachments)}
                 isLoading={true}
                 selectedModel={selectedModel}
                 handleModelChange={handleModelChange}
                 models={models}
-                isExa={selectedModel === 'exa'}
+                isExa={isExa}
                 onNewChat={handleNewChat}
                 onAttachmentsChange={setAttachments}
                 activeChatFiles={activeChatFiles}
@@ -355,52 +332,6 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
                 setQuotedText={setQuotedText}
               />
             </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Content */}
-        <div className="md:hidden h-screen flex flex-col overflow-hidden relative pt-[60px]">
-          {/* Mobile Left Sidebar - Overlay */}
-          {isAuthenticated && (
-            <LeftSidebar
-              onNewChat={handleNewChat}
-              isExpanded={isExpanded}
-              setIsExpanded={setIsExpanded}
-              isHydrating={!sidebarMounted}
-            />
-          )}
-
-          {/* Overlay backdrop when sidebar is expanded */}
-          {isExpanded && isAuthenticated && (
-            <div
-              className="fixed inset-0 bg-black/50 z-40"
-              onClick={() => setIsExpanded(false)}
-            />
-          )}
-
-          <div className="flex-1 overflow-y-auto no-scrollbar">
-            {/* Loading skeleton */}
-          </div>
-          <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
-            <ChatInput
-              ref={chatInputRef}
-              input={input}
-              handleInputChange={handleInputChange}
-              handleSubmit={(e) => handleSubmit(e, attachments)}
-              isLoading={true}
-              selectedModel={selectedModel}
-              handleModelChange={handleModelChange}
-              models={models}
-              isExa={selectedModel === 'exa'}
-              onNewChat={handleNewChat}
-              onAttachmentsChange={setAttachments}
-              activeChatFiles={activeChatFiles}
-              removeActiveFile={removeActiveFile}
-              onActiveFilesHeightChange={handleActiveFilesHeightChange}
-              quotedText={quotedText}
-              setQuotedText={setQuotedText}
-            />
           </div>
         </div>
       </>
@@ -414,9 +345,8 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
         <Header onToggleSidebar={() => setIsExpanded(true)} />
       </div>
 
-      {/* Desktop & Tablet Layout - Fixed sidebar */}
+      {/* Desktop & Tablet Layout */}
       <div className="hidden md:block h-screen overflow-hidden">
-        {/* Left Sidebar - Tablet and Desktop - Only show when logged in */}
         {isAuthenticated && (
           <LeftSidebar
             onNewChat={handleNewChat}
@@ -426,54 +356,64 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
           />
         )}
 
-        {/* Main Content */}
         <div className={cn(
           "h-screen flex flex-col transition-all duration-300",
           isAuthenticated ? (isExpanded ? "ml-64" : "ml-14") : "ml-0"
         )}>
           <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-full flex flex-col">
-            <div className="flex-1 overflow-y-auto no-scrollbar">
-              <ChatMessages
-              messages={sortedMessages}
-              isLoading={isLoading}
-              selectedModel={selectedModel}
-              selectedModelObj={selectedModelObj}
-              isExa={selectedModel === 'exa'}
-              currentThreadId={threadId}
-              threadTitle={thread?.title}
-              bottomPadding={chatInputHeightOffset}
-              onQuote={setQuotedText}
-              onRetry={handleRetryMessage}
-            />
-          </div>
+            <div className="relative flex-1 flex flex-col overflow-hidden">
+              {/* Top fade gradient */}
+              <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[var(--secondary-default)] to-transparent z-10 pointer-events-none" />
 
-          <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
-            <ChatInput
-              ref={chatInputRef}
-              input={input}
-              handleInputChange={handleInputChange}
-              handleSubmit={(e) => handleSubmit(e, attachments)}
-              isLoading={isLoading}
-              selectedModel={selectedModel}
-              handleModelChange={handleModelChange}
-              models={models}
-              isExa={selectedModel === 'exa'}
-              onNewChat={handleNewChat}
-              onAttachmentsChange={setAttachments}
-              activeChatFiles={activeChatFiles}
-              removeActiveFile={removeActiveFile}
-              onActiveFilesHeightChange={handleActiveFilesHeightChange}
-              quotedText={quotedText}
-              setQuotedText={setQuotedText}
-            />
+              {/* Messages area */}
+              <div className="flex-1 overflow-y-auto no-scrollbar">
+                <div className="pt-8">
+                  <ChatMessages
+                    messages={sortedMessages}
+                    isLoading={chat.isLoading}
+                    selectedModel={selectedModel}
+                    selectedModelObj={selectedModelObj}
+                    isExa={isExa}
+                    currentThreadId={threadId}
+                    threadTitle={thread?.title}
+                    bottomPadding={chatInputHeightOffset + 24}
+                    onQuote={setQuotedText}
+                    onRetry={handleRetryMessage}
+                  />
+                </div>
+              </div>
+
+              {/* Bottom fade gradient */}
+              <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--secondary-default)] via-[var(--secondary-default)]/80 to-transparent z-10 pointer-events-none" />
+
+              <div className="absolute bottom-0 left-0 right-0 z-20">
+                <ChatInput
+                  ref={chatInputRef}
+                  input={chat.input}
+                  handleInputChange={handleInputChange}
+                  handleSubmit={(e) => handleSubmit(e, attachments)}
+                  isLoading={chat.isLoading}
+                  selectedModel={selectedModel}
+                  handleModelChange={handleModelChange}
+                  models={models}
+                  isExa={isExa}
+                  onNewChat={handleNewChat}
+                  onAttachmentsChange={setAttachments}
+                  activeChatFiles={activeChatFiles}
+                  removeActiveFile={removeActiveFile}
+                  onActiveFilesHeightChange={handleActiveFilesHeightChange}
+                  quotedText={quotedText}
+                  setQuotedText={setQuotedText}
+                  onStop={chat.stop}
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Mobile Content */}
-      <div className="md:hidden h-screen flex flex-col overflow-hidden relative pt-[60px]">
-        {/* Mobile Left Sidebar - Overlay - Only show when logged in */}
+      <div className="md:hidden h-screen flex flex-col overflow-hidden relative">
         {isAuthenticated && (
           <LeftSidebar
             onNewChat={handleNewChat}
@@ -483,7 +423,6 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
           />
         )}
 
-        {/* Overlay backdrop when sidebar is expanded */}
         {isExpanded && isAuthenticated && (
           <div
             className="fixed inset-0 bg-black/50 z-40"
@@ -491,48 +430,57 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
           />
         )}
 
-        <div className="flex-1 overflow-y-auto no-scrollbar">
-          <ChatMessages
-            messages={sortedMessages}
-            isLoading={isLoading}
-            selectedModel={selectedModel}
-            selectedModelObj={selectedModelObj}
-            isExa={selectedModel === 'exa'}
-            currentThreadId={threadId}
-            threadTitle={thread?.title}
-            bottomPadding={chatInputHeightOffset}
-            onQuote={setQuotedText}
-            onRetry={handleRetryMessage}
-          />
-        </div>
+        <div className="relative flex-1 flex flex-col overflow-hidden">
+          {/* Top fade gradient */}
+          <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[var(--secondary-default)] to-transparent z-10 pointer-events-none" />
 
-        <div className="flex-shrink-0 w-full bg-[var(--secondary-default)] z-10">
-          <ChatInput
-            ref={chatInputRef}
-            input={input}
-            handleInputChange={handleInputChange}
-            handleSubmit={(e) => handleSubmit(e, attachments)}
-            isLoading={isLoading}
-            selectedModel={selectedModel}
-            handleModelChange={handleModelChange}
-            models={models}
-            isExa={selectedModel === 'exa'}
-            onNewChat={handleNewChat}
-            onAttachmentsChange={setAttachments}
-            activeChatFiles={activeChatFiles}
-            removeActiveFile={removeActiveFile}
-            onActiveFilesHeightChange={handleActiveFilesHeightChange}
-            quotedText={quotedText}
-            setQuotedText={setQuotedText}
-          />
+          {/* Messages area */}
+          <div className="flex-1 overflow-y-auto no-scrollbar">
+            <div className="pt-6 pb-24">
+              <ChatMessages
+                messages={sortedMessages}
+                isLoading={chat.isLoading}
+                selectedModel={selectedModel}
+                selectedModelObj={selectedModelObj}
+                isExa={isExa}
+                currentThreadId={threadId}
+                threadTitle={thread?.title}
+                bottomPadding={chatInputHeightOffset}
+                onQuote={setQuotedText}
+                onRetry={handleRetryMessage}
+              />
+            </div>
+          </div>
+
+          {/* Bottom fade gradient */}
+          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[var(--secondary-default)] via-[var(--secondary-default)]/80 to-transparent z-10 pointer-events-none" />
+
+          <div className="absolute bottom-0 left-0 right-0 z-20">
+            <ChatInput
+              ref={chatInputRef}
+              input={chat.input}
+              handleInputChange={handleInputChange}
+              handleSubmit={(e) => handleSubmit(e, attachments)}
+              isLoading={chat.isLoading}
+              selectedModel={selectedModel}
+              handleModelChange={handleModelChange}
+              models={models}
+              isExa={isExa}
+              onNewChat={handleNewChat}
+              onAttachmentsChange={setAttachments}
+              activeChatFiles={activeChatFiles}
+              removeActiveFile={removeActiveFile}
+              onActiveFilesHeightChange={handleActiveFilesHeightChange}
+              quotedText={quotedText}
+              setQuotedText={setQuotedText}
+              onStop={chat.stop}
+            />
+          </div>
         </div>
       </div>
 
       {/* Auth Dialog */}
-      <AuthDialog
-        onSuccess={() => {
-        }}
-      />
+      <AuthDialog onSuccess={() => {}} />
     </>
   );
 }
@@ -545,5 +493,5 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         <ChatThreadPageContent threadId={threadId} />
       </Suspense>
     </QueryEnhancerProvider>
-  )
-} 
+  );
+}

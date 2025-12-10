@@ -189,7 +189,7 @@ export default function LeftSidebar({
       className={cn(
         "group flex items-center gap-2 w-full text-left p-2 rounded-md  cursor-pointer min-w-0",
         pathname === `/chat/${thread.id}`
-          ? "bg-[var(--brand-fainter)] text-[var(--brand-default)]"
+          ? "bg-[#868684]/20 text-[var(--text-light-default)]"
           : "text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)]",
       )}
       onClick={() => handleThreadClick(thread.id)}
@@ -214,11 +214,11 @@ export default function LeftSidebar({
       <aside
         suppressHydrationWarning
         className={cn(
-          "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] shadow-lg flex flex-col h-screen transition-[width,transform] duration-300 ease-in-out fixed top-0 overflow-hidden",
-          // Mobile: slide from right, Desktop: fixed on left
+          "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] shadow-lg flex flex-col h-screen transition-[width,transform] duration-300 ease-in-out fixed top-0 left-0 overflow-hidden",
+          // Mobile: slide from left, Desktop: fixed on left
           isExpanded
-            ? "w-64 right-0 translate-x-0 z-50 md:left-0"
-            : "w-64 right-0 translate-x-full md:left-0 md:w-14 md:translate-x-0 md:z-50"
+            ? "w-64 translate-x-0 z-50"
+            : "w-64 -translate-x-full md:w-14 md:translate-x-0 md:z-50"
         )}
       >
         {/* Header with Toggle and Logo */}
@@ -238,11 +238,10 @@ export default function LeftSidebar({
             {isExpanded && !isHydrating && (
               <Link href="/" className="flex items-center flex-1 min-w-0">
                 <span
-                  className="text-2xl text-[var(--brand-default)] whitespace-nowrap"
+                  className="text-2xl text-[var(--text-light-default)] whitespace-nowrap"
                   style={{
-                    fontFamily: 'var(--font-gebuk-regular)',
-                    letterSpacing: '0.05em',
-                    fontWeight: 'normal',
+                    fontFamily: 'Gebuk, system-ui, sans-serif',
+                    letterSpacing: '0.02em',
                   }}
                 >
                   Ayle
@@ -294,7 +293,7 @@ export default function LeftSidebar({
                     : "p-1.5 text-[var(--text-light-default)]"
                 )}
               >
-                <Plus className="h-6 w-6 flex-shrink-0 bg-[var(--brand-dark)] text-white rounded-full p-1" />
+                <Plus className="h-6 w-6 flex-shrink-0 bg-[#868684]/30 text-[var(--text-light-default)] rounded-full p-1" />
                 {isExpanded && <span className="whitespace-nowrap overflow-hidden">New chat</span>}
               </button>
 
@@ -357,7 +356,7 @@ export default function LeftSidebar({
               {/* Profile Dropdown */}
               <DropdownMenu open={isProfileDropdownOpen} onOpenChange={setIsProfileDropdownOpen}>
                 <DropdownMenuTrigger className="flex items-center gap-2 w-full text-left p-2 hover:bg-[var(--secondary-darker)] rounded-md min-w-0">
-                  <div className="flex items-center justify-center rounded-full bg-[var(--brand-fainter)] text-[var(--brand-default)] flex-shrink-0 w-6 h-6">
+                  <div className="flex items-center justify-center rounded-full bg-[#868684]/20 text-[var(--text-light-default)] flex-shrink-0 w-6 h-6">
                     <User className="h-4 w-4" />
                   </div>
                   {isExpanded && (
@@ -396,7 +395,7 @@ export default function LeftSidebar({
           <div className="flex flex-1 items-center justify-center p-4">
             <button
               onClick={openAuthDialog}
-              className="flex items-center gap-2 p-3 text-sm font-medium text-[var(--brand-default)] hover:bg-[var(--secondary-darker)] rounded-md  min-w-0"
+              className="flex items-center gap-2 p-3 text-sm font-medium text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md  min-w-0"
             >
               <User className="h-5 w-5 flex-shrink-0" />
               {isExpanded && <span className="whitespace-nowrap overflow-hidden">Sign In</span>}

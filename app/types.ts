@@ -1,9 +1,25 @@
+// Tool invocation types from AI SDK
+export interface ToolInvocation {
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  state: 'partial-call' | 'call' | 'result';
+  result?: unknown;
+}
+
+// Attachment type for AI SDK
+export interface Attachment {
+  name: string;
+  contentType: string;
+  url: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  createdAt?: Date;
-  citations?: any[];
+  createdAt?: Date | string;
+  citations?: Citation[];
   completed?: boolean;
   startTime?: number; // Timestamp when the first chunk arrived
   endTime?: number; // Timestamp when the stream completed
@@ -14,6 +30,18 @@ export interface Message {
   attachments?: FileAttachment[];
   provider?: string;
   quotedText?: string;
+  // AI SDK specific fields
+  toolInvocations?: ToolInvocation[];
+  experimental_attachments?: Attachment[];
+}
+
+// Citation type for Exa/Perplexity search results
+export interface Citation {
+  url: string;
+  title?: string;
+  snippet?: string;
+  favicon?: string;
+  id?: string;
 }
 
 export interface ImageData {

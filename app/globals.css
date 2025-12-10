@@ -2,6 +2,97 @@
 @tailwind components;
 @tailwind utilities;
 
+/* FK Grotesk - for paragraphs */
+@font-face {
+  font-family: 'FK Grotesk';
+  src: url('./fonts/FKGroteskTrial-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FK Grotesk';
+  src: url('./fonts/FKGroteskTrial-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FK Grotesk';
+  src: url('./fonts/FKGroteskTrial-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FK Grotesk';
+  src: url('./fonts/FKGroteskTrial-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FK Grotesk';
+  src: url('./fonts/FKGroteskTrial-Italic.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* FK Grotesk Neue - for everything except paragraphs */
+@font-face {
+  font-family: 'FK Grotesk Neue';
+  src: url('./fonts/FKGroteskNeueTrial-Light-BF6576818c0f3e8.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FK Grotesk Neue';
+  src: url('./fonts/FKGroteskNeueTrial-Regular-BF6576818c3af74.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FK Grotesk Neue';
+  src: url('./fonts/FKGroteskNeueTrial-Medium-BF6576818c3a00a.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FK Grotesk Neue';
+  src: url('./fonts/FKGroteskNeueTrial-Bold-BF6576818bd3700.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FK Grotesk Neue';
+  src: url('./fonts/FKGroteskNeueTrial-Italic-BF6576818c041e2.otf') format('opentype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Gebuk - Display font for branding */
+@font-face {
+  font-family: 'Gebuk';
+  src: url('./fonts/gebuk-regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
@@ -16,29 +107,30 @@
 }
 
 :root {
-  --font-body: var(--font-geist-sans);
-  --font-heading: var(--font-space-grotesk);
+  --font-body: 'FK Grotesk', system-ui, sans-serif;
+  --font-heading: 'FK Grotesk Neue', system-ui, sans-serif;
+  --font-ui: 'FK Grotesk Neue', system-ui, sans-serif;
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 231, 231, 245;
   --background-end-rgb: 255, 255, 255;
 
-  /* COLORS */
-  --brand-default: #1679CB;
-  --brand-fainter: #D4F1F4;
-  --brand-faint: #D4F1F4;
-  --brand-subtle: #C1DDF0;
-  --brand-muted: #1679CB;
-  --brand-dark: #0C2D48;
-  --brand-darker: #0C2D48;
+  /* COLORS - Light Mode: Off-white + Cyan duotone */
+  --brand-default: #0891b2;
+  --brand-fainter: #e0f7fa;
+  --brand-faint: #b2ebf2;
+  --brand-subtle: #80deea;
+  --brand-muted: #26c6da;
+  --brand-dark: #0e7490;
+  --brand-darker: #155e75;
 
-  --secondary-accent: #9f9672;
-  --secondary-accent2x: #89805d;
-  --secondary-dark: #eeeeee;
-  --secondary-darker: #e0e0e0;
-  --secondary-darkest: #bdbdbd;
-  --secondary-default: #f5f5f5;
-  --secondary-faint: #fafafa;
-  --secondary-fainter: #fafaf9;
+  --secondary-accent: #0891b2;
+  --secondary-accent2x: #06b6d4;
+  --secondary-dark: #f0f5f5;
+  --secondary-darker: #e5eded;
+  --secondary-darkest: #ccd9d9;
+  --secondary-default: #f8fafa;
+  --secondary-faint: #fcfdfd;
+  --secondary-fainter: #fefffe;
 
   --gray-50: #fafafa;
   --gray-100: #f5f5f5;
@@ -75,7 +167,7 @@
   --text-light-muted: #6b7280;
   --text-light-subtle: #9ca3af;
   --text-light-faint: #e5e7eb;
-  --text-light-link: #B1D4E0;
+  --text-light-link: #0891b2;
 
   /* Background and accent defaults */
   --background: var(--secondary-default);
@@ -89,44 +181,44 @@
   /* --font-family-serif: 'Space Grotesk', sans-serif; */
 
   /* Sidebar colors - darker than main page */
-  --sidebar-bg: #e0e0e0; /* Darker than #f5f5f5 */
-  --sidebar-border: #d0d0d0; /* Darker border for light mode */
+  --sidebar-bg: #eff5f5;
+  --sidebar-border: #d5e3e3;
 }
 
-/* Dark Mode Variables */
+/* Dark Mode Variables - Dark cyan/teal + off-white duotone */
 .dark {
-  /* Invert and adjust brand colors - improved for better readability */
-  --brand-default: #B1D4E0; /* Adjusted to be lighter and more vivid */
-  --brand-fainter: #385E72;
-  --brand-faint: #A1DBF1;
-  --brand-subtle: #B1D4E0; /* Made slightly lighter */
-  --brand-muted: #B1D4E0; /* More vibrant for better contrast */
-  --brand-dark: #385E72; /* Lighter for better contrast */
-  --brand-darker: #0C4160;
+  /* Dark mode accent colors - bright cyan */
+  --brand-default: #22d3ee;
+  --brand-fainter: #0c3d42;
+  --brand-faint: #134e54;
+  --brand-subtle: #1a6169;
+  --brand-muted: #06b6d4;
+  --brand-dark: #0e7490;
+  --brand-darker: #155e75;
 
-  /* Dark mode secondary colors */
-  --secondary-accent: #c9bb92;
-  --secondary-accent2x: #d8cba3;
-  --secondary-dark: #202020;
-  --secondary-darker: #1d1d1d;
-  --secondary-darkest: #2e2e2e;
-  --secondary-default: #141414;
-  --secondary-faint: #131313;
-  --secondary-fainter: #1e1e1e;
+  /* Dark mode secondary colors - dark teal-tinted */
+  --secondary-accent: #22d3ee;
+  --secondary-accent2x: #67e8f9;
+  --secondary-dark: #1a2223;
+  --secondary-darker: #151c1d;
+  --secondary-darkest: #243031;
+  --secondary-default: #111819;
+  --secondary-faint: #1a2223;
+  --secondary-fainter: #1f2829;
 
-  /* Text colors for dark mode */
-  --text-light-default: #e7e7e7;
-  --text-light-muted: #a0a0a0;
-  --text-light-subtle: #707070;
-  --text-light-faint: #404040;
-  --text-light-link: #B1D4E0; /* Adjusted to be more visible in dark mode */
+  /* Text colors for dark mode - off-white with cyan tint */
+  --text-light-default: #ecfeff;
+  --text-light-muted: #a5b4b6;
+  --text-light-subtle: #6b7c7e;
+  --text-light-faint: #3d4a4c;
+  --text-light-link: #67e8f9;
 
   /* Background and accent for dark mode */
   --background: var(--secondary-default);
   --accent: var(--brand-default);
   --accent-background: var(--brand-default);
   --border-default: var(--gray-700);
-  
+
   /* Dark mode variants of accent colors for better contrast */
   --accent-yellow-light: #45371b;
   --accent-yellow-dark: #fcd34d;
@@ -143,19 +235,18 @@
   --accent-maroon-light: #450a0a;
   --accent-maroon-dark: #fca5a5;
 
-  /* Sidebar colors for dark mode - darker than main page */
-  --sidebar-bg: #101010; /* Darker than #141414 */
-  --sidebar-border: #1f1f1f; /* Slightly lighter border for visibility */
+  /* Sidebar colors for dark mode - dark teal */
+  --sidebar-bg: #1a2223;
+  --sidebar-border: #243031;
 }
 
 body {
   color: var(--text-light-default);
   background: var(--background);
 
-  /* Use Instrument Sans for body text via variable */
-  /* font-family: 'Instrument Sans', sans-serif; */ /* Replaced by className in layout.tsx or variable below */
-  font-family: var(--font-body);
-  font-weight: 500; /* Keeping default weight, specific weights handled by next/font */
+  /* FK Grotesk Neue for UI elements by default */
+  font-family: var(--font-ui);
+  font-weight: 400;
 
   /* Hide scrollbar for Chrome, Safari and Opera */
   &::-webkit-scrollbar {
@@ -169,17 +260,31 @@ body {
   }
 }
 
-/* Use Space Grotesk for headings via variable */
-/* font-family: 'Space Grotesk', sans-serif; */ /* Replaced */
+/* FK Grotesk Neue for headings */
 h1, h2, h3, h4, h5, h6, .heading {
   font-family: var(--font-heading);
-  font-weight: 600; /* Keeping default weight, specific weights handled by next/font */
+  font-weight: 600;
 }
 
-p, span, div, li, button, input, textarea {
-  /* Ensure other elements also use the base font variable */
-  /* font-family: 'Instrument Sans', sans-serif; */ /* Replaced */
+/* FK Grotesk for paragraphs only */
+p {
   font-family: var(--font-body);
+  font-weight: 400;
+}
+
+/* FK Grotesk Neue for UI elements (buttons, inputs, labels, etc.) */
+span, div, li, button, input, textarea, label, a {
+  font-family: var(--font-ui);
+}
+
+/* Remove focus outlines from textareas */
+textarea:focus,
+input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: inherit !important;
+  --tw-ring-color: transparent !important;
+  --tw-ring-shadow: none !important;
 }
 
 :root {
@@ -313,7 +418,7 @@ p, span, div, li, button, input, textarea {
 /* Dark mode styles for code blocks */
 .dark .prose code:not(pre code) {
   background: #242b2e !important;
-  color: #B1D4E0 !important;
+  color: var(--text-light-link) !important;
   font-size: 1em;
   font-weight: 600;
   padding: 0.22em 0.55em;
@@ -374,15 +479,13 @@ p, span, div, li, button, input, textarea {
 .dark textarea,
 .dark select {
   color: var(--text-light-default);
-  background-color: var(--secondary-darker);
-  border-color: var(--secondary-darkest);
 }
 
 .dark input:focus,
 .dark textarea:focus,
 .dark select:focus {
-  border-color: var(--brand-default);
-  outline-color: var(--brand-default);
+  outline: none;
+  box-shadow: none;
 }
 
 /* Fix button styling in dark mode */
@@ -748,31 +851,31 @@ pre code {
 
 /* Dark Mode Variables */
 .dark {
-  /* Invert and adjust brand colors - improved for better readability */
-  --brand-default: #B1D4E0; /* Adjusted to be lighter and more vivid */
-  --brand-fainter: #385E72;
-  --brand-faint: #A1DBF1;
-  --brand-subtle: #B1D4E0; /* Made slightly lighter */
-  --brand-muted: #B1D4E0; /* More vibrant for better contrast */
-  --brand-dark: #385E72; /* Lighter for better contrast */
-  --brand-darker: #0C4160;
+  /* Dark mode accent colors */
+  --brand-default: #092427;
+  --brand-fainter: #061a1c;
+  --brand-faint: #0a2d31;
+  --brand-subtle: #092427;
+  --brand-muted: #092427;
+  --brand-dark: #061a1c;
+  --brand-darker: #041314;
 
   /* Dark mode secondary colors */
   --secondary-accent: #c9bb92;
   --secondary-accent2x: #d8cba3;
-  --secondary-dark: #202020;
-  --secondary-darker: #1d1d1d;
-  --secondary-darkest: #2e2e2e;
-  --secondary-default: #141414;
-  --secondary-faint: #131313;
-  --secondary-fainter: #1e1e1e;
+  --secondary-dark: #1f2121;
+  --secondary-darker: #1a1b1b;
+  --secondary-darkest: #2a2b2b;
+  --secondary-default: #181919;
+  --secondary-faint: #1f2121;
+  --secondary-fainter: #242525;
 
   /* Text colors for dark mode */
-  --text-light-default: #e7e7e7;
-  --text-light-muted: #a0a0a0;
+  --text-light-default: #e2e2dd;
+  --text-light-muted: #a0a09b;
   --text-light-subtle: #707070;
   --text-light-faint: #404040;
-  --text-light-link: #B1D4E0; /* Adjusted to be more visible in dark mode */
+  --text-light-link: #e2e2dd;
 
   /* Background and accent for dark mode */
   --background: var(--secondary-default);
@@ -796,64 +899,9 @@ pre code {
   --accent-maroon-light: #450a0a;
   --accent-maroon-dark: #fca5a5;
 
-  /* Sidebar colors for dark mode - darker than main page */
-  --sidebar-bg: #101010; /* Darker than #141414 */
-  --sidebar-border: #1f1f1f; /* Slightly lighter border for visibility */
-}
-
-body {
-  color: var(--text-light-default);
-  background: var(--background);
-
-  /* Use Instrument Sans for body text via variable */
-  /* font-family: 'Instrument Sans', sans-serif; */ /* Replaced by className in layout.tsx or variable below */
-  font-family: var(--font-body);
-  font-weight: 500; /* Keeping default weight, specific weights handled by next/font */
-
-  /* Hide scrollbar for Chrome, Safari and Opera */
-  &::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Hide scrollbar for IE, Edge and Firefox */
-  & {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-  }
-}
-
-/* Use Space Grotesk for headings via variable */
-/* font-family: 'Space Grotesk', sans-serif; */ /* Replaced */
-h1, h2, h3, h4, h5, h6, .heading {
-  font-family: var(--font-heading);
-  font-weight: 600; /* Keeping default weight, specific weights handled by next/font */
-}
-
-p, span, div, li, button, input, textarea {
-  /* Ensure other elements also use the base font variable */
-  /* font-family: 'Instrument Sans', sans-serif; */ /* Replaced */
-  font-family: var(--font-body);
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
-
-:root {
-  --background: var(--secondary-default);
-  --accent: var(--brand-default);
-  --accent-background: var(--brand-default);
-}
-
-:root {
-  --border-default: var(--gray-300);
-  --border-radius-default: 0px;
-
-  /* Typography - These are now handled by variables set in layout.tsx */
-  /* --font-family-sans: 'Instrument Sans', sans-serif; */
-  /* --font-family-serif: 'Space Grotesk', sans-serif; */
+  /* Sidebar colors for dark mode */
+  --sidebar-bg: #1f2121;
+  --sidebar-border: #2a2b2b;
 }
 
 /* Custom prose styling to reduce spacing */
@@ -972,7 +1020,7 @@ p, span, div, li, button, input, textarea {
 /* Dark mode styles for code blocks */
 .dark .prose code:not(pre code) {
   background: #242b2e !important;
-  color: #B1D4E0 !important;
+  color: var(--text-light-link) !important;
   font-size: 1em;
   font-weight: 600;
   padding: 0.22em 0.55em;
@@ -1033,15 +1081,13 @@ p, span, div, li, button, input, textarea {
 .dark textarea,
 .dark select {
   color: var(--text-light-default);
-  background-color: var(--secondary-darker);
-  border-color: var(--secondary-darkest);
 }
 
 .dark input:focus,
 .dark textarea:focus,
 .dark select:focus {
-  border-color: var(--brand-default);
-  outline-color: var(--brand-default);
+  outline: none;
+  box-shadow: none;
 }
 
 /* Fix button styling in dark mode */
@@ -1401,6 +1447,21 @@ pre code {
   .ayle-main-pinned-left {
     max-width: 100% !important;
     margin: 0 !important;
+  }
+}
+
+
+
+@layer base {}
+
+
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }
 

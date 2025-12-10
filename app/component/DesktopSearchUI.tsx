@@ -1,40 +1,30 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Model } from '../types';
-import Markdown from 'markdown-to-jsx';
-import ModelSelector from './ModelSelector';
-import QueryEnhancer from './QueryEnhancer';
-import { FileUp, X } from 'lucide-react';
+import { ArrowUp, Plus, X, ChevronDown, Check, Paperclip } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-
-// Import markdown options from MessageContent for consistent rendering
-import { markdownOptions, processMarkdown } from './MessageContent';
-
-// Add the parseMessageContent helper function
-const parseMessageContent = (content: string) => {
-  // If we find a complete think tag
-  if (content.includes('</think>')) {
-    const [thinking, ...rest] = content.split('</think>');
-    return {
-      thinking: thinking.replace('<think>', '').trim(),
-      finalResponse: rest.join('</think>').trim(),
-      isComplete: true
-    };
-  }
-  // If we only find opening think tag, everything after it is thinking
-  if (content.includes('<think>')) {
-    return {
-      thinking: content.replace('<think>', '').trim(),
-      finalResponse: '',
-      isComplete: false
-    };
-  }
-  // No think tags, everything is final response
-  return {
-    thinking: '',
-    finalResponse: content,
-    isComplete: true
-  };
-};
+import { cn } from '@/lib/utils';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Google,
+  Groq,
+  OpenRouter,
+  Meta,
+  DeepSeek,
+  Qwen,
+  Mistral,
+  Gemma,
+  Grok,
+  Exa,
+  Flux,
+  Moonshot,
+  Perplexity
+} from '@lobehub/icons';
+import Image from 'next/image';
+import Snowfall from './Snowfall';
 
 interface DesktopSearchUIProps {
   input: string;
@@ -54,6 +44,43 @@ interface DesktopSearchUIProps {
   openAuthDialog: () => void;
   sidebarPinned?: boolean;
 }
+
+// Inception icon component
+const InceptionIcon = () => (
+  <div className="h-5 w-5 flex items-center justify-center rounded-sm overflow-hidden">
+    <Image src="/inceptionai.png" alt="Inception" width={20} height={20} className="object-contain dark:block hidden" unoptimized />
+    <Image src="/inceptionai-lightmode.png" alt="Inception" width={20} height={20} className="object-contain block dark:hidden" unoptimized />
+  </div>
+);
+
+const getProviderIcon = (avatarType: string, size = 18) => {
+  switch (avatarType) {
+    case 'google': return <Google.Avatar size={size} />;
+    case 'gemma': return <Gemma.Simple size={size} />;
+    case 'meta': return <Meta.Avatar size={size} />;
+    case 'deepseek': return <DeepSeek.Avatar size={size} />;
+    case 'groq': return <Groq.Avatar size={size} />;
+    case 'xai': return <Grok.Avatar size={size} />;
+    case 'openrouter': return <OpenRouter.Avatar size={size} />;
+    case 'mistral': return <Mistral.Avatar size={size} />;
+    case 'qwen': return <Qwen.Avatar size={size} />;
+    case 'together': return <Flux.Avatar size={size} />;
+    case 'moonshotai': return <Moonshot.Avatar size={size} />;
+    case 'exa': return <Exa.Avatar size={size} />;
+    case 'perplexity': return <Perplexity size={size} />;
+    case 'inception': return <InceptionIcon />;
+    default: return null;
+  }
+};
+
+const groupByProvider = (models: Model[]): Record<string, Model[]> => {
+  const grouped: Record<string, Model[]> = {};
+  models.forEach(model => {
+    if (!grouped[model.provider]) grouped[model.provider] = [];
+    grouped[model.provider].push(model);
+  });
+  return grouped;
+};
 
 const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   input,
@@ -76,24 +103,26 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [isRounded, setIsRounded] = useState(false);
+  const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const { user, isLoading: authLoading } = useAuth();
   const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("roundedCorners");
-      setIsRounded(stored === "on");
-    }
-  }, []);
-
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
-
+  const isGeminiModel = selectedModel.includes('gemini');
+  const selectedModelObj = models.find(model => model.id === selectedModel);
+  const groupedModels = groupByProvider(models);
   const disableInput = isGuest && guestMessageCount >= guestMessageLimit;
 
-  // Handle keyboard shortcuts
+  useEffect(() => { setHydrated(true); }, []);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      const newHeight = Math.min(textareaRef.current.scrollHeight, 200);
+      textareaRef.current.style.height = `${newHeight}px`;
+    }
+  }, [input]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !isLoading && input.trim()) {
       e.preventDefault();
@@ -101,280 +130,223 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
     }
   };
 
-  // Auto-resize textarea based on content
-  useEffect(() => {
-    if (textareaRef.current) {
-      // Reset height to auto to get the correct scrollHeight
-      textareaRef.current.style.height = 'auto';
-      
-      // Calculate new height
-      const newHeight = textareaRef.current.scrollHeight;
-      const maxHeight = 120; // Max height before scrolling (in pixels)
-      
-      if (newHeight > maxHeight) {
-        // If content exceeds max height, set fixed height and enable scrolling
-        textareaRef.current.style.height = `${maxHeight}px`;
-        textareaRef.current.style.overflowY = 'auto';
-      } else {
-        // Otherwise, expand to fit content
-        textareaRef.current.style.height = `${newHeight}px`;
-        textareaRef.current.style.overflowY = 'hidden';
-      }
-    }
-  }, [input]);
-
-  // Add file handling functions
-  const handleFileButtonClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  // Handle paste for images
-  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const items = e.clipboardData.items;
-    const newFiles: File[] = [];
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.kind === 'file' && item.type.startsWith('image/')) {
-        const file = item.getAsFile();
-        if (file) {
-          newFiles.push(file);
-        }
-      }
-    }
-
-    if (newFiles.length > 0) {
-      e.preventDefault(); // Prevent default paste behavior only if we found images
-      const updatedAttachments = [...attachments, ...newFiles];
-      setAttachments(updatedAttachments);
-      onAttachmentsChange?.(updatedAttachments);
-    }
-  };
+  const handleFileButtonClick = () => fileInputRef.current?.click();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files || []);
     if (newFiles.length > 0) {
-      const updatedAttachments = [...attachments, ...newFiles];
-      setAttachments(updatedAttachments);
-      onAttachmentsChange?.(updatedAttachments);
+      const updated = [...attachments, ...newFiles];
+      setAttachments(updated);
+      onAttachmentsChange?.(updated);
+    }
+    e.target.value = '';
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData.items;
+    const newFiles: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].kind === 'file' && items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) newFiles.push(file);
+      }
+    }
+    if (newFiles.length > 0) {
+      e.preventDefault();
+      const updated = [...attachments, ...newFiles];
+      setAttachments(updated);
+      onAttachmentsChange?.(updated);
     }
   };
 
-  const isGeminiModel = selectedModel.startsWith('gemini');
+  const removeAttachment = (index: number) => {
+    const updated = attachments.filter((_, i) => i !== index);
+    setAttachments(updated);
+    onAttachmentsChange?.(updated);
+  };
 
-  // Wrap main container for layout shift
-  const MainContainer = (
-    <div className={`w-full max-w-full md:max-w-3xl mb-8 ${sidebarPinned ? 'text-left' : 'mx-auto text-center'}`}>
-      <div className="mb-8 text-center">
-        {hydrated && !authLoading && !user && (
-          <button
-            onClick={openAuthDialog}
-            className="inline-block mb-4 px-4 py-1 rounded-full font-semibold text-sm
-              bg-[var(--brand-default)] text-white dark:bg-[var(--brand-fainter)] dark:text-[var(--text-light-default)]
-              shadow hover:bg-[var(--brand-dark)] dark:hover:bg-[var(--brand-muted)] transition-colors"
+  const placeholder = selectedModel === 'exa' ? "Search with Exa..." : "Message Ayle...";
+
+  const suggestedPrompts = [
+    "Explain quantum computing in simple terms",
+    "Write a Python function to sort a list",
+    "What are the best practices for React?",
+  ];
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden">
+      <Snowfall count={80} />
+      <div className="w-full max-w-2xl mx-auto relative z-10">
+        {/* Header */}
+        <div className="text-center mb-8">
+          {hydrated && !authLoading && !user && (
+            <button
+              onClick={openAuthDialog}
+              className="inline-block mb-4 px-4 py-1.5 rounded-full text-sm font-medium
+                bg-[var(--brand-dark)] text-white hover:bg-[var(--brand-default)] transition-colors"
+            >
+              Sign in for unlimited access
+            </button>
+          )}
+          <h1
+            className="text-5xl md:text-6xl text-neutral-900 dark:text-neutral-100 mb-3 font-normal"
+            style={{ fontFamily: 'Gebuk, system-ui, sans-serif', letterSpacing: '0.02em', fontWeight: 400 }}
           >
-            Sign in to better experience
-          </button>
-        )}
-        <h1 className="text-5xl font-bold mb-2 text-[var(--text-light-default)]">
-          The web, <span className="text-[var(--brand-default)]" style={{ fontFamily: 'var(--font-heading)' }}>organized</span>
-        </h1>
-        <p className="text-base text-[var(--text-light-muted)] mb-2">
-          {description}
-        </p>
-      </div>
-      
-      {/* Search box */}
-      <div className={`border ${isRounded ? 'border-2' : ''} border-[var(--brand-default)] rounded-lg bg-white dark:bg-[var(--secondary-darker)] shadow-sm overflow-hidden mb-8`}>
-        <form onSubmit={handleSubmit} className="relative">
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--secondary-darkest)]">
-            <svg className="w-5 h-5 text-[var(--text-light-muted)]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            
-            <div className="w-full max-w-[180px]">
-              <ModelSelector
-                selectedModel={selectedModel}
-                handleModelChange={handleModelChange}
-                models={models}
-              />
+            Ayle
+          </h1>
+          <p className="text-neutral-500 dark:text-neutral-400 text-base">
+            {description}
+          </p>
+        </div>
+
+        {/* Main Input Container */}
+        <div className="relative bg-[var(--secondary-dark)] dark:bg-[var(--secondary-faint)] rounded-lg border border-[var(--secondary-darkest)] mb-6">
+          {/* Attachments Preview */}
+          {attachments.length > 0 && (
+            <div className="px-4 pt-3 flex flex-wrap gap-2">
+              {attachments.map((file, index) => (
+                <div key={index} className="flex items-center gap-2 bg-neutral-200 dark:bg-neutral-700 rounded-lg px-3 py-2">
+                  <Paperclip className="h-4 w-4 text-neutral-500" />
+                  <span className="text-xs text-neutral-600 dark:text-neutral-300 max-w-[100px] truncate">{file.name}</span>
+                  <button type="button" onClick={() => removeAttachment(index)} className="text-neutral-400 hover:text-neutral-600">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
             </div>
+          )}
+
+          {/* Textarea */}
+          <div className="px-4 py-3">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder={placeholder}
+              rows={1}
+              disabled={disableInput || isLoading}
+              className={cn(
+                "w-full resize-none bg-transparent border-none outline-none",
+                "text-[var(--text-light-default)] placeholder:text-[var(--text-light-muted)]",
+                "text-base leading-relaxed min-h-[24px] max-h-[200px]",
+                "focus:ring-0 focus:outline-none focus:border-none"
+              )}
+              style={{ overflow: 'hidden' }}
+            />
           </div>
-          
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            autoFocus
-            placeholder="Try a search or paste a link to find similar"
-            rows={1}
-            className="w-full p-4 bg-white dark:bg-[var(--secondary-darker)] border-0 
-            focus:outline-none focus:ring-0 text-base text-[var(--text-light-default)]
-            placeholder:text-[var(--text-light-subtle)] resize-none min-h-[46px] max-h-[120px]
-            scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent dark:focus:outline-none"
-            style={{ lineHeight: '1.5' }}
-            disabled={disableInput}
-          />
-          
-          <div className="flex items-center justify-between px-2 py-2 border-t border-[var(--secondary-darkest)]">
-            <div className="flex items-center gap-2">
-              <QueryEnhancer input={input} setInput={setInput} isLoading={isLoading} isMobile={false} />
-              <span className="text-sm text-[var(--text-light-muted)]">Enhance Query</span>
-            </div>
-            
-            <div className="flex items-center gap-2">
+
+          {/* Bottom Actions Row */}
+          <div className="flex items-center justify-between px-3 pb-3">
+            {/* Left Actions */}
+            <div className="flex items-center gap-1">
               {isGeminiModel && (
                 <button
                   type="button"
                   onClick={handleFileButtonClick}
                   disabled={isLoading}
-                  className="p-2 text-[var(--text-light-muted)] hover:text-[var(--brand-default)] rounded-full hover:bg-[var(--secondary-faint)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={cn(
+                    "p-2 rounded-full transition-colors",
+                    "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200",
+                    "dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-700",
+                    "disabled:opacity-50"
+                  )}
                   title="Attach files"
                 >
-                  <FileUp className="h-5 w-5" />
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    multiple
-                  />
+                  <Plus className="h-5 w-5" />
                 </button>
               )}
 
-              <button
-                type="submit"
-                disabled={!input.trim() || isLoading || disableInput}
-                className="bg-[var(--brand-default)] text-white px-6 py-2 rounded-md font-medium
-                disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 dark:bg-[var(--brand-dark)] dark:hover:bg-[var(--brand-muted)]"
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span>{selectedModel === 'exa' ? 'SEARCH' : 'ASK'}</span>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Attachments Preview */}
-          {attachments.length > 0 && (
-            <div className="px-4 py-2 border-t border-[var(--secondary-darkest)] bg-[var(--secondary-faint)]">
-              <div className="flex flex-wrap gap-2">
-                {attachments.map((file, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 bg-white dark:bg-[var(--secondary-darker)] px-2 py-1 rounded-md text-sm"
+              {/* Model Selector */}
+              <Popover open={modelSelectorOpen} onOpenChange={setModelSelectorOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-colors",
+                      "text-neutral-600 hover:bg-neutral-200",
+                      "dark:text-neutral-400 dark:hover:bg-neutral-800"
+                    )}
                   >
-                    <span className="truncate max-w-[150px]">{file.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newAttachments = attachments.filter((_, i) => i !== index);
-                        setAttachments(newAttachments);
-                        onAttachmentsChange?.(newAttachments);
-                      }}
-                      className="text-[var(--text-light-muted)] hover:text-red-500"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+                    {selectedModelObj && getProviderIcon(selectedModelObj.avatarType || selectedModelObj.providerId, 16)}
+                    <span className="text-sm font-medium max-w-[100px] truncate">
+                      {selectedModelObj?.name?.split(' ')[0] || 'Model'}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-64 p-0 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 shadow-lg"
+                  align="start"
+                  sideOffset={8}
+                >
+                  <div className="max-h-[300px] overflow-y-auto py-1">
+                    {Object.entries(groupedModels).map(([provider, providerModels]) => (
+                      <div key={provider} className="px-2 py-1">
+                        <div className="text-xs font-medium text-neutral-400 dark:text-neutral-500 px-2 py-1.5">{provider}</div>
+                        {providerModels.map(model => (
+                          <button
+                            key={model.id}
+                            type="button"
+                            onClick={() => { handleModelChange(model.id); setModelSelectorOpen(false); }}
+                            className={cn(
+                              "w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors",
+                              selectedModel === model.id ? "bg-neutral-100 dark:bg-neutral-800" : "hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                            )}
+                          >
+                            <div className="flex-shrink-0">{getProviderIcon(model.avatarType || model.providerId, 18)}</div>
+                            <span className="flex-1 text-sm text-neutral-700 dark:text-neutral-300 truncate">{model.name}</span>
+                            {selectedModel === model.id && <Check className="h-4 w-4 text-[var(--brand-default)] flex-shrink-0" />}
+                          </button>
+                        ))}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </PopoverContent>
+              </Popover>
             </div>
-          )}
-        </form>
-      </div>
-      
-      {/* Popular searches */}
-      <div className="mb-8">
-        <h3 className="text-sm font-medium text-[var(--text-light-muted)] mb-3">POPULAR SEARCHES</h3>
-        <div className="grid grid-cols-3 gap-3">
-          <button 
-            onClick={() => setInput("Can you explain how black holes work?")}
-            className="px-3 py-2 bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] rounded-md text-sm hover:border-[var(--brand-default)] transition-colors text-left text-[var(--text-light-default)] transition-none"
-          >
-            Can you explain how black holes work?
-          </button>
-          <button 
-            onClick={() => setInput("Can you tell me a fascinating story from history?")}
-            className="px-3 py-2 bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] rounded-md text-sm hover:border-[var(--brand-default)] transition-colors text-left text-[var(--text-light-default)] transition-none"
-          >
-            Can you tell me a fascinating story from history?
-          </button>
-          <button 
-            onClick={() => setInput("Write a program to implement a binary search in c++?")}
-            className="px-3 py-2 bg-white dark:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] rounded-md text-sm hover:border-[var(--brand-default)] transition-colors text-left text-[var(--text-light-default)] transition-none"
-          >
-            Write a program to implement a binary search in c++?
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 
-  return (
-    <div className={`${sidebarPinned ? "ayle-grid-layout min-h-screen h-screen" : "min-h-screen"} w-full`}>
-      <div className={`${sidebarPinned ? "ayle-main-pinned flex flex-col h-full min-h-screen" : "flex flex-col min-h-screen items-center justify-center"} w-full`}>
-        {/* Messages section and search UI */}
-        {messages && messages.length > 0 && (
-          <div className="w-full max-w-full md:max-w-3xl mx-auto mb-8">
-            <div className="space-y-6">
-              {messages.filter(m => m.role !== 'system').map((message) => (
-                <div key={message.id} className="w-full">
-                  <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`rounded px-4 py-3 max-w-[85%] ${
-                      message.role === 'user'
-                        ? 'bg-[var(--secondary-darker)] text-[var(--text-light-default)] message-human'
-                        : 'text-[var(--text-light-default)] message-ai'
-                    }`}>
-                      {message.role === 'assistant' ? (
-                        <>
-                          {(() => {
-                            const { thinking, finalResponse, isComplete } = parseMessageContent(message.content);
-                            return (
-                              <>
-                                {(thinking || !isComplete) && (
-                                  <div className="my-6 space-y-3">
-                                    <div className="flex items-center gap-2 text-[var(--text-light-default)]">
-                                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                                      </svg>
-                                      <h3 className="text-sm font-medium">Thinking</h3>
-                                    </div>
-                                    <div className="pl-4 relative">
-                                      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--secondary-darkest)]"></div>
-                                      <div className="text-sm text-[var(--text-light-muted)] whitespace-pre-wrap">{thinking}</div>
-                                    </div>
-                                  </div>
-                                )}
-                                {isComplete && finalResponse && (
-                                  <div className="prose prose-sm max-w-none compact-prose dark:prose-invert overflow-hidden">
-                                    <Markdown options={markdownOptions}>{processMarkdown(finalResponse)}</Markdown>
-                                  </div>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </>
-                      ) : (
-                        <div className="whitespace-pre-wrap text-[15px]">{message.content}</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {/* Send Button */}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={(!input.trim() && attachments.length === 0) || isLoading || disableInput}
+              className={cn(
+                "h-8 w-8 rounded-full flex items-center justify-center transition-all",
+                input.trim() || attachments.length > 0
+                  ? "bg-neutral-800 hover:bg-neutral-700 dark:bg-neutral-200 dark:hover:bg-neutral-300"
+                  : "bg-neutral-300 dark:bg-neutral-600 cursor-not-allowed"
+              )}
+            >
+              <ArrowUp className={cn(
+                "h-4 w-4",
+                input.trim() || attachments.length > 0 ? "text-white dark:text-neutral-800" : "text-neutral-500 dark:text-neutral-400"
+              )} />
+            </button>
           </div>
-        )}
-        {MainContainer}
+
+          <input ref={fileInputRef} type="file" accept="image/*,.pdf" onChange={handleFileChange} className="hidden" multiple />
+        </div>
+
+        {/* Suggested Prompts */}
+        <div className="flex flex-wrap justify-center gap-2">
+          {suggestedPrompts.map((prompt, index) => (
+            <button
+              key={index}
+              onClick={() => setInput(prompt)}
+              className="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-400 bg-transparent dark:bg-neutral-900
+                border border-neutral-300 dark:border-neutral-700 rounded-lg
+                hover:border-neutral-400 dark:hover:border-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800
+                transition-colors"
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
 };
 
-export default DesktopSearchUI; 
+export default DesktopSearchUI;

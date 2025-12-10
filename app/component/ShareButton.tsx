@@ -60,7 +60,7 @@ export default function ShareButton({ threadId }: ShareButtonProps) {
               size="sm"
               onClick={handleShare} 
               disabled={!threadId || isSharing}
-              className="px-2 sm:px-3 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 group h-8 rounded-md transition-all duration-300 ease-in-out overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-2 sm:px-3 text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] group h-8 rounded-md transition-all duration-300 ease-in-out overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label={!threadId || isSharing ? "Cannot share yet" : "Share conversation"}
             >
               <div className="flex items-center justify-center">

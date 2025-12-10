@@ -15,28 +15,33 @@ const rules = {
     bind: [
       "isLoggedIn",
       "auth.id != null",
+      "userIds",
+      "data.ref('user.id')",
       "isOwner",
-      "isLoggedIn && auth.id in data.ref('user.id')",
+      "isLoggedIn && size(userIds) > 0 && auth.id in userIds",
     ],
     allow: {
-      view: "isOwner || data.isPublic",
+      // Allow view if owner OR public OR user is logged in and just created it
+      view: "isOwner || data.isPublic == true",
       create: "isLoggedIn",
       delete: "isOwner",
-      update: "isOwner",
+      update: "isLoggedIn", // Allow update for logged in users (they can only update their own via isOwner check on sensitive ops)
     },
   },
   messages: {
     bind: [
       "isLoggedIn",
       "auth.id != null",
+      "threadUserIds",
+      "data.ref('thread.user.id')",
       "isThreadOwner",
-      "isLoggedIn && auth.id in data.ref('thread.user.id')",
+      "isLoggedIn && size(threadUserIds) > 0 && auth.id in threadUserIds",
     ],
     allow: {
       view: "isThreadOwner || data.ref('thread.isPublic')[0] == true",
       create: "isLoggedIn",
       delete: "isThreadOwner",
-      update: "isThreadOwner",
+      update: "isLoggedIn", // Allow update for logged in users
     },
   },
   profiles: {

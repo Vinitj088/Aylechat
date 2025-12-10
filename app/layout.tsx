@@ -58,7 +58,7 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
       </head>
-      <body className={GeistSans.className}>
+      <body>
         <Providers>
           <SidebarPinProvider>
             <SidebarProvider>
