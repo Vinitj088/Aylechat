@@ -1,15 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Share2 } from 'lucide-react';
 import ShareDialog from './ShareDialog';
-import { 
-  Tooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from "@/components/ui/tooltip";
 import { db } from '@/lib/db';
 import { id } from '@instantdb/react';
@@ -22,10 +21,10 @@ export default function ShareButton({ threadId }: ShareButtonProps) {
   const [isSharing, setIsSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>('');
   const [dialogOpen, setDialogOpen] = useState(false);
-  
+
   const handleShare = async () => {
     if (!threadId || isSharing) return;
-    
+
     try {
       setIsSharing(true);
       const shareId = id();
@@ -45,43 +44,37 @@ export default function ShareButton({ threadId }: ShareButtonProps) {
       setIsSharing(false);
     }
   };
-  
+
   const handleCloseDialog = () => {
     setDialogOpen(false);
   };
-  
+
   return (
     <>
       <TooltipProvider delayDuration={100}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={handleShare} 
+            <button
+              onClick={handleShare}
               disabled={!threadId || isSharing}
-              className="px-2 sm:px-3 text-[var(--text-light-muted)] hover:text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] group h-8 rounded-md transition-all duration-300 ease-in-out overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#20B8CD] hover:bg-[#1AA3B6] text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label={!threadId || isSharing ? "Cannot share yet" : "Share conversation"}
             >
-              <div className="flex items-center justify-center">
-                <Share2 className="h-4 w-4 flex-shrink-0 group-hover:mr-2 transition-all duration-300 ease-in-out" />
-                <span className="max-w-0 group-hover:max-w-0 sm:group-hover:max-w-xs transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap text-xs">
-                  Share this chat
-                </span>
-              </div>
-            </Button>
+              <Share2 className={`w-4 h-4 ${isSharing ? 'animate-pulse' : ''}`} />
+              <span>Share</span>
+            </button>
           </TooltipTrigger>
           {!threadId && (
-            <TooltipContent side="bottom" className="text-xs">
+            <TooltipContent side="bottom" className="text-xs bg-[#1A1A1A] text-[#F8F8F7] border-[#333]">
               <p>Send a message to enable sharing</p>
             </TooltipContent>
           )}
         </Tooltip>
       </TooltipProvider>
-      
-      <ShareDialog 
-        isOpen={dialogOpen} 
-        onClose={handleCloseDialog} 
+
+      <ShareDialog
+        isOpen={dialogOpen}
+        onClose={handleCloseDialog}
         shareUrl={shareUrl}
       />
     </>

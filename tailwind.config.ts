@@ -10,7 +10,7 @@ const config: Config = {
   theme: {
   	fontFamily: {
   		sans: [
-  			'Instrument Sans',
+  			'FK Grotesk',
   			'system-ui',
   			'sans-serif'
   		],
@@ -18,6 +18,21 @@ const config: Config = {
   			'Space Grotesk',
   			'Georgia',
   			'serif'
+  		],
+  		heading: [
+  			'FK Grotesk',
+  			'system-ui',
+  			'sans-serif'
+  		],
+  		body: [
+  			'FK Grotesk Neue',
+  			'system-ui',
+  			'sans-serif'
+  		],
+  		ui: [
+  			'FK Grotesk',
+  			'system-ui',
+  			'sans-serif'
   		]
   	},
   	extend: {

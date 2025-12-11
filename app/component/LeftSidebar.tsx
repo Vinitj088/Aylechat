@@ -15,6 +15,11 @@ import {
   PanelLeft,
   Moon,
   Sun,
+  Home,
+  Compass,
+  Sparkles,
+  Library,
+  Command,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -187,10 +192,10 @@ export default function LeftSidebar({
     <div
       key={thread.id}
       className={cn(
-        "group flex items-center gap-2 w-full text-left p-2 rounded-md  cursor-pointer min-w-0",
+        "group flex items-center gap-1 w-full text-left py-1.5 cursor-pointer min-w-0",
         pathname === `/chat/${thread.id}`
-          ? "bg-[#868684]/20 text-[var(--text-light-default)]"
-          : "text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)]",
+          ? "text-[#13343B] dark:text-[#F8F8F7]"
+          : "text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7]",
       )}
       onClick={() => handleThreadClick(thread.id)}
     >
@@ -200,7 +205,7 @@ export default function LeftSidebar({
           e.stopPropagation()
           setThreadToDelete(thread.id)
         }}
-        className="p-1 text-[var(--text-light-muted)] hover:text-[var(--accent-red)] rounded  opacity-0 group-hover:opacity-100 flex-shrink-0"
+        className="p-0.5 text-[#64748B] hover:text-red-500 rounded opacity-0 group-hover:opacity-100 flex-shrink-0"
         title="Delete thread"
       >
         <Trash2 className="h-3 w-3" />
@@ -214,7 +219,7 @@ export default function LeftSidebar({
       <aside
         suppressHydrationWarning
         className={cn(
-          "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] shadow-lg flex flex-col h-screen transition-[width,transform] duration-300 ease-in-out fixed top-0 left-0 overflow-hidden",
+          "bg-white dark:bg-[#0F1516] border-r border-[#E5E5E5] dark:border-[#2A3638] flex flex-col h-screen transition-[width,transform] duration-300 ease-in-out fixed top-0 left-0 overflow-hidden",
           // Mobile: slide from left, Desktop: fixed on left
           isExpanded
             ? "w-64 translate-x-0 z-50"
@@ -222,37 +227,50 @@ export default function LeftSidebar({
         )}
       >
         {/* Header with Toggle and Logo */}
-        <div className="border-b border-[var(--sidebar-border)] flex flex-col items-start p-2 gap-2" suppressHydrationWarning>
-          {/* Row 1: Toggle and Ayle Logo */}
+        <div className={cn(
+          "flex flex-col items-center p-2 gap-2",
+          isExpanded && "border-b border-[#E5E5E5] dark:border-[#2A3638]"
+        )} suppressHydrationWarning>
+          {/* Row 1: Toggle/Logo when expanded, Logo icon when collapsed */}
           <div className="flex items-center gap-2 w-full min-w-0">
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="p-1.5 rounded-md hover:bg-[var(--secondary-darker)] text-[var(--text-light-default)] flex-shrink-0"
-              aria-label="Toggle sidebar"
-              title="Toggle sidebar"
-            >
-              <PanelLeft className="h-5 w-6" />
-            </button>
-
-            {/* Ayle Logo - only when expanded */}
-            {isExpanded && !isHydrating && (
-              <Link href="/" className="flex items-center flex-1 min-w-0">
-                <span
-                  className="text-2xl text-[var(--text-light-default)] whitespace-nowrap"
-                  style={{
-                    fontFamily: 'Gebuk, system-ui, sans-serif',
-                    letterSpacing: '0.02em',
-                  }}
+            {isExpanded ? (
+              <>
+                <button
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="p-1.5 rounded-md hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] text-[#13343B] dark:text-[#F8F8F7] flex-shrink-0"
+                  aria-label="Toggle sidebar"
+                  title="Toggle sidebar"
                 >
-                  Ayle
-                </span>
-              </Link>
-            )}
-            {isExpanded && isHydrating && (
-              <Skeleton className="h-8 flex-1" />
+                  <PanelLeft className="h-5 w-5" />
+                </button>
+                {!isHydrating && (
+                  <Link href="/" className="flex items-center flex-1 min-w-0">
+                    <span
+                      className="text-2xl text-[#13343B] dark:text-[#F8F8F7] whitespace-nowrap"
+                      style={{
+                        fontFamily: 'Gebuk, system-ui, sans-serif',
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      Ayle
+                    </span>
+                  </Link>
+                )}
+                {isHydrating && <Skeleton className="h-8 flex-1" />}
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-2 w-full">
+                <button
+                  onClick={() => setIsExpanded(true)}
+                  className="p-1.5 rounded-md hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7]"
+                  aria-label="Expand sidebar"
+                  title="Expand sidebar"
+                >
+                  <PanelLeft className="h-5 w-5" />
+                </button>
+              </div>
             )}
           </div>
-
         </div>
 
         {isHydrating ? (
@@ -283,124 +301,355 @@ export default function LeftSidebar({
           <>
             {/* Main Content Area */}
             <div ref={scrollContainerRef} className="flex-1 overflow-y-auto no-scrollbar p-2" suppressHydrationWarning>
-              {/* New Chat Button - Always visible */}
+              {/* New Thread Button */}
               <button
                 onClick={onNewChat}
                 className={cn(
-                  "flex items-center w-full mb-2 rounded-md hover:bg-[var(--secondary-darkest)] min-w-0 justify-start",
+                  "flex items-center w-full rounded-lg text-[#13343B] dark:text-[#F8F8F7] transition-all duration-300",
                   isExpanded
-                    ? "gap-2 text-left p-1.5 text-sm font-medium text-[var(--text-light-default)]"
-                    : "p-1.5 text-[var(--text-light-default)]"
+                    ? "gap-2 mb-4 border border-[#E5E5E5] dark:border-[#2A3638] hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] px-3 py-2 text-sm font-medium"
+                    : "mb-2 px-3 py-2.5 hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426]"
                 )}
+                title="New Thread"
               >
-                <Plus className="h-6 w-6 flex-shrink-0 bg-[#868684]/30 text-[var(--text-light-default)] rounded-full p-1" />
-                {isExpanded && <span className="whitespace-nowrap overflow-hidden">New chat</span>}
+                <Plus className={cn("flex-shrink-0 transition-all duration-300", isExpanded ? "h-4 w-4" : "h-5 w-5")} />
+                <span className={cn(
+                  "whitespace-nowrap flex-1 transition-all duration-300",
+                  isExpanded ? "opacity-100 max-w-[120px]" : "opacity-0 max-w-0 overflow-hidden"
+                )}>New Thread</span>
+                <span className={cn(
+                  "text-xs text-[#64748B] flex items-center gap-0.5 transition-all duration-300",
+                  isExpanded ? "opacity-100" : "opacity-0 max-w-0 overflow-hidden"
+                )}>
+                  <Command className="h-3 w-3" /> K
+                </span>
               </button>
 
-              {/* Chats Section - Only when expanded */}
-              {isExpanded && (
-                <div className="space-y-1">
-                  <div className="px-2 py-1 text-xs font-semibold text-[var(--text-light-muted)] uppercase tracking-wider">
-                    Chats
-                  </div>
-                  {!isLoading ? (
-                    threads.length === 0 ? (
-                      <div className="text-center py-4 px-3">
-                        <p className="text-xs text-[var(--text-light-muted)]">No chats yet</p>
-                      </div>
-                    ) : (
-                      <>
-                        {visibleChats.map(renderThread)}
-                        {threads.length > 5 && (
-                          <button
-                            onClick={() => setShowMoreChats(!showMoreChats)}
-                            className="flex items-center gap-2 w-full text-left p-2 text-sm text-[var(--text-light-muted)] hover:bg-[var(--secondary-darker)] rounded-md"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                            {showMoreChats ? "Show less" : `${threads.length - 5} more`}
-                          </button>
-                        )}
-                      </>
-                    )
-                  ) : (
-                    <div className="space-y-1">
-                      {[...Array(3)].map((_, i) => (
-                        <Skeleton key={i} className="h-10 w-full" />
-                      ))}
-                    </div>
+              {/* Navigation Items */}
+              <nav className="space-y-1">
+                <Link
+                  href="/"
+                  className={cn(
+                    "relative flex items-center w-full rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] min-w-0 transition-all duration-300 gap-3 px-3 py-2.5 text-sm font-medium",
+                    pathname === "/"
+                      ? "text-[#13343B] dark:text-[#F8F8F7]"
+                      : "text-[#64748B]"
                   )}
+                >
+                  {pathname === "/" && !isExpanded && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#13343B] dark:bg-[#F8F8F7] rounded-full" />
+                  )}
+                  <Home className="h-5 w-5 flex-shrink-0" />
+                  <span className={cn(
+                    "whitespace-nowrap transition-all duration-300",
+                    isExpanded ? "opacity-100 max-w-[150px]" : "opacity-0 max-w-0 overflow-hidden"
+                  )}>Home</span>
+                </Link>
+
+                <button
+                  className={cn(
+                    "relative flex items-center w-full rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] min-w-0 text-[#64748B] transition-all duration-300 gap-3 px-3 py-2.5 text-sm font-medium"
+                  )}
+                >
+                  <Compass className="h-5 w-5 flex-shrink-0" />
+                  <span className={cn(
+                    "whitespace-nowrap transition-all duration-300",
+                    isExpanded ? "opacity-100 max-w-[150px]" : "opacity-0 max-w-0 overflow-hidden"
+                  )}>Discover</span>
+                </button>
+
+                {/* Spaces Section */}
+                <div>
+                  <button
+                    className={cn(
+                      "relative flex items-center w-full rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] min-w-0 text-[#13343B] dark:text-[#F8F8F7] transition-all duration-300 gap-3 px-3 py-2.5 text-sm font-medium"
+                    )}
+                  >
+                    <Sparkles className="h-5 w-5 flex-shrink-0" />
+                    <span className={cn(
+                      "whitespace-nowrap transition-all duration-300",
+                      isExpanded ? "opacity-100 max-w-[150px]" : "opacity-0 max-w-0 overflow-hidden"
+                    )}>Spaces</span>
+                  </button>
+                  {/* Spaces sub-items placeholder - only when expanded */}
+                  <div className={cn(
+                    "ml-5 mt-0.5 space-y-0.5 border-l border-[#E5E5E5] dark:border-[#2A3638] pl-3 transition-all duration-300 overflow-hidden",
+                    isExpanded ? "max-h-20 opacity-100" : "max-h-0 opacity-0"
+                  )}>
+                    <button className="text-sm text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] py-1 text-left w-full truncate">
+                      Create a Space
+                    </button>
+                  </div>
                 </div>
-              )}
+
+                {/* Library Section with threads */}
+                <div>
+                  <Link
+                    href="/library"
+                    className={cn(
+                      "relative flex items-center w-full rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] min-w-0 transition-all duration-300 gap-3 px-3 py-2.5 text-sm font-medium",
+                      pathname === "/library" || pathname.startsWith("/library")
+                        ? "text-[#13343B] dark:text-[#F8F8F7]"
+                        : "text-[#64748B]"
+                    )}
+                  >
+                    {(pathname === "/library" || pathname.startsWith("/library")) && !isExpanded && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#13343B] dark:bg-[#F8F8F7] rounded-full" />
+                    )}
+                    <Library className="h-5 w-5 flex-shrink-0" />
+                    <span className={cn(
+                      "whitespace-nowrap transition-all duration-300",
+                      isExpanded ? "opacity-100 max-w-[150px]" : "opacity-0 max-w-0 overflow-hidden"
+                    )}>Library</span>
+                  </Link>
+
+                  {/* Thread list under Library - only when expanded */}
+                  <div className={cn(
+                    "ml-5 mt-0.5 space-y-0.5 border-l border-[#E5E5E5] dark:border-[#2A3638] pl-3 transition-all duration-300 overflow-hidden",
+                    isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+                  )}>
+                      {!isLoading ? (
+                        threads.length === 0 ? (
+                          <p className="text-sm text-[#64748B] py-1">No threads yet</p>
+                        ) : (
+                          <>
+                            {visibleChats.map(renderThread)}
+                            {threads.length > 5 && (
+                              <button
+                                onClick={() => setShowMoreChats(!showMoreChats)}
+                                className="w-full text-left py-1 text-sm text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7]"
+                              >
+                                {showMoreChats ? "Show less" : `${threads.length - 5} more`}
+                              </button>
+                            )}
+                          </>
+                        )
+                      ) : (
+                        <div className="space-y-1 py-1">
+                          {[...Array(3)].map((_, i) => (
+                            <Skeleton key={i} className="h-5 w-full" />
+                          ))}
+                        </div>
+                      )}
+                  </div>
+                </div>
+              </nav>
             </div>
 
             {/* Footer */}
-            <div className="border-t border-[var(--sidebar-border)] p-2 space-y-1" suppressHydrationWarning>
-              {/* Theme Toggle */}
-              <button
-                onClick={toggleTheme}
-                className="flex items-center gap-2 w-full text-left px-2 py-2 hover:bg-[var(--secondary-darker)] rounded-md min-w-0"
-                title={theme === "dark" ? "Light mode" : "Dark mode"}
-              >
-                {theme === "dark" ? (
-                  <Sun className="h-5 w-5 flex-shrink-0 text-[var(--text-light-default)]" />
-                ) : (
-                  <Moon className="h-5 w-5 flex-shrink-0 text-[var(--text-light-default)]" />
-                )}
+            <div className="p-2 space-y-1" suppressHydrationWarning>
+              {/* Profile Section */}
+              <div className={cn(
+                "flex items-center w-full rounded-lg min-w-0 transition-all duration-300",
+                isExpanded ? "gap-2 p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426]" : "p-2"
+              )}>
+                <DropdownMenu open={isProfileDropdownOpen} onOpenChange={setIsProfileDropdownOpen}>
+                  <DropdownMenuTrigger className={cn(
+                    "flex items-center gap-2 min-w-0 transition-all duration-300",
+                    isExpanded ? "flex-1" : ""
+                  )}>
+                    <div className="flex items-center justify-center rounded-full bg-[#20B8CD] text-white w-7 h-7 text-xs font-medium flex-shrink-0">
+                      {profileLoading ? "..." : (profile?.firstName?.[0] || user.email?.[0] || "U").toUpperCase()}
+                    </div>
+                    <span className={cn(
+                      "font-medium text-[#13343B] dark:text-[#F8F8F7] text-sm truncate min-w-0 text-left transition-all duration-300",
+                      isExpanded ? "flex-1 opacity-100 max-w-[150px]" : "opacity-0 max-w-0 overflow-hidden"
+                    )}>
+                      {profileLoading ? (
+                        <Skeleton className="h-4 w-16" />
+                      ) : (
+                        profile?.firstName || user.email?.split("@")[0] || "User"
+                      )}
+                    </span>
+                    <ChevronDown className={cn(
+                      "h-4 w-4 text-[#64748B] flex-shrink-0 transition-all duration-300",
+                      isExpanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+                    )} />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    className="w-48 bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] shadow-lg rounded-xl"
+                  >
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings" className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Account Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={toggleTheme} className="flex items-center gap-2">
+                      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                      {theme === "dark" ? "Light mode" : "Dark mode"}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 {isExpanded && (
-                  <span className="text-sm text-[var(--text-light-default)] whitespace-nowrap overflow-hidden">
-                    {theme === "dark" ? "Light mode" : "Dark mode"}
-                  </span>
+                  <button
+                    onClick={() => router.push('/settings')}
+                    className="p-1.5 rounded-lg hover:bg-[#E5E5E5] dark:hover:bg-[#2A3638] text-[#64748B] flex-shrink-0"
+                    title="Settings"
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                  </button>
                 )}
-              </button>
-
-              {/* Profile Dropdown */}
-              <DropdownMenu open={isProfileDropdownOpen} onOpenChange={setIsProfileDropdownOpen}>
-                <DropdownMenuTrigger className="flex items-center gap-2 w-full text-left p-2 hover:bg-[var(--secondary-darker)] rounded-md min-w-0">
-                  <div className="flex items-center justify-center rounded-full bg-[#868684]/20 text-[var(--text-light-default)] flex-shrink-0 w-6 h-6">
-                    <User className="h-4 w-4" />
-                  </div>
-                  {isExpanded && (
-                    <>
-                      <span className="font-medium text-[var(--text-light-default)] text-sm flex-1 truncate min-w-0">
-                        {profileLoading ? (
-                          <Skeleton className="h-4 w-16" />
-                        ) : (
-                          profile?.firstName || user.email?.split("@")[0] || "User"
-                        )}
-                      </span>
-                      <ChevronDown className="h-4 w-4 text-[var(--text-light-muted)] flex-shrink-0" />
-                    </>
-                  )}
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg"
-                >
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings" className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Account Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              </div>
             </div>
           </>
         ) : (
-          <div className="flex flex-1 items-center justify-center p-4">
-            <button
-              onClick={openAuthDialog}
-              className="flex items-center gap-2 p-3 text-sm font-medium text-[var(--text-light-default)] hover:bg-[var(--secondary-darker)] rounded-md  min-w-0"
-            >
-              <User className="h-5 w-5 flex-shrink-0" />
-              {isExpanded && <span className="whitespace-nowrap overflow-hidden">Sign In</span>}
-            </button>
-          </div>
+          <>
+            {/* Non-authenticated sidebar content */}
+            <div className="flex-1 overflow-y-auto no-scrollbar p-2">
+              {/* New Thread Button */}
+              {isExpanded ? (
+                <button
+                  onClick={onNewChat}
+                  className="flex items-center gap-2 w-full mb-4 rounded-lg border border-[#E5E5E5] dark:border-[#2A3638] hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] px-3 py-2 text-sm font-medium text-[#13343B] dark:text-[#F8F8F7]"
+                >
+                  <Plus className="h-4 w-4 flex-shrink-0" />
+                  <span className="whitespace-nowrap overflow-hidden flex-1">New Thread</span>
+                  <span className="text-xs text-[#64748B] flex items-center gap-0.5">
+                    <Command className="h-3 w-3" /> K
+                  </span>
+                </button>
+              ) : (
+                <button
+                  onClick={onNewChat}
+                  className="flex items-center justify-center w-full mb-2 p-2.5 rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] text-[#13343B] dark:text-[#F8F8F7]"
+                  title="New Thread"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              )}
+
+              {/* Navigation Items */}
+              <nav className="space-y-1">
+                <Link
+                  href="/"
+                  className={cn(
+                    "relative flex items-center w-full rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] min-w-0 transition-colors",
+                    isExpanded
+                      ? "gap-3 text-left px-3 py-2.5 text-sm font-medium"
+                      : "p-2.5 justify-center",
+                    pathname === "/"
+                      ? "text-[#13343B] dark:text-[#F8F8F7]"
+                      : "text-[#64748B]"
+                  )}
+                >
+                  {/* Active indicator bar */}
+                  {pathname === "/" && !isExpanded && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#13343B] dark:bg-[#F8F8F7] rounded-full" />
+                  )}
+                  <Home className="h-5 w-5 flex-shrink-0" />
+                  {isExpanded && <span className="whitespace-nowrap overflow-hidden">Home</span>}
+                </Link>
+
+                <button
+                  onClick={openAuthDialog}
+                  className={cn(
+                    "relative flex items-center w-full rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] min-w-0 text-[#64748B] transition-colors",
+                    isExpanded
+                      ? "gap-3 text-left px-3 py-2.5 text-sm font-medium"
+                      : "p-2.5 justify-center"
+                  )}
+                >
+                  <Compass className="h-5 w-5 flex-shrink-0" />
+                  {isExpanded && <span className="whitespace-nowrap overflow-hidden">Discover</span>}
+                </button>
+
+                <button
+                  onClick={openAuthDialog}
+                  className={cn(
+                    "relative flex items-center w-full rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] min-w-0 text-[#64748B] transition-colors",
+                    isExpanded
+                      ? "gap-3 text-left px-3 py-2.5 text-sm font-medium"
+                      : "p-2.5 justify-center"
+                  )}
+                >
+                  <Sparkles className="h-5 w-5 flex-shrink-0" />
+                  {isExpanded && <span className="whitespace-nowrap overflow-hidden">Spaces</span>}
+                </button>
+
+                <Link
+                  href="/library"
+                  className={cn(
+                    "relative flex items-center w-full rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] min-w-0 transition-colors",
+                    isExpanded
+                      ? "gap-3 text-left px-3 py-2.5 text-sm font-medium"
+                      : "p-2.5 justify-center",
+                    pathname === "/library"
+                      ? "text-[#13343B] dark:text-[#F8F8F7]"
+                      : "text-[#64748B]"
+                  )}
+                >
+                  {pathname === "/library" && !isExpanded && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#13343B] dark:bg-[#F8F8F7] rounded-full" />
+                  )}
+                  <Library className="h-5 w-5 flex-shrink-0" />
+                  {isExpanded && <span className="whitespace-nowrap overflow-hidden">Library</span>}
+                </Link>
+              </nav>
+            </div>
+
+            {/* Footer with Dark Mode, Sign Up, and Log In */}
+            <div className={cn(
+              "p-2 space-y-1",
+              isExpanded && "border-t border-[#E5E5E5] dark:border-[#2A3638] p-3 space-y-2"
+            )}>
+              {isExpanded ? (
+                <>
+                  {/* Try Pro Section - like Perplexity */}
+                  <div className="mb-4 px-1">
+                    <p className="text-sm font-medium text-[#13343B] dark:text-[#F8F8F7] mb-1">Try Pro</p>
+                    <p className="text-xs text-[#64748B] mb-3">
+                      Upgrade to more powerful AI models, increased limits and more advanced answers.
+                    </p>
+                    <button
+                      onClick={openAuthDialog}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#20B8CD] hover:bg-[#1AA3B6] rounded-lg transition-colors"
+                    >
+                      <span>Learn More</span>
+                    </button>
+                  </div>
+
+                  {/* Sign Up and Log In buttons */}
+                  <button
+                    onClick={openAuthDialog}
+                    className="w-full px-4 py-2.5 text-sm font-medium text-white bg-[#13343B] hover:bg-[#0d2529] rounded-lg transition-colors"
+                  >
+                    Sign Up
+                  </button>
+                  <button
+                    onClick={openAuthDialog}
+                    className="w-full px-4 py-2.5 text-sm font-medium text-[#13343B] dark:text-[#F8F8F7] border border-[#E5E5E5] dark:border-[#2A3638] hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] rounded-lg transition-colors bg-transparent"
+                  >
+                    Log in
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Collapsed: Show expand arrow and user icon at bottom */}
+                  <button
+                    onClick={() => setIsExpanded(true)}
+                    className="flex items-center justify-center w-full p-2.5 rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] text-[#64748B] transition-colors"
+                    title="Expand sidebar"
+                  >
+                    <PanelLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={openAuthDialog}
+                    className="flex items-center justify-center w-full p-2.5 rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] text-[#64748B] transition-colors"
+                    title="Sign In"
+                  >
+                    <User className="h-5 w-5" />
+                  </button>
+                </>
+              )}
+            </div>
+          </>
         )}
       </aside>
 

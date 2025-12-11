@@ -4,9 +4,7 @@ import { useEffect, useRef, useState, memo, useCallback } from "react"
 import type { Message, Model } from "../types"
 import MessageContent from "./MessageContent"
 import Citation from "./Citation"
-import ShareButton from "./ShareButton"
-import { Button } from "@/components/ui/button"
-import { Copy, Check, RefreshCw, Download, ChevronDown } from "lucide-react"
+import { Copy, Check, Download, ChevronDown, ThumbsUp, ThumbsDown, MoreHorizontal, Sparkles, List } from "lucide-react"
 import { toast } from "sonner"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import MediaCard from "@/components/MediaCard"
@@ -57,9 +55,7 @@ const ChatMessage = memo(
       try {
         await navigator.clipboard.writeText(message.content || "")
         setCopySuccess(true)
-        toast.success("Message copied to clipboard")
-
-        // Reset the status after 2 seconds
+        toast.success("Copied to clipboard")
         setTimeout(() => {
           setCopySuccess(false)
         }, 2000)
@@ -72,48 +68,37 @@ const ChatMessage = memo(
     const handleExportPdf = async () => {
       setIsExporting(true)
       toast.info("Generating PDF...", { duration: 5000 })
-  
+
       try {
-        // Find all messages up to and including the current message
         const currentMessageIndex = messages.findIndex(msg => msg.id === message.id)
-        
         if (currentMessageIndex === -1) {
           toast.error("Could not find message in conversation.")
           return
         }
-
-        // Get all messages up to the current one
         const relevantMessages = messages.slice(0, currentMessageIndex + 1)
-
         if (relevantMessages.length === 0) {
           toast.error("No content to export.")
           return
         }
-
-        // Format the conversation with proper styling for all user messages
         const formattedMessages = relevantMessages.map(msg => {
           if (msg.role === "user") {
-            // Format user messages as headings
             return `# ${msg.content}`
           }
           return msg.content
         })
-
         const markdown = formattedMessages.join("\n\n---\n\n")
-  
+
         const response = await fetch("/api/pdf", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ markdown }),
         })
-  
+
         if (!response.ok) {
           const errorData = await response.json()
           throw new Error(errorData.error || "Failed to generate PDF")
         }
-  
+
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement("a")
@@ -124,163 +109,159 @@ const ChatMessage = memo(
         a.click()
         a.remove()
         window.URL.revokeObjectURL(url)
-  
+
         toast.success("PDF exported successfully!")
       } catch (error: any) {
         console.error("Failed to export PDF:", error)
-        toast.error(error.message || "Failed to export PDF. See console for details.")
+        toast.error(error.message || "Failed to export PDF.")
       } finally {
         setIsExporting(false)
       }
     }
 
-    // Retry handler for user messages
     const handleRetry = () => {
       if (onRetry) onRetry(message)
     }
 
-    // Debug log for message properties
-    if (!isUser) {
-      console.log(`ChatMessage (Assistant, ID: ${message.id}):`, {
-        contentLength: message.content?.length,
-        completed: message.completed,
-        startTime: message.startTime,
-        endTime: message.endTime,
-        tps: message.tps,
-        shouldDisplayTPS: message.completed && typeof message.tps === "number" && message.tps > 0,
-        hasMediaData: !!message.mediaData,
-      })
+    // User message - displayed as a title/heading like Perplexity
+    if (isUser) {
+      return (
+        <div id={`message-${message.id}`} className="w-full mb-4 scroll-mt-20">
+          {/* Quoted text if present */}
+          {message.quotedText && message.quotedText.trim().length > 0 && (
+            <div className="mb-2">
+              <div className="border-l-4 border-[#20B8CD] bg-[#F5F5F5] dark:bg-[#2A2A2A] rounded-r-lg px-3 py-2 text-[#64748B] text-sm max-w-full">
+                {(() => {
+                  const words = message.quotedText.split(/\s+/)
+                  return words.length > 40 ? words.slice(0, 40).join(" ") + " ..." : message.quotedText
+                })()}
+              </div>
+            </div>
+          )}
+          {/* User question as title */}
+          <h1 className="text-2xl md:text-3xl font-medium text-[#13343B] dark:text-[#F8F8F7] leading-tight font-ui tracking-tight">
+            {message.content}
+          </h1>
+          {/* Separator line */}
+          <div className="mt-6 border-b border-[#E5E5E5] dark:border-[#333]" />
+        </div>
+      )
     }
+
+    // Assistant message - full content with action buttons like Perplexity
+    const hasCitations = message.citations && message.citations.length > 0;
 
     return (
       <div className="w-full">
-        <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-          <div className={`flex flex-col items-end ${isUser ? "w-full max-w-[75%]" : "w-full"} group`}>
-            {/* Quoted block outside the bubble */}
-            {message.quotedText && message.quotedText.trim().length > 0 && (
-              <div className={`mb-1 mr-0 ml-0 w-full flex ${isUser ? "justify-end" : "justify-start"}`}>
-                <div className={`flex items-center ${isUser ? "self-end" : "self-start"}`}>
-                  <div className="border-l-4 border-[var(--brand-default)] bg-[var(--secondary-faint)] rounded-md px-3 py-2 text-[var(--text-light-muted)] text-sm max-w-full whitespace-pre-line shadow-sm">
-                    {(() => {
-                      const words = message.quotedText.split(/\s+/)
-                      return words.length > 40 ? words.slice(0, 40).join(" ") + " ..." : message.quotedText
-                    })()}
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* Main message bubble */}
-            <div
-              className={
-                isUser
-                  ? "chat-bubble-user !rounded-lg bg-[#868684]/20 text-[var(--text-light-default)] text-base py-0.5 px-4"
-                  : "w-full text-[var(--text-light-default)] text-base message-ai py-3 border-0 px-1 md:px-4"
-              }
-            >
-              {!isUser && message.mediaData && (
-                <div className="mb-3">
-                  <MediaCard data={message.mediaData} />
-                </div>
-              )}
-              {!isUser && message.weatherData && (
-                <div className="mb-3">
-                  <WeatherCard data={message.weatherData} />
-                </div>
-              )}
-              <div className="whitespace-pre-wrap text-[15px]">
-                <MessageContent
-                  content={message.content || ""}
-                  role={message.role}
-                  images={message.images}
-                  attachments={message.attachments}
-                  provider={message.provider}
-                  onQuote={onQuote}
-                  completed={message.completed}
-                />
-              </div>
-              {message.citations && message.citations.length > 0 && <Citation citations={message.citations} provider={message.provider} completed={message.completed} />}
-              {/* Action row for assistant (share/copy) - always visible on mobile, hover on desktop */}
-              {!isUser && !isSharedPage && message.content && message.content.length > 0 && (
-                <div className="mt-2 flex items-center justify-end gap-2 pt-2 border-0 px-1 md:px-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
-                  <div className="flex items-center space-x-1 sm:space-x-2">
-                    <ShareButton threadId={threadId} />
-                    {message.content && message.content.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleExportPdf}
-                        disabled={isExporting}
-                        className="px-2 sm:px-3 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 group h-8 rounded-md transition-all duration-300 ease-in-out overflow-hidden"
-                        aria-label="Export to PDF"
-                      >
-                        <Download className={`h-4 w-4 flex-shrink-0 group-hover:mr-2 transition-all duration-300 ease-in-out ${isExporting ? "animate-pulse" : ""}`} />
-                        <span className="max-w-0 group-hover:max-w-0 sm:group-hover:max-w-xs transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap text-xs">
-                          {isExporting ? "Exporting..." : "Export PDF"}
-                        </span>
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="px-2 sm:px-3 text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 group h-8 rounded-md transition-all duration-300 ease-in-out overflow-hidden"
-                      aria-label="Copy message"
-                      onClick={handleCopyMessage}
-                    >
-                      <div className="flex items-center justify-center">
-                        {copySuccess ? (
-                          <>
-                            <Check className="h-4 w-4 flex-shrink-0 text-[var(--brand-default)] dark:text-[var(--brand-fainter)]" />
-                            <span className="ml-2 text-xs text-[var(--brand-default)] dark:text-[var(--brand-default)]">
-                              Copied!
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-4 w-4 flex-shrink-0 group-hover:mr-2 transition-all duration-300 ease-in-out" />
-                            <span className="max-w-0 group-hover:max-w-0 sm:group-hover:max-w-xs transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap text-xs">
-                              Copy text
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </Button>
-                    {message.completed && typeof message.tps === "number" && message.tps > 0 && (
-                      <TooltipProvider delayDuration={100}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap cursor-help">
-                              {message.tps.toFixed(1)} tokens/s
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>
-                              Frontend-perceived throughput. <br /> Includes network and processing time.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
-                </div>
-              )}
+        {/* Sources tab header - like Perplexity */}
+        {hasCitations && (
+          <div className="mb-4">
+            <div className="flex items-center gap-4 mb-3 border-b border-[#E5E5E5] dark:border-[#333]">
+              <button className="flex items-center gap-1.5 px-1 py-2 text-sm font-medium text-[#13343B] dark:text-[#F8F8F7] border-b-2 border-[#20B8CD] font-ui">
+                <Sparkles className="w-4 h-4" />
+                Sources
+                <span className="ml-1 px-1.5 py-0.5 text-xs bg-[#F5F5F5] dark:bg-[#2A2A2A] rounded-full text-[#64748B]">
+                  {message.citations?.length}
+                </span>
+              </button>
             </div>
-            {/* Retry button below the user message bubble - always visible on mobile, hover on desktop */}
-            {isUser && !isSharedPage && message.content && message.content.length > 0 && (
-              <div className="flex justify-end w-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 mt-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-all duration-300 ease-in-out"
-                  aria-label="Retry message"
-                  onClick={handleRetry}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  <span className="ml-2 text-xs">Retry</span>
-                </Button>
-              </div>
-            )}
+            {/* Citation cards */}
+            <Citation citations={message.citations!} provider={message.provider} completed={message.completed} />
           </div>
+        )}
+
+        {/* Media cards if present */}
+        {message.mediaData && (
+          <div className="mb-4">
+            <MediaCard data={message.mediaData} />
+          </div>
+        )}
+        {message.weatherData && (
+          <div className="mb-4">
+            <WeatherCard data={message.weatherData} />
+          </div>
+        )}
+
+        {/* Main content */}
+        <div className="text-[#13343B] dark:text-[#F8F8F7] text-base leading-relaxed font-ui font-light">
+          <MessageContent
+            content={message.content || ""}
+            role={message.role}
+            images={message.images}
+            attachments={message.attachments}
+            provider={message.provider}
+            onQuote={onQuote}
+            completed={message.completed}
+          />
         </div>
+
+        {/* Action row - Perplexity style */}
+        {!isSharedPage && message.content && message.content.length > 0 && (
+          <div className="mt-6 pt-4 border-t border-[#E5E5E5] dark:border-[#333] flex items-center justify-between font-ui">
+            {/* Left actions - Share, Export */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleExportPdf}
+                disabled={isExporting}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] rounded-lg transition-colors text-sm"
+              >
+                <Download className={`w-4 h-4 ${isExporting ? 'animate-pulse' : ''}`} />
+                <span>Export</span>
+              </button>
+            </div>
+
+            {/* Right actions - Reactions, Copy, More */}
+            <div className="flex items-center gap-1">
+              <button
+                className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] rounded-lg transition-colors"
+                title="Good response"
+              >
+                <ThumbsUp className="w-4 h-4" />
+              </button>
+              <button
+                className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] rounded-lg transition-colors"
+                title="Bad response"
+              >
+                <ThumbsDown className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleCopyMessage}
+                className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] rounded-lg transition-colors"
+                title="Copy"
+              >
+                {copySuccess ? (
+                  <Check className="w-4 h-4 text-[#20B8CD]" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
+              </button>
+              <button
+                className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] rounded-lg transition-colors"
+                title="More options"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TPS indicator */}
+        {message.completed && typeof message.tps === "number" && message.tps > 0 && (
+          <div className="mt-2">
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-xs text-[#94A3B8] cursor-help">
+                    {message.tps.toFixed(1)} tokens/s
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="bg-[#1A1A1A] text-[#F8F8F7] border-[#333]">
+                  <p>Frontend-perceived throughput.<br />Includes network and processing time.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </div>
     )
   },
@@ -289,23 +270,79 @@ const ChatMessage = memo(
 ChatMessage.displayName = "ChatMessage"
 
 const LoadingIndicator = memo(({ isExa, modelName }: { isExa: boolean; modelName: string }) => (
-  <div className="flex items-center gap-2 text-[var(--text-light-muted)] animate-pulse">
-    <div className="w-2 h-2 rounded-full bg-[var(--brand-default)] animate-[bounce_1s_infinite]"></div>
-    <div className="w-2 h-2 rounded-full bg-[var(--brand-default)] animate-[bounce_1s_infinite_200ms]"></div>
-    <div className="w-2 h-2 rounded-full bg-[var(--brand-default)] animate-[bounce_1s_infinite_400ms]"></div>
-    <span className="text-sm font-medium text-[var(--brand-dark)]">
-      {isExa ? "Asking Exa..." : `Using ${modelName || ""}...`}
+  <div className="flex items-center gap-2 text-[#64748B] animate-pulse">
+    <div className="w-2 h-2 rounded-full bg-[#20B8CD] animate-[bounce_1s_infinite]"></div>
+    <div className="w-2 h-2 rounded-full bg-[#20B8CD] animate-[bounce_1s_infinite_200ms]"></div>
+    <div className="w-2 h-2 rounded-full bg-[#20B8CD] animate-[bounce_1s_infinite_400ms]"></div>
+    <span className="text-sm font-medium text-[#13343B] dark:text-[#F8F8F7]">
+      {isExa ? "Searching with Exa..." : `Thinking with ${modelName || "AI"}...`}
     </span>
   </div>
 ))
 
-// Add display name to the component
 LoadingIndicator.displayName = "LoadingIndicator"
 
-import { ArrowDown } from "lucide-react"
+// Table of Contents component for message navigation
+const TableOfContents = memo(({ messages, activeMessageId }: { messages: Message[], activeMessageId: string | null }) => {
+  const userMessages = messages.filter(m => m.role === "user")
 
-// Add display name to the component
-LoadingIndicator.displayName = "LoadingIndicator"
+  if (userMessages.length < 2) return null // Only show TOC if there are multiple questions
+
+  const scrollToMessage = (messageId: string) => {
+    const element = document.getElementById(`message-${messageId}`)
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+  }
+
+  const truncateText = (text: string, maxLength: number = 40) => {
+    if (!text) return ""
+    if (text.length <= maxLength) return text
+    return text.slice(0, maxLength) + "..."
+  }
+
+  return (
+    <div className="hidden xl:block fixed right-8 top-16 w-48 max-h-[70vh] overflow-y-auto no-scrollbar">
+      <div className="bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] rounded-xl p-3 shadow-sm">
+        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-[#E5E5E5] dark:border-[#333]">
+          <List className="w-3.5 h-3.5 text-[#64748B]" />
+          <span className="text-xs font-medium text-[#64748B] font-ui uppercase tracking-wide">Contents</span>
+        </div>
+        <div className="space-y-1">
+          {userMessages.map((msg, idx) => (
+            <button
+              key={msg.id}
+              onClick={() => scrollToMessage(msg.id)}
+              className={cn(
+                "w-full text-left px-2 py-1.5 rounded-lg text-xs font-ui transition-colors",
+                "hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A]",
+                activeMessageId === msg.id
+                  ? "text-[#20B8CD] bg-[#F0FDFA] dark:bg-[#0D3D3D]"
+                  : "text-[#64748B]"
+              )}
+            >
+              <div className="flex items-start gap-2">
+                <span className={cn(
+                  "flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-medium",
+                  activeMessageId === msg.id
+                    ? "bg-[#20B8CD] text-white"
+                    : "bg-[#E5E5E5] dark:bg-[#333] text-[#64748B]"
+                )}>
+                  {idx + 1}
+                </span>
+                <span className="line-clamp-2 leading-tight">
+                  {truncateText(msg.content || "")}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+})
+
+TableOfContents.displayName = "TableOfContents"
 
 const ChatMessages = memo(function ChatMessages({
   messages,
@@ -325,6 +362,7 @@ const ChatMessages = memo(function ChatMessages({
   const [isAtBottom, setIsAtBottom] = useState(true)
   const { pinned } = useSidebarPin()
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
 
   // Get the model name for display
   const modelName = (selectedModelObj?.name as string) || ""
@@ -342,20 +380,40 @@ const ChatMessages = memo(function ChatMessages({
     }
   }
 
-  // This effect now correctly listens to the window scroll events
+  // This effect now correctly listens to the window scroll events and tracks active message
   useEffect(() => {
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = document.documentElement
       const isScrolledUp = scrollHeight - scrollTop - clientHeight > 300
       setShowScrollButton(isScrolledUp)
       setIsAtBottom(!isScrolledUp)
+
+      // Track which user message is currently in view
+      const userMsgs = messages.filter(m => m.role === "user")
+      let foundActive = false
+      for (let i = userMsgs.length - 1; i >= 0; i--) {
+        const msg = userMsgs[i]
+        const element = document.getElementById(`message-${msg.id}`)
+        if (element) {
+          const rect = element.getBoundingClientRect()
+          if (rect.top <= 150) {
+            setActiveMessageId(msg.id)
+            foundActive = true
+            break
+          }
+        }
+      }
+      // If no message found (scrolled to top), set first message as active
+      if (!foundActive && userMsgs.length > 0) {
+        setActiveMessageId(userMsgs[0].id)
+      }
     }
 
-    window.addEventListener("scroll", handleScroll)
+    window.addEventListener("scroll", handleScroll, { passive: true })
     handleScroll() // Initial check on mount
 
     return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
+  }, [messages])
 
   // This effect ensures that if a new message arrives, we scroll down
   useEffect(() => {
@@ -410,14 +468,15 @@ const ChatMessages = memo(function ChatMessages({
   }
 
   return (
-    <div
-      className="flex-1 pt-16 pb-32 md:px-4 relative no-scrollbar"
-    >
-      <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-6 no-scrollbar">
+    <div className="flex-1 pt-8 pb-32 relative no-scrollbar">
+      <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-8 no-scrollbar">
         {renderPairedMessages()}
         {isLoading && <LoadingIndicator isExa={isExa} modelName={modelName} />}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Table of Contents - right sidebar */}
+      {!isSharedPage && <TableOfContents messages={messages} activeMessageId={activeMessageId} />}
 
       {showScrollButton && !isSharedPage && (
         <div
@@ -427,21 +486,16 @@ const ChatMessages = memo(function ChatMessages({
             pinned && "md:left-[calc(50%-128px)]"
           )}
         >
-          <Button
+          <button
             onClick={() => scrollToBottom("smooth")}
-            variant="outline"
-            className="p-2 h-7 w-30 rounded-md shadow-lg bg-white/30 dark:bg-black/30 backdrop-blur-sm border-[var(--secondary-darker)] dark:border-[var(--secondary-darker)] hover:bg-white dark:hover:bg-[var(--secondary-darker)] flex items-center justify-center gap-1"
+            className="px-3 py-1.5 rounded-full shadow-lg bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] flex items-center justify-center gap-1.5 transition-colors"
             aria-label="Scroll to bottom"
           >
-            <span
-              className="text-xs text-[var(--text-light-default)] dark:text-[var(--text-light-default)] font-medium leading-tight flex items-center"
-              style={{ fontSize: "0.75rem" }} // 25% smaller than text-sm (1rem * 0.75 = 0.75rem)
-            >
-              scroll down
+            <span className="text-xs text-[#13343B] dark:text-[#F8F8F7] font-medium">
+              Scroll down
             </span>
-            <ChevronDown  className="h-4 w-4 text-[var(--text-light-default)] dark:text-[var(--text-light-default)]" />
-
-          </Button>
+            <ChevronDown className="h-3.5 w-3.5 text-[#64748B]" />
+          </button>
         </div>
       )}
     </div>

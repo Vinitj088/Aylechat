@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Model } from '../types';
-import { ArrowUp, Plus, X, ChevronDown, Check, Paperclip } from 'lucide-react';
+import { ArrowUp, X, Check, Paperclip, Globe, Search } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import {
@@ -24,7 +24,6 @@ import {
   Perplexity
 } from '@lobehub/icons';
 import Image from 'next/image';
-import Snowfall from './Snowfall';
 
 interface DesktopSearchUIProps {
   input: string;
@@ -104,8 +103,54 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const { user, isLoading: authLoading } = useAuth();
   const [hydrated, setHydrated] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  // Default trending suggestions
+  const trendingSuggestions = [
+    "Latest AI developments 2025",
+    "Best programming languages to learn",
+    "Climate change solutions",
+    "Space exploration news",
+    "Quantum computing explained",
+    "Healthy recipes for beginners",
+  ];
+
+  // Generate dynamic suggestions based on input
+  useEffect(() => {
+    if (!input.trim()) {
+      setSuggestions(trendingSuggestions);
+      return;
+    }
+
+    // Generate contextual suggestions based on input
+    const inputLower = input.toLowerCase();
+    const dynamicSuggestions: string[] = [];
+
+    // Add completion suggestions
+    const completions = [
+      `${input} explained simply`,
+      `${input} tutorial`,
+      `${input} best practices`,
+      `${input} examples`,
+      `How does ${input} work`,
+      `What is ${input}`,
+    ];
+
+    // Add category-specific suggestions
+    if (inputLower.includes('how') || inputLower.includes('what') || inputLower.includes('why')) {
+      dynamicSuggestions.push(input);
+    } else {
+      dynamicSuggestions.push(...completions.slice(0, 4));
+    }
+
+    // Filter out duplicates and limit to 6
+    const uniqueSuggestions = [...new Set(dynamicSuggestions)].slice(0, 6);
+    setSuggestions(uniqueSuggestions);
+  }, [input]);
 
   const isGeminiModel = selectedModel.includes('gemini');
   const selectedModelObj = models.find(model => model.id === selectedModel);
@@ -113,6 +158,17 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   const disableInput = isGuest && guestMessageCount >= guestMessageLimit;
 
   useEffect(() => { setHydrated(true); }, []);
+
+  // Handle showing/hiding suggestions with a slight delay for smooth transition
+  useEffect(() => {
+    if (isFocused) {
+      setShowSuggestions(true);
+    } else {
+      // Small delay before hiding to allow for click events on suggestions
+      const timer = setTimeout(() => setShowSuggestions(false), 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isFocused]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -165,7 +221,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
     onAttachmentsChange?.(updated);
   };
 
-  const placeholder = selectedModel === 'exa' ? "Search with Exa..." : "Message Ayle...";
+  const placeholder = selectedModel === 'exa' ? "Search with Exa..." : "Ask anything...";
 
   const suggestedPrompts = [
     "Explain quantum computing in simple terms",
@@ -174,41 +230,28 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   ];
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden">
-      <Snowfall count={80} />
+    <div className="flex-1 flex flex-col items-center justify-center px-4 relative bg-[#F0F0ED] dark:bg-[#0F1516]">
       <div className="w-full max-w-2xl mx-auto relative z-10">
-        {/* Header */}
+        {/* Header - Perplexity style */}
         <div className="text-center mb-8">
-          {hydrated && !authLoading && !user && (
-            <button
-              onClick={openAuthDialog}
-              className="inline-block mb-4 px-4 py-1.5 rounded-full text-sm font-medium
-                bg-[var(--brand-dark)] text-white hover:bg-[var(--brand-default)] transition-colors"
-            >
-              Sign in for unlimited access
-            </button>
-          )}
           <h1
-            className="text-5xl md:text-6xl text-neutral-900 dark:text-neutral-100 mb-3 font-normal"
-            style={{ fontFamily: 'Gebuk, system-ui, sans-serif', letterSpacing: '0.02em', fontWeight: 400 }}
+            className="text-3xl md:text-4xl text-[#13343B] dark:text-[#F8F8F7] font-medium"
+            style={{ fontFamily: 'var(--font-heading)', letterSpacing: '-0.02em' }}
           >
-            Ayle
+            What do you want to know?
           </h1>
-          <p className="text-neutral-500 dark:text-neutral-400 text-base">
-            {description}
-          </p>
         </div>
 
-        {/* Main Input Container */}
-        <div className="relative bg-[var(--secondary-dark)] dark:bg-[var(--secondary-faint)] rounded-lg border border-[var(--secondary-darkest)] mb-6">
+        {/* Main Input Container - White box like Perplexity */}
+        <div className="relative bg-white dark:bg-[#1A1A1A] rounded-2xl border border-[#E5E5E5] dark:border-[#333] shadow-sm mb-6">
           {/* Attachments Preview */}
           {attachments.length > 0 && (
             <div className="px-4 pt-3 flex flex-wrap gap-2">
               {attachments.map((file, index) => (
-                <div key={index} className="flex items-center gap-2 bg-neutral-200 dark:bg-neutral-700 rounded-lg px-3 py-2">
-                  <Paperclip className="h-4 w-4 text-neutral-500" />
-                  <span className="text-xs text-neutral-600 dark:text-neutral-300 max-w-[100px] truncate">{file.name}</span>
-                  <button type="button" onClick={() => removeAttachment(index)} className="text-neutral-400 hover:text-neutral-600">
+                <div key={index} className="flex items-center gap-2 bg-[#F5F5F5] dark:bg-[#2A2A2A] rounded-lg px-3 py-2">
+                  <Paperclip className="h-4 w-4 text-[#64748B]" />
+                  <span className="text-xs text-[#13343B] dark:text-[#F8F8F7] max-w-[100px] truncate">{file.name}</span>
+                  <button type="button" onClick={() => removeAttachment(index)} className="text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7]">
                     <X className="h-3 w-3" />
                   </button>
                 </div>
@@ -224,12 +267,14 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               placeholder={placeholder}
               rows={1}
               disabled={disableInput || isLoading}
               className={cn(
                 "w-full resize-none bg-transparent border-none outline-none",
-                "text-[var(--text-light-default)] placeholder:text-[var(--text-light-muted)]",
+                "text-[#13343B] dark:text-[#F8F8F7] placeholder:text-[#94A3B8]",
                 "text-base leading-relaxed min-h-[24px] max-h-[200px]",
                 "focus:ring-0 focus:outline-none focus:border-none"
               )}
@@ -239,52 +284,34 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
 
           {/* Bottom Actions Row */}
           <div className="flex items-center justify-between px-3 pb-3">
-            {/* Left Actions */}
-            <div className="flex items-center gap-1">
-              {isGeminiModel && (
-                <button
-                  type="button"
-                  onClick={handleFileButtonClick}
-                  disabled={isLoading}
-                  className={cn(
-                    "p-2 rounded-full transition-colors",
-                    "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200",
-                    "dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-700",
-                    "disabled:opacity-50"
-                  )}
-                  title="Attach files"
-                >
-                  <Plus className="h-5 w-5" />
-                </button>
-              )}
-
-              {/* Model Selector */}
+            {/* Left Actions - Model selector styled as pills */}
+            <div className="flex items-center gap-2">
+              {/* Model Selector Pill */}
               <Popover open={modelSelectorOpen} onOpenChange={setModelSelectorOpen}>
                 <PopoverTrigger asChild>
                   <button
                     type="button"
                     className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-colors",
-                      "text-neutral-600 hover:bg-neutral-200",
-                      "dark:text-neutral-400 dark:hover:bg-neutral-800"
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors",
+                      "text-[#13343B] dark:text-[#F8F8F7] border-[#E5E5E5] dark:border-[#333]",
+                      "hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A]"
                     )}
                   >
-                    {selectedModelObj && getProviderIcon(selectedModelObj.avatarType || selectedModelObj.providerId, 16)}
+                    {selectedModelObj && getProviderIcon(selectedModelObj.avatarType || selectedModelObj.providerId, 14)}
                     <span className="text-sm font-medium max-w-[100px] truncate">
                       {selectedModelObj?.name?.split(' ')[0] || 'Model'}
                     </span>
-                    <ChevronDown className="h-3.5 w-3.5" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-64 p-0 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 shadow-lg"
+                  className="w-64 p-0 bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] shadow-lg rounded-xl"
                   align="start"
                   sideOffset={8}
                 >
                   <div className="max-h-[300px] overflow-y-auto py-1">
                     {Object.entries(groupedModels).map(([provider, providerModels]) => (
                       <div key={provider} className="px-2 py-1">
-                        <div className="text-xs font-medium text-neutral-400 dark:text-neutral-500 px-2 py-1.5">{provider}</div>
+                        <div className="text-xs font-medium text-[#94A3B8] px-2 py-1.5">{provider}</div>
                         {providerModels.map(model => (
                           <button
                             key={model.id}
@@ -292,12 +319,12 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                             onClick={() => { handleModelChange(model.id); setModelSelectorOpen(false); }}
                             className={cn(
                               "w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors",
-                              selectedModel === model.id ? "bg-neutral-100 dark:bg-neutral-800" : "hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                              selectedModel === model.id ? "bg-[#F0F0ED] dark:bg-[#2A2A2A]" : "hover:bg-[#F8F8F7] dark:hover:bg-[#2A2A2A]"
                             )}
                           >
                             <div className="flex-shrink-0">{getProviderIcon(model.avatarType || model.providerId, 18)}</div>
-                            <span className="flex-1 text-sm text-neutral-700 dark:text-neutral-300 truncate">{model.name}</span>
-                            {selectedModel === model.id && <Check className="h-4 w-4 text-[var(--brand-default)] flex-shrink-0" />}
+                            <span className="flex-1 text-sm text-[#13343B] dark:text-[#F8F8F7] truncate">{model.name}</span>
+                            {selectedModel === model.id && <Check className="h-4 w-4 text-[#20B8CD] flex-shrink-0" />}
                           </button>
                         ))}
                       </div>
@@ -307,44 +334,127 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
               </Popover>
             </div>
 
-            {/* Send Button */}
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={(!input.trim() && attachments.length === 0) || isLoading || disableInput}
-              className={cn(
-                "h-8 w-8 rounded-full flex items-center justify-center transition-all",
-                input.trim() || attachments.length > 0
-                  ? "bg-neutral-800 hover:bg-neutral-700 dark:bg-neutral-200 dark:hover:bg-neutral-300"
-                  : "bg-neutral-300 dark:bg-neutral-600 cursor-not-allowed"
+            {/* Right Actions */}
+            <div className="flex items-center gap-1">
+              {/* Web search indicator */}
+              <button
+                type="button"
+                className="p-2 rounded-full text-[#64748B] hover:text-[#13343B] hover:bg-[#F5F5F5] dark:hover:text-[#F8F8F7] dark:hover:bg-[#2A2A2A] transition-colors"
+                title="Web search enabled"
+              >
+                <Globe className="h-5 w-5" />
+              </button>
+
+              {/* Attachment button - only for Gemini models */}
+              {isGeminiModel && (
+                <button
+                  type="button"
+                  onClick={handleFileButtonClick}
+                  disabled={isLoading}
+                  className="p-2 rounded-full text-[#64748B] hover:text-[#13343B] hover:bg-[#F5F5F5] dark:hover:text-[#F8F8F7] dark:hover:bg-[#2A2A2A] transition-colors disabled:opacity-50"
+                  title="Attach files"
+                >
+                  <Paperclip className="h-5 w-5" />
+                </button>
               )}
-            >
-              <ArrowUp className={cn(
-                "h-4 w-4",
-                input.trim() || attachments.length > 0 ? "text-white dark:text-neutral-800" : "text-neutral-500 dark:text-neutral-400"
-              )} />
-            </button>
+
+              {/* Send Button */}
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={(!input.trim() && attachments.length === 0) || isLoading || disableInput}
+                className={cn(
+                  "h-8 w-8 rounded-full flex items-center justify-center transition-all",
+                  input.trim() || attachments.length > 0
+                    ? "bg-[#20B8CD] hover:bg-[#1AA3B6]"
+                    : "bg-[#E5E5E5] dark:bg-[#333] cursor-not-allowed"
+                )}
+              >
+                <ArrowUp className={cn(
+                  "h-4 w-4",
+                  input.trim() || attachments.length > 0 ? "text-white" : "text-[#94A3B8]"
+                )} />
+              </button>
+            </div>
           </div>
 
           <input ref={fileInputRef} type="file" accept="image/*,.pdf" onChange={handleFileChange} className="hidden" multiple />
-        </div>
 
-        {/* Suggested Prompts */}
-        <div className="flex flex-wrap justify-center gap-2">
-          {suggestedPrompts.map((prompt, index) => (
-            <button
-              key={index}
-              onClick={() => setInput(prompt)}
-              className="px-4 py-2 text-sm text-neutral-600 dark:text-neutral-400 bg-transparent dark:bg-neutral-900
-                border border-neutral-300 dark:border-neutral-700 rounded-lg
-                hover:border-neutral-400 dark:hover:border-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800
-                transition-colors"
-            >
-              {prompt}
-            </button>
-          ))}
+          {/* Suggestions Dropdown with smooth transition */}
+          <div
+            className={cn(
+              "border-t border-[#E5E5E5] dark:border-[#333] overflow-hidden transition-all duration-300 ease-in-out",
+              showSuggestions && suggestions.length > 0
+                ? "max-h-[400px] opacity-100"
+                : "max-h-0 opacity-0 border-t-0"
+            )}
+          >
+            <div className="py-2">
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={`${suggestion}-${index}`}
+                  type="button"
+                  onClick={() => {
+                    setInput(suggestion);
+                    textareaRef.current?.focus();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] transition-colors"
+                >
+                  <Search className="h-4 w-4 text-[#94A3B8] flex-shrink-0" />
+                  <span className="text-sm text-[#13343B] dark:text-[#F8F8F7] font-ui">
+                    {input.trim() && suggestion.toLowerCase().includes(input.toLowerCase()) ? (
+                      // Highlight matching text
+                      <>
+                        {suggestion.split(new RegExp(`(${input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')).map((part, i) =>
+                          part.toLowerCase() === input.toLowerCase() ? (
+                            <span key={i} className="text-[#20B8CD] font-medium">{part}</span>
+                          ) : (
+                            <span key={i}>{part}</span>
+                          )
+                        )}
+                      </>
+                    ) : (
+                      suggestion
+                    )}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Footer Links - Only show for non-authenticated users */}
+      {hydrated && !authLoading && !user && (
+        <div className="absolute bottom-6 left-0 right-0 flex justify-center">
+          <div className="flex items-center gap-6 text-sm text-[#64748B]">
+            <a
+              href="https://github.com/Vinitj088/Aylechat"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#13343B] dark:hover:text-[#F8F8F7] transition-colors"
+            >
+              GitHub
+            </a>
+            <a
+              href="https://github.com/Vinitj088/Aylechat/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#13343B] dark:hover:text-[#F8F8F7] transition-colors"
+            >
+              Support
+            </a>
+            <a
+              href="https://github.com/Vinitj088/Aylechat#readme"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#13343B] dark:hover:text-[#F8F8F7] transition-colors"
+            >
+              About
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

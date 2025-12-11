@@ -3,6 +3,8 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { FcGoogle } from 'react-icons/fc';
+import { X, Mail, Loader2 } from 'lucide-react';
+import { FaApple } from 'react-icons/fa';
 
 interface AuthDialogProps {
   isOpen?: boolean;
@@ -207,39 +209,25 @@ function AuthDialogContent({ isOpen, onClose, onSuccess }: AuthDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="bg-[var(--secondary-faint)] dark:bg-[var(--secondary-default)] border-2 border-[var(--secondary-darkest)] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] rounded-none p-6 max-w-md w-full relative z-10">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-[var(--text-light-default)]">
-            {!sentEmail ? "Sign In or Sign Up" : "Enter Your Code"}
-          </h2>
-          <button 
-            onClick={handleClose}
-            className="p-1.5 rounded-md hover:bg-[var(--secondary-darker)] border border-[var(--secondary-darkest)] text-[var(--text-light-default)]"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <div className="fixed inset-0 z-50 bg-[#F8F8F7] dark:bg-[#0F1516]">
+      {/* Close button in top right */}
+      <button
+        onClick={handleClose}
+        className="absolute top-4 right-4 p-2 rounded-full hover:bg-[#E8E8E5] dark:hover:bg-[#1A2426] text-[#64748B] transition-colors"
+        aria-label="Close"
+      >
+        <X className="h-5 w-5" />
+      </button>
 
-        {error && (
-          <div className="bg-red-100 dark:bg-red-900/30 border-2 border-red-400 dark:border-red-500 text-red-700 dark:text-red-300 px-4 py-3 mb-4">
-            {error}
-          </div>
-        )}
-
-        {isProcessingProfile && (
-          <div className="bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-400 dark:border-blue-500 text-blue-700 dark:text-blue-300 px-4 py-3 mb-4">
-            Setting up your profile...
-          </div>
-        )}
-
+      {/* Centered content */}
+      <div className="flex items-center justify-center min-h-screen px-4">
         {!sentEmail ? (
-          <EmailStep 
-            onSubmit={handleEmailSubmit} 
+          <EmailStep
+            onSubmit={handleEmailSubmit}
             onGoogleSignIn={handleGoogleSignIn}
             isLoading={isLoading}
+            error={error}
+            isProcessingProfile={isProcessingProfile}
           />
         ) : (
           <CodeStep
@@ -247,6 +235,7 @@ function AuthDialogContent({ isOpen, onClose, onSuccess }: AuthDialogProps) {
             onSubmit={handleCodeSubmit}
             isLoading={isLoading || isProcessingProfile}
             onBack={() => setSentEmail("")}
+            error={error}
           />
         )}
       </div>
@@ -270,144 +259,226 @@ export function AuthDialog({ isOpen, onClose, onSuccess }: AuthDialogProps) {
   );
 }
 
-function EmailStep({ 
-  onSubmit, 
+function EmailStep({
+  onSubmit,
   onGoogleSignIn,
-  isLoading
-}: { 
+  isLoading,
+  error,
+  isProcessingProfile,
+}: {
   onSubmit: (email: string, firstName: string) => void;
   onGoogleSignIn: () => void;
   isLoading: boolean;
+  error: string | null;
+  isProcessingProfile: boolean;
 }) {
   const emailInputRef = React.useRef<HTMLInputElement>(null);
-  const firstNameInputRef = React.useRef<HTMLInputElement>(null);
+  const [email, setEmail] = React.useState('');
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const email = emailInputRef.current!.value;
-    const firstName = firstNameInputRef.current!.value;
-    onSubmit(email, firstName);
+    const emailValue = emailInputRef.current!.value;
+    // Use email prefix as firstName for simplicity (like Perplexity)
+    const firstName = emailValue.split('@')[0];
+    onSubmit(emailValue, firstName);
   };
 
+  const isEmailValid = email.includes('@') && email.includes('.');
+
   return (
-    <div className="flex flex-col space-y-4">
-      {/* Google Sign-In Warning */}
-      <div className="bg-[var(--secondary-faint)] dark:bg-[var(--secondary-default)] border-2 border-[var(--secondary-darkest)] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] rounded-none p-4 max-w-md w-full relative z-10">
-        ⚠️ If Google sign-in is not working, please disable your adblocker and refresh the page, then try again.
-      </div>
-      {/* Google Sign-In Button */}
-      <button
-        type="button"
-        onClick={onGoogleSignIn}
-        disabled={isLoading}
-        className={`w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-[var(--text-light-default)] bg-white dark:bg-[var(--secondary-darker)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
-          isLoading ? 'opacity-50 cursor-not-allowed' : ''
-        }`}
-      >
-        <FcGoogle className="mr-2 h-4 w-4" />
-        Sign in with Google
-      </button>
-
-      <div className="relative flex py-2 items-center">
-        <div className="flex-grow border-t border-gray-400"></div>
-        <span className="flex-shrink mx-4 text-gray-400">OR</span>
-        <div className="flex-grow border-t border-gray-400"></div>
+    <div className="w-full max-w-md">
+      {/* Header - Perplexity style with serif italic */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl md:text-4xl text-[#13343B] dark:text-[#F8F8F7] mb-2">
+          Sign up below to <em className="font-serif italic">unlock</em> the full
+        </h1>
+        <h1 className="text-3xl md:text-4xl text-[#13343B] dark:text-[#F8F8F7]">
+          potential of Ayle
+        </h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
-        <p className="text-[var(--text-light-default)]">
-          Enter your email, and we&apos;ll send you a verification code. We&apos;ll create an account for you if you don&apos;t already have one.
-        </p>
-        <div>
-          <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="firstName">
-            First Name
-          </label>
-          <input
-            ref={firstNameInputRef}
-            id="firstName"
-            type="text"
-            className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
-            placeholder="Enter your first name"
-            required
-          />
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm text-center">
+          {error}
         </div>
-        <div>
-          <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="email">
-            Email
-          </label>
-          <input
-            ref={emailInputRef}
-            id="email"
-            type="email"
-            className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
-            placeholder="Enter your email"
-            required
-            autoFocus
-          />
+      )}
+
+      {/* Processing Profile Message */}
+      {isProcessingProfile && (
+        <div className="mb-4 p-3 bg-[#F8F8F7] dark:bg-[#1A2426] border border-[#E5E5E5] dark:border-[#333] rounded-lg text-[#13343B] dark:text-[#F8F8F7] text-sm text-center flex items-center justify-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Setting up your profile...
         </div>
+      )}
+
+      {/* OAuth Buttons - Inky Blue background */}
+      <div className="space-y-3 mb-6">
+        {/* Google Button */}
+        <button
+          type="button"
+          onClick={onGoogleSignIn}
+          disabled={isLoading}
+          className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#13343B] dark:bg-[#F8F8F7] text-white dark:text-[#13343B] rounded-lg font-medium hover:bg-[#0d2529] dark:hover:bg-[#E8E8E5] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <FcGoogle className="h-5 w-5 bg-white rounded-full p-0.5" />
+          Continue with Google
+        </button>
+
+        {/* Apple Button (placeholder - not functional) */}
+        <button
+          type="button"
+          disabled={true}
+          className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#13343B] dark:bg-[#F8F8F7] text-white dark:text-[#13343B] rounded-lg font-medium opacity-50 cursor-not-allowed"
+          title="Apple sign-in coming soon"
+        >
+          <FaApple className="h-5 w-5" />
+          Continue with Apple
+        </button>
+      </div>
+
+      {/* Divider */}
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-[#E5E5E5] dark:border-[#333]"></div>
+        </div>
+      </div>
+
+      {/* Email Form */}
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <input
+          ref={emailInputRef}
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Enter your email"
+          required
+          autoFocus
+          className="w-full px-4 py-3 bg-[#F0F0ED] dark:bg-[#1A2426] border border-[#E5E5E5] dark:border-[#333] rounded-lg text-[#13343B] dark:text-[#F8F8F7] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#20B8CD] focus:border-transparent"
+        />
+
         <button
           type="submit"
-          disabled={isLoading}
-          className={`w-full px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
-            isLoading ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
+          disabled={isLoading || !isEmailValid}
+          className={`w-full px-4 py-3 rounded-lg font-medium transition-all ${
+            isEmailValid
+              ? 'bg-[#E8E8E5] dark:bg-[#2A3638] text-[#13343B] dark:text-[#F8F8F7] hover:bg-[#DEDEDE] dark:hover:bg-[#333]'
+              : 'bg-[#F0F0ED] dark:bg-[#1A2426] text-[#94A3B8] cursor-not-allowed'
+          } disabled:opacity-50`}
         >
-          {isLoading ? 'Sending...' : 'Send Code'}
+          {isLoading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Sending...
+            </span>
+          ) : (
+            'Continue with email'
+          )}
         </button>
       </form>
+
+      {/* Note about adblocker */}
+      <p className="mt-4 text-xs text-[#64748B] text-center">
+        If Google sign-in is not working, try disabling your adblocker.
+      </p>
     </div>
   );
 }
 
-function CodeStep({ sentEmail, onSubmit, isLoading, onBack }: { sentEmail: string; onSubmit: (code: string) => void; isLoading: boolean; onBack: () => void; }) {
+function CodeStep({
+  sentEmail,
+  onSubmit,
+  isLoading,
+  onBack,
+  error,
+}: {
+  sentEmail: string;
+  onSubmit: (code: string) => void;
+  isLoading: boolean;
+  onBack: () => void;
+  error: string | null;
+}) {
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const [code, setCode] = React.useState('');
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const code = inputRef.current!.value;
     onSubmit(code);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
-      <p className="text-[var(--text-light-default)]">
-        We sent an email to <strong>{sentEmail}</strong>. Check your email and paste the code you see.
-      </p>
-      <div>
-        <label className="block text-[var(--text-light-default)] text-sm font-bold mb-2" htmlFor="code">
-          Verification Code
-        </label>
-        <input
-          ref={inputRef}
-          id="code"
-          type="text"
-          className="appearance-none border-2 border-[var(--secondary-darkest)] dark:bg-[var(--secondary-darker)] rounded-none w-full py-2 px-3 text-[var(--text-light-default)] leading-tight focus:outline-none focus:border-[var(--brand-default)]"
-          placeholder="123456..."
-          required
-          autoFocus
-        />
+    <div className="w-full max-w-md">
+      {/* Card Container - Perplexity style */}
+      <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-lg border border-[#E5E5E5] dark:border-[#333] p-8">
+        {/* Email Icon */}
+        <div className="flex justify-center mb-6">
+          <div className="w-14 h-14 rounded-full bg-[#F0F0ED] dark:bg-[#2A2A2A] flex items-center justify-center">
+            <Mail className="h-6 w-6 text-[#64748B]" />
+          </div>
+        </div>
+
+        {/* Header */}
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-semibold text-[#13343B] dark:text-[#F8F8F7] mb-2">
+            Check your email
+          </h2>
+          <p className="text-[#64748B] text-sm">
+            A temporary sign-in link has been sent to your email address.
+          </p>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm text-center">
+            {error}
+          </div>
+        )}
+
+        {/* Code Input Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            ref={inputRef}
+            type="text"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Enter Code"
+            required
+            autoFocus
+            className="w-full px-4 py-3 bg-[#F0F0ED] dark:bg-[#2A2A2A] border border-[#E5E5E5] dark:border-[#333] rounded-lg text-[#13343B] dark:text-[#F8F8F7] placeholder:text-[#94A3B8] font-mono text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-[#20B8CD] focus:border-transparent"
+          />
+
+          <button
+            type="submit"
+            disabled={isLoading || !code.trim()}
+            className={`w-full px-4 py-3 rounded-lg font-medium transition-all ${
+              code.trim()
+                ? 'bg-[#20B8CD] text-white hover:bg-[#1AA3B6]'
+                : 'bg-[#E8E8E5] dark:bg-[#2A2A2A] text-[#94A3B8] cursor-not-allowed'
+            } disabled:opacity-50`}
+          >
+            {isLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Verifying...
+              </span>
+            ) : (
+              'Continue'
+            )}
+          </button>
+        </form>
+
+        {/* Back Link */}
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={isLoading}
+            className="text-sm text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] transition-colors disabled:opacity-50"
+          >
+            Use a different email
+          </button>
+        </div>
       </div>
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={isLoading}
-          className={`text-sm font-medium text-[var(--brand-default)] hover:underline ${
-            isLoading ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          Back
-        </button>
-        <button
-          type="submit"
-          disabled={isLoading}
-          className={`px-4 py-2 text-sm font-medium text-white bg-[var(--brand-default)] dark:bg-[var(--brand-fainter)] border-2 border-[var(--secondary-darkest)] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.2)] transition-all ${
-            isLoading ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          {isLoading ? 'Verifying...' : 'Verify Code'}
-        </button>
-      </div>
-    </form>
+    </div>
   );
 }

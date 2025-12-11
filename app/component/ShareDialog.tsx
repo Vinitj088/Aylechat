@@ -16,41 +16,33 @@ interface ShareDialogProps {
 export default function ShareDialog({ isOpen, onClose, shareUrl }: ShareDialogProps) {
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
   const handleCopy = async () => {
     try {
-      // Select the text
       if (inputRef.current) {
         inputRef.current.select();
       }
-      
-      // Copy to clipboard
       await navigator.clipboard.writeText(shareUrl);
-      
-      // Show copied state
       setCopied(true);
-      
-      // Reset copied state after 2 seconds
       setTimeout(() => {
         setCopied(false);
       }, 2000);
-      
       toast.success('Link copied to clipboard!');
     } catch (err) {
       console.error('Failed to copy:', err);
       toast.error('Failed to copy link');
     }
   };
-  
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[95vw] max-w-sm sm:max-w-md bg-[var(--secondary-faint)] border border-[var(--secondary-darkest)] shadow-lg rounded-lg p-4 sm:p-6">
+      <DialogContent className="w-[95vw] max-w-sm sm:max-w-md bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] shadow-lg rounded-xl p-4 sm:p-6">
         <DialogHeader className="mb-2 sm:mb-3">
-          <DialogTitle className="flex items-center gap-2 text-[var(--text-light-default)] text-base sm:text-lg">
-            <Share2 className="h-4 w-4 text-[var(--brand-default)]" />
+          <DialogTitle className="flex items-center gap-2 text-[#13343B] dark:text-[#F8F8F7] text-base sm:text-lg">
+            <Share2 className="h-4 w-4 text-[#20B8CD]" />
             Share Conversation
           </DialogTitle>
-          <DialogDescription className="text-[var(--text-light-muted)] text-xs sm:text-sm">
+          <DialogDescription className="text-[#64748B] text-xs sm:text-sm">
             Anyone with this link can view this conversation
           </DialogDescription>
         </DialogHeader>
@@ -61,7 +53,7 @@ export default function ShareDialog({ isOpen, onClose, shareUrl }: ShareDialogPr
               ref={inputRef}
               value={shareUrl}
               readOnly
-              className="w-full h-8 sm:h-9 font-mono text-[10px] sm:text-xs border-[var(--secondary-darkest)] bg-[var(--secondary-darker)] text-[var(--text-light-default)] px-2"
+              className="w-full h-8 sm:h-9 font-mono text-[10px] sm:text-xs border-[#E5E5E5] dark:border-[#333] bg-[#F5F5F5] dark:bg-[#2A2A2A] text-[#13343B] dark:text-[#F8F8F7] px-2 rounded-lg focus:ring-[#20B8CD] focus:border-[#20B8CD]"
               onClick={(e) => e.currentTarget.select()}
             />
           </div>
@@ -69,11 +61,11 @@ export default function ShareDialog({ isOpen, onClose, shareUrl }: ShareDialogPr
             type="button"
             variant="outline"
             size="sm"
-            className="h-8 px-2 sm:px-3 min-w-[2.5rem] sm:min-w-[4rem] border-[var(--secondary-darkest)] hover:bg-[var(--secondary-darker)]"
+            className="h-8 px-2 sm:px-3 min-w-[2.5rem] sm:min-w-[4rem] border-[#E5E5E5] dark:border-[#333] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7]"
             onClick={handleCopy}
           >
             {copied ? (
-              <Check className="h-4 w-4 text-[var(--brand-default)]" />
+              <Check className="h-4 w-4 text-[#20B8CD]" />
             ) : (
               <Copy className="h-4 w-4" />
             )}
@@ -84,10 +76,9 @@ export default function ShareDialog({ isOpen, onClose, shareUrl }: ShareDialogPr
         <DialogFooter className="mt-3 sm:mt-4 flex justify-center sm:justify-start">
           <Button
             type="button"
-            variant="default"
             size="sm"
             onClick={onClose}
-            className="bg-[var(--brand-dark)] hover:bg-[var(--brand-default)] text-white w-full sm:w-auto"
+            className="bg-[#20B8CD] hover:bg-[#1AA3B6] text-white w-full sm:w-auto rounded-lg"
           >
             Done
           </Button>

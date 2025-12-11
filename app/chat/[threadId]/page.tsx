@@ -15,6 +15,9 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { QueryEnhancerProvider } from '@/context/QueryEnhancerContext';
 import { db } from '@/lib/db';
+import { User, Clock, Link2, MoreHorizontal, Check, Pencil } from 'lucide-react';
+import ShareButton from '../../component/ShareButton';
+import { toast } from 'sonner';
 
 function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const { data, isLoading: isThreadLoading } = db.useQuery({
@@ -54,6 +57,9 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const [quotedText, setQuotedText] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const [sidebarMounted, setSidebarMounted] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const isAuthenticated = !!user;
 
@@ -199,6 +205,37 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     setActiveChatFiles([]);
   };
 
+  // Start editing title
+  const handleStartEditTitle = () => {
+    setEditedTitle(thread?.title || '');
+    setIsEditingTitle(true);
+    setTimeout(() => titleInputRef.current?.focus(), 50);
+  };
+
+  // Save edited title
+  const handleSaveTitle = async () => {
+    if (!editedTitle.trim() || editedTitle === thread?.title) {
+      setIsEditingTitle(false);
+      return;
+    }
+    try {
+      await db.transact(db.tx.threads[threadId].update({ title: editedTitle.trim() }));
+      toast.success('Title updated');
+    } catch (error) {
+      toast.error('Failed to update title');
+    }
+    setIsEditingTitle(false);
+  };
+
+  // Handle title input key down
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveTitle();
+    } else if (e.key === 'Escape') {
+      setIsEditingTitle(false);
+    }
+  };
+
   const isExa = selectedModel === 'exa';
   const selectedModelObj = models.find(model => model.id === selectedModel);
 
@@ -338,6 +375,21 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     );
   }
 
+  // Format time ago
+  const getTimeAgo = (date: Date | string | undefined) => {
+    if (!date) return '';
+    const now = new Date();
+    const then = new Date(date);
+    const diffMs = now.getTime() - then.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins} min. ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hr. ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  };
+
   return (
     <>
       {/* Mobile Header */}
@@ -346,7 +398,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       </div>
 
       {/* Desktop & Tablet Layout */}
-      <div className="hidden md:block h-screen overflow-hidden">
+      <div className="hidden md:block h-screen overflow-hidden bg-[#F0F0ED] dark:bg-[#0F1516]">
         {isAuthenticated && (
           <LeftSidebar
             onNewChat={handleNewChat}
@@ -360,14 +412,58 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
           "h-screen flex flex-col transition-all duration-300",
           isAuthenticated ? (isExpanded ? "ml-64" : "ml-14") : "ml-0"
         )}>
-          <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-full flex flex-col">
+          {/* Top Header Bar */}
+          <div className="flex-shrink-0 h-12 bg-[#F0F0ED] dark:bg-[#0F1516] flex items-center justify-between px-4">
+            <div className="flex items-center gap-3 text-sm text-[#64748B]">
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-5 rounded-full bg-[#20B8CD] flex items-center justify-center">
+                  <User className="w-3 h-3 text-white" />
+                </div>
+                <span className="font-medium text-[#13343B] dark:text-[#F8F8F7]">
+                  {user?.email?.split('@')[0] || 'User'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                <span>{getTimeAgo(thread?.createdAt)}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {isEditingTitle ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    ref={titleInputRef}
+                    type="text"
+                    value={editedTitle}
+                    onChange={(e) => setEditedTitle(e.target.value)}
+                    onKeyDown={handleTitleKeyDown}
+                    onBlur={handleSaveTitle}
+                    className="text-sm text-[#13343B] dark:text-[#F8F8F7] font-medium bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] rounded px-2 py-1 outline-none focus:border-[#20B8CD] max-w-[300px]"
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={handleStartEditTitle}
+                  className="flex items-center gap-1.5 text-sm text-[#13343B] dark:text-[#F8F8F7] font-medium truncate max-w-[300px] hover:bg-[#E5E5E5] dark:hover:bg-[#2A2A2A] px-2 py-1 rounded transition-colors group"
+                >
+                  <span className="truncate">{thread?.title || 'New Chat'}</span>
+                  <Pencil className="w-3 h-3 text-[#64748B] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <ShareButton threadId={threadId} />
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col overflow-hidden">
             <div className="relative flex-1 flex flex-col overflow-hidden">
               {/* Top fade gradient */}
-              <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[var(--secondary-default)] to-transparent z-10 pointer-events-none" />
+              <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[#F0F0ED] dark:from-[#0F1516] to-transparent z-10 pointer-events-none" />
 
               {/* Messages area */}
               <div className="flex-1 overflow-y-auto no-scrollbar">
-                <div className="pt-8">
+                <div className="pt-8 max-w-4xl mx-auto px-4">
                   <ChatMessages
                     messages={sortedMessages}
                     isLoading={chat.isLoading}
@@ -384,7 +480,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
               </div>
 
               {/* Bottom fade gradient */}
-              <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--secondary-default)] via-[var(--secondary-default)]/80 to-transparent z-10 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#F0F0ED] dark:from-[#0F1516] via-[#F0F0ED]/80 dark:via-[#0F1516]/80 to-transparent z-10 pointer-events-none" />
 
               <div className="absolute bottom-0 left-0 right-0 z-20">
                 <ChatInput
@@ -413,7 +509,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       </div>
 
       {/* Mobile Content */}
-      <div className="md:hidden h-screen flex flex-col overflow-hidden relative">
+      <div className="md:hidden h-screen flex flex-col overflow-hidden relative bg-[#F0F0ED] dark:bg-[#0F1516]">
         {isAuthenticated && (
           <LeftSidebar
             onNewChat={handleNewChat}
@@ -432,11 +528,11 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
         <div className="relative flex-1 flex flex-col overflow-hidden">
           {/* Top fade gradient */}
-          <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[var(--secondary-default)] to-transparent z-10 pointer-events-none" />
+          <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[#F0F0ED] dark:from-[#0F1516] to-transparent z-10 pointer-events-none" />
 
           {/* Messages area */}
           <div className="flex-1 overflow-y-auto no-scrollbar">
-            <div className="pt-6 pb-24">
+            <div className="pt-6 pb-24 px-4">
               <ChatMessages
                 messages={sortedMessages}
                 isLoading={chat.isLoading}
@@ -453,7 +549,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
           </div>
 
           {/* Bottom fade gradient */}
-          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[var(--secondary-default)] via-[var(--secondary-default)]/80 to-transparent z-10 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#F0F0ED] dark:from-[#0F1516] via-[#F0F0ED]/80 dark:via-[#0F1516]/80 to-transparent z-10 pointer-events-none" />
 
           <div className="absolute bottom-0 left-0 right-0 z-20">
             <ChatInput

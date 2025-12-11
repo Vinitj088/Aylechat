@@ -296,20 +296,18 @@ function PageContent() {
 
       {/* Desktop & Tablet Layout */}
       <div className="hidden md:block min-h-screen">
-        {isAuthenticated && (
-          <LeftSidebar
-            onNewChat={handleNewChat}
-            isExpanded={isExpanded}
-            setIsExpanded={setIsExpanded}
-            isHydrating={!sidebarMounted}
-          />
-        )}
+        <LeftSidebar
+          onNewChat={handleNewChat}
+          isExpanded={isExpanded}
+          setIsExpanded={setIsExpanded}
+          isHydrating={!sidebarMounted}
+        />
 
         <div className={cn(
           "h-screen flex flex-col transition-all duration-300",
-          isAuthenticated ? (isExpanded ? "ml-64" : "ml-14") : "ml-0"
+          isExpanded ? "ml-64" : "ml-14"
         )}>
-          <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-full flex flex-col">
+          <div className="flex-1 flex flex-col">
             {!hasMessages ? (
               <DesktopSearchUI
                 input={chat.input}
@@ -329,9 +327,9 @@ function PageContent() {
                 openAuthDialog={openAuthDialog}
               />
             ) : (
-              <div className="relative flex-1 flex flex-col overflow-hidden">
+              <div className="relative flex-1 flex flex-col overflow-hidden bg-[#F0F0ED] dark:bg-[#0F1516]">
                 {/* Top fade gradient */}
-                <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[var(--secondary-default)] to-transparent z-10 pointer-events-none" />
+                <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[#F0F0ED] dark:from-[#0F1516] to-transparent z-10 pointer-events-none" />
 
                 {/* Messages area */}
                 <div className="flex-1 overflow-y-auto no-scrollbar">
@@ -351,7 +349,7 @@ function PageContent() {
                 </div>
 
                 {/* Bottom fade gradient */}
-                <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--secondary-default)] via-[var(--secondary-default)]/80 to-transparent z-10 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#F0F0ED] dark:from-[#0F1516] via-[#F0F0ED]/80 dark:via-[#0F1516]/80 to-transparent z-10 pointer-events-none" />
 
                 {(!isGuest || guestMessageCount < GUEST_MESSAGE_LIMIT) ? (
                   <div className="absolute bottom-0 left-0 right-0 z-20">
@@ -376,12 +374,12 @@ function PageContent() {
                     />
                   </div>
                 ) : (
-                  <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center justify-center py-8 px-4 text-center bg-[var(--secondary-default)]">
-                    <p className="text-lg font-semibold mb-2 text-gray-300">
+                  <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center justify-center py-8 px-4 text-center bg-[#F0F0ED] dark:bg-[#0F1516]">
+                    <p className="text-lg font-semibold mb-2 text-[#64748B]">
                       Sign in to unlock unlimited messages and advanced features
                     </p>
                     <button
-                      className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand-dark)] hover:bg-[var(--brand-default)] rounded-lg transition-colors"
+                      className="px-4 py-2 text-sm font-medium text-white bg-[#13343B] hover:bg-[#0d2529] rounded-lg transition-colors"
                       onClick={openAuthDialog}
                     >
                       Sign In
@@ -429,9 +427,9 @@ function PageContent() {
             openAuthDialog={openAuthDialog}
           />
         ) : (
-          <div className="relative flex-1 flex flex-col overflow-hidden">
+          <div className="relative flex-1 flex flex-col overflow-hidden bg-[#F0F0ED] dark:bg-[#0F1516]">
             {/* Top fade gradient */}
-            <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[var(--secondary-default)] to-transparent z-10 pointer-events-none" />
+            <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[#F0F0ED] dark:from-[#0F1516] to-transparent z-10 pointer-events-none" />
 
             {/* Messages area */}
             <div className="flex-1 overflow-y-auto no-scrollbar">
@@ -448,7 +446,7 @@ function PageContent() {
             </div>
 
             {/* Bottom fade gradient */}
-            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[var(--secondary-default)] via-[var(--secondary-default)]/80 to-transparent z-10 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#F0F0ED] dark:from-[#0F1516] via-[#F0F0ED]/80 dark:via-[#0F1516]/80 to-transparent z-10 pointer-events-none" />
 
             <div className="absolute bottom-0 left-0 right-0 z-20">
               <DynamicChatInput
@@ -473,12 +471,12 @@ function PageContent() {
             </div>
 
             {isGuest && guestMessageCount >= GUEST_MESSAGE_LIMIT && (
-              <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center justify-center py-8 px-4 text-center bg-[var(--secondary-default)]">
-                <p className="text-lg font-semibold mb-2 text-gray-300">
+              <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center justify-center py-8 px-4 text-center bg-[#F0F0ED] dark:bg-[#0F1516]">
+                <p className="text-lg font-semibold mb-2 text-[#64748B]">
                   Sign in to unlock unlimited messages and advanced features
                 </p>
                 <button
-                  className="px-4 py-2 text-sm font-medium text-white bg-[var(--brand-dark)] hover:bg-[var(--brand-default)] rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-white bg-[#13343B] hover:bg-[#0d2529] rounded-lg transition-colors"
                   onClick={openAuthDialog}
                 >
                   Sign In

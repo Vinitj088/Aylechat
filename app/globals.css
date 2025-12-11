@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* FK Grotesk - for paragraphs */
+/* FK Grotesk - for everything (UI, headings, buttons, etc.) */
 @font-face {
   font-family: 'FK Grotesk';
   src: url('./fonts/FKGroteskTrial-Light.otf') format('opentype');
@@ -43,7 +43,7 @@
   font-display: swap;
 }
 
-/* FK Grotesk Neue - for everything except paragraphs */
+/* FK Grotesk Neue - for paragraphs only */
 @font-face {
   font-family: 'FK Grotesk Neue';
   src: url('./fonts/FKGroteskNeueTrial-Light-BF6576818c0f3e8.otf') format('opentype');
@@ -107,30 +107,37 @@
 }
 
 :root {
-  --font-body: 'FK Grotesk', system-ui, sans-serif;
-  --font-heading: 'FK Grotesk Neue', system-ui, sans-serif;
-  --font-ui: 'FK Grotesk Neue', system-ui, sans-serif;
+  --font-body: 'FK Grotesk Neue', system-ui, sans-serif;  /* For paragraphs */
+  --font-heading: 'FK Grotesk', system-ui, sans-serif;    /* For headings */
+  --font-ui: 'FK Grotesk', system-ui, sans-serif;         /* For everything else */
   --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 231, 231, 245;
+  --background-start-rgb: 248, 248, 247;
   --background-end-rgb: 255, 255, 255;
 
-  /* COLORS - Light Mode: Off-white + Cyan duotone */
-  --brand-default: #0891b2;
-  --brand-fainter: #e0f7fa;
-  --brand-faint: #b2ebf2;
-  --brand-subtle: #80deea;
-  --brand-muted: #26c6da;
-  --brand-dark: #0e7490;
-  --brand-darker: #155e75;
+  /* ===== PERPLEXITY BRAND COLORS - LIGHT MODE ===== */
+  /* Extracted from Perplexity screenshots */
+  /* Background: #F8F8F7 (warm off-white) */
+  /* Text: #13343B (dark inky) */
+  /* Accent: #20B8CD (teal) */
 
-  --secondary-accent: #0891b2;
-  --secondary-accent2x: #06b6d4;
-  --secondary-dark: #f0f5f5;
-  --secondary-darker: #e5eded;
-  --secondary-darkest: #ccd9d9;
-  --secondary-default: #f8fafa;
-  --secondary-faint: #fcfdfd;
-  --secondary-fainter: #fefffe;
+  /* Brand colors */
+  --brand-default: #13343B;        /* Inky Blue - Sign Up button, headings */
+  --brand-fainter: #f8f8f7;        /* Same as background */
+  --brand-faint: #f0f0ed;          /* Slightly darker */
+  --brand-subtle: #20B8CD;         /* Teal - Continue button */
+  --brand-muted: #1a5a63;          /* Mid teal */
+  --brand-dark: #0d2529;           /* Darker inky - hover state */
+  --brand-darker: #091a1d;         /* Darkest inky */
+
+  /* Surface colors - warm off-white tones */
+  --secondary-accent: #20B8CD;     /* Teal */
+  --secondary-accent2x: #5ccfde;   /* Lighter teal */
+  --secondary-default: #FAFAF8;    /* Main background - slightly warmer than sidebar */
+  --secondary-faint: #FAFAF9;      /* Slightly lighter */
+  --secondary-fainter: #FFFFFF;    /* Pure white - input boxes */
+  --secondary-dark: #F5F5F5;       /* Sidebar/secondary areas */
+  --secondary-darker: #EFEFEF;     /* Hover states */
+  --secondary-darkest: #E5E5E5;    /* Borders */
 
   --gray-50: #fafafa;
   --gray-100: #f5f5f5;
@@ -163,55 +170,51 @@
   --accent-maroon-light: #fee2e2;
 
   /* Light Mode Text */
-  --text-light-default: #111827;
-  --text-light-muted: #6b7280;
-  --text-light-subtle: #9ca3af;
-  --text-light-faint: #e5e7eb;
-  --text-light-link: #0891b2;
+  --text-light-default: #13343B;   /* Inky Blue - main text */
+  --text-light-muted: #64748B;     /* Slate gray - secondary text */
+  --text-light-subtle: #94A3B8;    /* Light slate - placeholder */
+  --text-light-faint: #CBD5E1;     /* Very light - disabled */
+  --text-light-link: #20B8CD;      /* Teal - links */
 
   /* Background and accent defaults */
   --background: var(--secondary-default);
   --accent: var(--brand-default);
   --accent-background: var(--brand-default);
-  --border-default: var(--gray-300);
-  --border-radius-default: 0px;
+  --border-default: #E5E5E5;
+  --border-radius-default: 0.5rem;
 
-  /* Typography - These are now handled by variables set in layout.tsx */
-  /* --font-family-sans: 'Instrument Sans', sans-serif; */
-  /* --font-family-serif: 'Space Grotesk', sans-serif; */
-
-  /* Sidebar colors - darker than main page */
-  --sidebar-bg: #eff5f5;
-  --sidebar-border: #d5e3e3;
+  /* Sidebar colors - same warm tone as background */
+  --sidebar-bg: #F8F8F7;           /* Same as main background */
+  --sidebar-border: #E5E5E5;       /* Light gray border */
 }
 
-/* Dark Mode Variables - Dark cyan/teal + off-white duotone */
+/* Dark Mode Variables - Perplexity Style */
 .dark {
-  /* Dark mode accent colors - bright cyan */
-  --brand-default: #22d3ee;
-  --brand-fainter: #0c3d42;
-  --brand-faint: #134e54;
-  --brand-subtle: #1a6169;
-  --brand-muted: #06b6d4;
-  --brand-dark: #0e7490;
-  --brand-darker: #155e75;
+  /* Dark mode using Perplexity Inky Blue base */
+  --brand-default: #1FB8CD;        /* Plex Blue as primary in dark mode */
+  --brand-fainter: #0d2328;        /* Very dark inky */
+  --brand-faint: #13343B;          /* Inky Blue */
+  --brand-subtle: #5ccfde;         /* Lighter plex blue */
+  --brand-muted: #1a5a63;          /* Mid teal */
+  --brand-dark: #17a2b8;           /* Darker plex */
+  --brand-darker: #138496;         /* Darkest plex */
 
-  /* Dark mode secondary colors - dark teal-tinted */
-  --secondary-accent: #22d3ee;
-  --secondary-accent2x: #67e8f9;
-  --secondary-dark: #1a2223;
-  --secondary-darker: #151c1d;
-  --secondary-darkest: #243031;
-  --secondary-default: #111819;
-  --secondary-faint: #1a2223;
-  --secondary-fainter: #1f2829;
+  /* Dark mode secondary colors - dark inky tones */
+  --secondary-accent: #1FB8CD;     /* Plex Blue */
+  --secondary-accent2x: #5ccfde;   /* Lighter plex */
+  --secondary-dark: #1a2426;       /* Dark surface */
+  --secondary-darker: #141b1d;     /* Darker surface */
+  --secondary-darkest: #2a3638;    /* Border dark */
+  --secondary-default: #0f1516;    /* Main dark bg */
+  --secondary-faint: #1a2426;      /* Elevated surface */
+  --secondary-fainter: #1f2a2c;    /* Higher surface */
 
-  /* Text colors for dark mode - off-white with cyan tint */
-  --text-light-default: #ecfeff;
-  --text-light-muted: #a5b4b6;
-  --text-light-subtle: #6b7c7e;
-  --text-light-faint: #3d4a4c;
-  --text-light-link: #67e8f9;
+  /* Text colors for dark mode - Vintage White tones */
+  --text-light-default: #F3F3EE;   /* Vintage White */
+  --text-light-muted: #a8a8a3;     /* Muted vintage */
+  --text-light-subtle: #6b6b68;    /* Subtle vintage */
+  --text-light-faint: #3a3a38;     /* Faint vintage */
+  --text-light-link: #1FB8CD;      /* Plex Blue for links */
 
   /* Background and accent for dark mode */
   --background: var(--secondary-default);
@@ -235,9 +238,9 @@
   --accent-maroon-light: #450a0a;
   --accent-maroon-dark: #fca5a5;
 
-  /* Sidebar colors for dark mode - dark teal */
-  --sidebar-bg: #1a2223;
-  --sidebar-border: #243031;
+  /* Sidebar colors for dark mode - dark inky */
+  --sidebar-bg: #1a2426;
+  --sidebar-border: #2a3638;
 }
 
 body {
@@ -260,20 +263,20 @@ body {
   }
 }
 
-/* FK Grotesk Neue for headings */
+/* FK Grotesk for headings */
 h1, h2, h3, h4, h5, h6, .heading {
   font-family: var(--font-heading);
   font-weight: 600;
 }
 
-/* FK Grotesk for paragraphs only */
-p {
+/* FK Grotesk Neue for paragraphs only */
+p, .font-body {
   font-family: var(--font-body);
   font-weight: 400;
 }
 
-/* FK Grotesk Neue for UI elements (buttons, inputs, labels, etc.) */
-span, div, li, button, input, textarea, label, a {
+/* FK Grotesk for UI elements (buttons, inputs, labels, etc.) */
+span, div, li, button, input, textarea, label, a, .font-ui {
   font-family: var(--font-ui);
 }
 
@@ -849,60 +852,8 @@ pre code {
 }
 
 
-/* Dark Mode Variables */
-.dark {
-  /* Dark mode accent colors */
-  --brand-default: #092427;
-  --brand-fainter: #061a1c;
-  --brand-faint: #0a2d31;
-  --brand-subtle: #092427;
-  --brand-muted: #092427;
-  --brand-dark: #061a1c;
-  --brand-darker: #041314;
-
-  /* Dark mode secondary colors */
-  --secondary-accent: #c9bb92;
-  --secondary-accent2x: #d8cba3;
-  --secondary-dark: #1f2121;
-  --secondary-darker: #1a1b1b;
-  --secondary-darkest: #2a2b2b;
-  --secondary-default: #181919;
-  --secondary-faint: #1f2121;
-  --secondary-fainter: #242525;
-
-  /* Text colors for dark mode */
-  --text-light-default: #e2e2dd;
-  --text-light-muted: #a0a09b;
-  --text-light-subtle: #707070;
-  --text-light-faint: #404040;
-  --text-light-link: #e2e2dd;
-
-  /* Background and accent for dark mode */
-  --background: var(--secondary-default);
-  --accent: var(--brand-default);
-  --accent-background: var(--brand-default);
-  --border-default: var(--gray-700);
-  
-  /* Dark mode variants of accent colors for better contrast */
-  --accent-yellow-light: #45371b;
-  --accent-yellow-dark: #fcd34d;
-  --accent-skyblue-light: #1e3a8a;
-  --accent-skyblue-dark: #93c5fd;
-  --accent-green: #84cc16;
-  --accent-red: #ef4444;
-  --accent-darkgreen-light: #10403b;
-  --accent-darkgreen-dark: #6ee7b7;
-  --accent-purple-light: #2e1065;
-  --accent-purple-dark: #c4b5fd;
-  --accent-pink-light: #500724;
-  --accent-pink-dark: #fbcfe8;
-  --accent-maroon-light: #450a0a;
-  --accent-maroon-dark: #fca5a5;
-
-  /* Sidebar colors for dark mode */
-  --sidebar-bg: #1f2121;
-  --sidebar-border: #2a2b2b;
-}
+/* Additional Dark Mode Overrides - Perplexity Style */
+/* Note: Main dark mode variables are defined above */
 
 /* Custom prose styling to reduce spacing */
 .prose {

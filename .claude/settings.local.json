@@ -7,7 +7,11 @@
       "Bash(git checkout:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:live.standards.site)",
+      "Bash(npx instant-cli:*)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

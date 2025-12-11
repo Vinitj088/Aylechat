@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useState } from 'react';
 import { Model } from '../types';
 import { Button } from "@/components/ui/button";
-import { ArrowUp, Plus, X, Paperclip, Square, ChevronDown, Check } from 'lucide-react';
+import { ArrowUp, X, Paperclip, Square, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQueryEnhancer } from '@/context/QueryEnhancerContext';
 import {
@@ -242,7 +242,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
     handleInputChange(e);
   }, [handleInputChange]);
 
-  const placeholder = isExa ? "Search with Exa..." : "Message Ayle...";
+  const placeholder = isExa ? "Search with Exa..." : "Ask follow-up";
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 pb-4 bg-transparent">
@@ -255,14 +255,14 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           {activeChatFiles.map((file) => (
             <div
               key={file.uri}
-              className="flex items-center gap-1.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-xs px-2.5 py-1.5 rounded-full"
+              className="flex items-center gap-1.5 bg-[#F5F5F5] dark:bg-[#2A2A2A] text-[#13343B] dark:text-[#F8F8F7] text-xs px-2.5 py-1.5 rounded-full"
             >
               <Paperclip className="h-3 w-3" />
               <span className="truncate max-w-[120px]">{file.name}</span>
               <button
                 type="button"
                 onClick={() => removeActiveFile(file.uri)}
-                className="ml-0.5 hover:text-neutral-900 dark:hover:text-white"
+                className="ml-0.5 hover:text-[#13343B] dark:hover:text-white"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -273,15 +273,15 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
       {/* Quote Block */}
       {quotedText && quotedText.trim().length > 0 && (
-        <div className="mb-2 flex items-start bg-[var(--secondary-darker)] border-l-4 border-[var(--brand-default)] rounded-r-lg p-3 relative">
-          <span className="text-neutral-600 dark:text-neutral-400 text-sm flex-1 line-clamp-3">
+        <div className="mb-2 flex items-start bg-[#F5F5F5] dark:bg-[#2A2A2A] border-l-4 border-[#20B8CD] rounded-r-lg p-3 relative">
+          <span className="text-[#64748B] text-sm flex-1 line-clamp-3">
             {quotedText}
           </span>
           {setQuotedText && (
             <button
               type="button"
               onClick={() => setQuotedText('')}
-              className="ml-2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+              className="ml-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7]"
             >
               <X className="h-4 w-4" />
             </button>
@@ -290,14 +290,14 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
       )}
 
       {/* Main Input Container */}
-      <div className="relative bg-[var(--secondary-dark)] dark:bg-[var(--secondary-faint)] rounded-lg border border-[var(--secondary-darkest)]">
+      <div className="relative bg-white dark:bg-[#1A1A1A] rounded-2xl border border-[#E5E5E5] dark:border-[#333] shadow-sm">
         {/* Attachments Preview */}
         {attachments.length > 0 && (
           <div className="px-4 pt-3 flex flex-wrap gap-2">
             {attachments.map((attachment, index) => (
               <div key={index} className="relative">
                 {attachment.previewUrl ? (
-                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-600">
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-[#E5E5E5] dark:border-[#333]">
                     <img
                       src={attachment.previewUrl}
                       alt=""
@@ -306,21 +306,21 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                     <button
                       type="button"
                       onClick={() => removeAttachment(index)}
-                      className="absolute -top-1 -right-1 bg-neutral-800 text-white rounded-full p-0.5 shadow"
+                      className="absolute -top-1 -right-1 bg-[#13343B] text-white rounded-full p-0.5 shadow"
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </div>
                 ) : (
-                  <div className="relative flex items-center gap-2 bg-neutral-200 dark:bg-neutral-700 rounded-lg px-3 py-2">
-                    <Paperclip className="h-4 w-4 text-neutral-500" />
-                    <span className="text-xs text-neutral-600 dark:text-neutral-300 max-w-[100px] truncate">
+                  <div className="relative flex items-center gap-2 bg-[#F5F5F5] dark:bg-[#2A2A2A] rounded-lg px-3 py-2">
+                    <Paperclip className="h-4 w-4 text-[#64748B]" />
+                    <span className="text-xs text-[#13343B] dark:text-[#F8F8F7] max-w-[100px] truncate">
                       {attachment.file.name}
                     </span>
                     <button
                       type="button"
                       onClick={() => removeAttachment(index)}
-                      className="text-neutral-400 hover:text-neutral-600"
+                      className="text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7]"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -344,7 +344,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
             disabled={isLoading}
             className={cn(
               "w-full resize-none bg-transparent border-none outline-none",
-              "text-[var(--text-light-default)] placeholder:text-[var(--text-light-muted)]",
+              "text-[#13343B] dark:text-[#F8F8F7] placeholder:text-[#94A3B8]",
               "text-base leading-relaxed min-h-[24px] max-h-[200px]",
               "focus:ring-0 focus:outline-none focus:border-none"
             )}
@@ -355,52 +355,33 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
         {/* Bottom Actions Row */}
         <div className="flex items-center justify-between px-3 pb-3">
           {/* Left Actions */}
-          <div className="flex items-center gap-1">
-            {/* Attachment Button - Only for Gemini models */}
-            {isGeminiModel && (
-              <button
-                type="button"
-                onClick={handleFileButtonClick}
-                disabled={isLoading}
-                className={cn(
-                  "p-2 rounded-full transition-colors",
-                  "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200",
-                  "dark:text-neutral-400 dark:hover:text-neutral-200 dark:hover:bg-neutral-700",
-                  "disabled:opacity-50 disabled:cursor-not-allowed"
-                )}
-                title="Attach files"
-              >
-                <Plus className="h-5 w-5" />
-              </button>
-            )}
-
-            {/* Model Selector */}
+          <div className="flex items-center gap-2">
+            {/* Model Selector Pill */}
             <Popover open={modelSelectorOpen} onOpenChange={setModelSelectorOpen}>
               <PopoverTrigger asChild>
                 <button
                   type="button"
                   className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md transition-colors",
-                    "text-neutral-600 hover:bg-neutral-200",
-                    "dark:text-neutral-400 dark:hover:bg-neutral-800"
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors",
+                    "text-[#13343B] dark:text-[#F8F8F7] border-[#E5E5E5] dark:border-[#333]",
+                    "hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A]"
                   )}
                 >
-                  {selectedModelObj && getProviderIcon(selectedModelObj.avatarType || selectedModelObj.providerId, 16)}
+                  {selectedModelObj && getProviderIcon(selectedModelObj.avatarType || selectedModelObj.providerId, 14)}
                   <span className="text-sm font-medium max-w-[100px] truncate">
                     {selectedModelObj?.name?.split(' ')[0] || 'Model'}
                   </span>
-                  <ChevronDown className="h-3.5 w-3.5" />
                 </button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-64 p-0 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 shadow-lg"
+                className="w-64 p-0 bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] shadow-lg rounded-xl"
                 align="start"
                 sideOffset={8}
               >
                 <div className="max-h-[300px] overflow-y-auto py-1">
                   {Object.entries(groupedModels).map(([provider, providerModels]) => (
                     <div key={provider} className="px-2 py-1">
-                      <div className="text-xs font-medium text-neutral-400 dark:text-neutral-500 px-2 py-1.5">
+                      <div className="text-xs font-medium text-[#94A3B8] px-2 py-1.5">
                         {provider}
                       </div>
                       {providerModels.map(model => (
@@ -414,18 +395,18 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                           className={cn(
                             "w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors",
                             selectedModel === model.id
-                              ? "bg-neutral-100 dark:bg-neutral-800"
-                              : "hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                              ? "bg-[#F0F0ED] dark:bg-[#2A2A2A]"
+                              : "hover:bg-[#F8F8F7] dark:hover:bg-[#2A2A2A]"
                           )}
                         >
                           <div className="flex-shrink-0">
                             {getProviderIcon(model.avatarType || model.providerId, 18)}
                           </div>
-                          <span className="flex-1 text-sm text-neutral-700 dark:text-neutral-300 truncate">
+                          <span className="flex-1 text-sm text-[#13343B] dark:text-[#F8F8F7] truncate">
                             {model.name}
                           </span>
                           {selectedModel === model.id && (
-                            <Check className="h-4 w-4 text-[var(--brand-default)] flex-shrink-0" />
+                            <Check className="h-4 w-4 text-[#20B8CD] flex-shrink-0" />
                           )}
                         </button>
                       ))}
@@ -436,16 +417,30 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
             </Popover>
           </div>
 
-          {/* Right Actions - Send/Stop Button */}
-          <div>
+          {/* Right Actions */}
+          <div className="flex items-center gap-1">
+            {/* Attachment Button - Only for Gemini models */}
+            {isGeminiModel && (
+              <button
+                type="button"
+                onClick={handleFileButtonClick}
+                disabled={isLoading}
+                className="p-2 rounded-full text-[#64748B] hover:text-[#13343B] hover:bg-[#F5F5F5] dark:hover:text-[#F8F8F7] dark:hover:bg-[#2A2A2A] transition-colors disabled:opacity-50"
+                title="Attach files"
+              >
+                <Paperclip className="h-5 w-5" />
+              </button>
+            )}
+
+            {/* Send/Stop Button */}
             {isLoading && onStop ? (
               <Button
                 type="button"
                 size="icon"
                 onClick={onStop}
-                className="h-8 w-8 rounded-full bg-neutral-800 hover:bg-neutral-700 dark:bg-neutral-200 dark:hover:bg-neutral-300"
+                className="h-8 w-8 rounded-full bg-[#13343B] hover:bg-[#0d2529]"
               >
-                <Square className="h-3.5 w-3.5 text-white dark:text-neutral-800" />
+                <Square className="h-3.5 w-3.5 text-white" />
               </Button>
             ) : (
               <Button
@@ -456,15 +451,15 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                 className={cn(
                   "h-8 w-8 rounded-full transition-all",
                   input.trim() || attachments.length > 0
-                    ? "bg-neutral-800 hover:bg-neutral-700 dark:bg-neutral-200 dark:hover:bg-neutral-300"
-                    : "bg-neutral-300 dark:bg-neutral-600 cursor-not-allowed"
+                    ? "bg-[#20B8CD] hover:bg-[#1AA3B6]"
+                    : "bg-[#E5E5E5] dark:bg-[#333] cursor-not-allowed"
                 )}
               >
                 <ArrowUp className={cn(
                   "h-4 w-4",
                   input.trim() || attachments.length > 0
-                    ? "text-white dark:text-neutral-800"
-                    : "text-neutral-500 dark:text-neutral-400"
+                    ? "text-white"
+                    : "text-[#94A3B8]"
                 )} />
               </Button>
             )}
