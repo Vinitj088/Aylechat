@@ -42,18 +42,6 @@ const _schema = i.schema({
       title: i.string().optional(),
       updatedAt: i.date().indexed().optional(),
     }),
-    pages: i.entity({
-      title: i.string().optional(),
-      content: i.json().optional(), // Rich content blocks (headings, paragraphs, images, etc.)
-      summary: i.string().optional(), // AI-generated or user summary
-      coverImage: i.string().optional(), // Cover image URL
-      icon: i.string().optional(), // Emoji or icon
-      isPublic: i.boolean().indexed().optional(),
-      shareId: i.string().unique().indexed().optional(),
-      createdAt: i.date().indexed().optional(),
-      updatedAt: i.date().indexed().optional(),
-      publishedAt: i.date().indexed().optional(), // When made public
-    }),
   },
   links: {
     messagesThread: {
@@ -91,18 +79,6 @@ const _schema = i.schema({
         on: "$users",
         has: "many",
         label: "threads",
-      },
-    },
-    pagesUser: {
-      forward: {
-        on: "pages",
-        has: "one",
-        label: "user",
-      },
-      reverse: {
-        on: "$users",
-        has: "many",
-        label: "pages",
       },
     },
   },

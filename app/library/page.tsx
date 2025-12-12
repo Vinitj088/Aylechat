@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, memo } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { db } from "@/lib/db"
-import { Library, Search, Clock, MoreHorizontal, Trash2, Plus, ListFilter, FileText, Globe } from "lucide-react"
+import { Library, Search, Clock, MoreHorizontal, Trash2, Plus, ListFilter } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { useSidebarContext } from "@/context/SidebarContext"
@@ -24,8 +24,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-
-type TabType = "threads" | "pages"
 
 // Format relative time
 const formatRelativeTime = (date: Date | number | undefined): string => {
@@ -48,9 +46,7 @@ function LibraryPageContent() {
   const router = useRouter()
   const { user, openAuthDialog } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState<TabType>("threads")
   const [threadToDelete, setThreadToDelete] = useState<string | null>(null)
-  const [pageToDelete, setPageToDelete] = useState<string | null>(null)
   const { setIsExpanded } = useSidebarContext()
 
   const handleNewChat = useCallback(() => {
@@ -77,24 +73,9 @@ function LibraryPageContent() {
       : null
   )
 
-  // Query pages for the current user
-  const { data: pagesData, isLoading: pagesLoading } = db.useQuery(
-    user?.id
-      ? {
-          pages: {
-            $: {
-              where: { "user.id": user.id },
-              order: { updatedAt: "desc" },
-            },
-          },
-        }
-      : null
-  )
-
   const threads = threadsData?.threads || []
-  const pages = pagesData?.pages || []
 
-  // Memoize filtered lists
+  // Memoize filtered threads
   const filteredThreads = useMemo(() =>
     searchQuery.trim()
       ? threads.filter((thread: any) =>
@@ -104,21 +85,8 @@ function LibraryPageContent() {
     [threads, searchQuery]
   )
 
-  const filteredPages = useMemo(() =>
-    searchQuery.trim()
-      ? pages.filter((page: any) =>
-          page.title?.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      : pages,
-    [pages, searchQuery]
-  )
-
   const handleThreadClick = useCallback((threadId: string) => {
     router.push(`/chat/${threadId}`)
-  }, [router])
-
-  const handlePageClick = useCallback((pageId: string) => {
-    router.push(`/page/${pageId}`)
   }, [router])
 
   const handleDeleteThread = useCallback(async (threadId: string) => {
@@ -130,22 +98,6 @@ function LibraryPageContent() {
       toast.error("Failed to delete thread")
     }
   }, [])
-
-  const handleDeletePage = useCallback(async (pageId: string) => {
-    try {
-      await db.transact(db.tx.pages[pageId].delete())
-      toast.success("Page deleted")
-    } catch (error) {
-      console.error("Error deleting page:", error)
-      toast.error("Failed to delete page")
-    }
-  }, [])
-
-  const handleCreatePage = useCallback(() => {
-    router.push("/page/new")
-  }, [router])
-
-  const isLoading = activeTab === "threads" ? threadsLoading : pagesLoading
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -174,10 +126,6 @@ function LibraryPageContent() {
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
   }, [])
-
-  // Memoize tab handlers
-  const handleTabThreads = useCallback(() => setActiveTab("threads"), [])
-  const handleTabPages = useCallback(() => setActiveTab("pages"), [])
 
   return (
     <div className="flex-1 bg-[#F0F0ED] dark:bg-[#191a1a] min-h-[100dvh] contain-layout">
@@ -213,59 +161,27 @@ function LibraryPageContent() {
         {/* Content */}
         <div className="max-w-4xl mx-auto px-4 py-6">
           {/* Quick Actions */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="mb-6">
             <button
               onClick={handleNewChat}
-              className="flex items-center justify-between p-4 bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] rounded-xl hover:border-[#20B8CD] transition-colors group"
+              className="flex items-center justify-between p-4 bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] rounded-xl hover:border-[#20B8CD] transition-colors group w-full max-w-xs"
             >
               <div className="flex items-center gap-3">
                 <ListFilter className="w-5 h-5 text-[#64748B] group-hover:text-[#20B8CD]" />
-                <span className="text-sm font-medium text-[#13343B] dark:text-[#e7e7e2] font-ui">Thread</span>
-              </div>
-              <Plus className="w-4 h-4 text-[#64748B] group-hover:text-[#20B8CD]" />
-            </button>
-            <button
-              onClick={handleCreatePage}
-              className="flex items-center justify-between p-4 bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] rounded-xl hover:border-[#20B8CD] transition-colors group"
-            >
-              <div className="flex items-center gap-3">
-                <FileText className="w-5 h-5 text-[#64748B] group-hover:text-[#20B8CD]" />
-                <span className="text-sm font-medium text-[#13343B] dark:text-[#e7e7e2] font-ui">Page</span>
+                <span className="text-sm font-medium text-[#13343B] dark:text-[#e7e7e2] font-ui">New Thread</span>
               </div>
               <Plus className="w-4 h-4 text-[#64748B] group-hover:text-[#20B8CD]" />
             </button>
           </div>
 
-          {/* Tabs */}
+          {/* Threads Header */}
           <div className="flex items-center gap-4 mb-4 border-b border-[#E5E5E5] dark:border-[#2a2a2a]">
-            <button
-              onClick={handleTabThreads}
-              className={cn(
-                "px-1 py-2 text-sm font-medium font-ui transition-colors touch-manipulation",
-                activeTab === "threads"
-                  ? "text-[#13343B] dark:text-[#e7e7e2] border-b-2 border-[#20B8CD]"
-                  : "text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2]"
-              )}
-            >
+            <div className="px-1 py-2 text-sm font-medium font-ui text-[#13343B] dark:text-[#e7e7e2] border-b-2 border-[#20B8CD]">
               Threads
               {threads.length > 0 && (
                 <span className="ml-1.5 text-xs text-[#64748B]">({threads.length})</span>
               )}
-            </button>
-            <button
-              onClick={handleTabPages}
-              className={cn(
-                "px-1 py-2 text-sm font-medium font-ui transition-colors touch-manipulation",
-                activeTab === "pages"
-                  ? "text-[#13343B] dark:text-[#e7e7e2] border-b-2 border-[#20B8CD]"
-                  : "text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2]"
-              )}
-            >
-              Pages
-              {pages.length > 0 && (
-                <span className="ml-1.5 text-xs text-[#64748B]">({pages.length})</span>
-              )}
-            </button>
+            </div>
             <div className="flex-1" />
             <button className="p-1.5 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2] rounded-lg hover:bg-[#E5E5E5] dark:hover:bg-[#2a2a2a]">
               <MoreHorizontal className="w-4 h-4" />
@@ -273,7 +189,7 @@ function LibraryPageContent() {
           </div>
 
           {/* Content List */}
-          {isLoading ? (
+          {threadsLoading ? (
             <div className="space-y-3">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="p-4 bg-white dark:bg-[#1f2121] rounded-xl animate-pulse">
@@ -283,125 +199,44 @@ function LibraryPageContent() {
                 </div>
               ))}
             </div>
-          ) : activeTab === "threads" ? (
-            // Threads List
-            filteredThreads.length === 0 ? (
-              <div className="p-8 bg-[#F5F5F5] dark:bg-[#1f2121] rounded-xl text-center">
-                <ListFilter className="w-10 h-10 text-[#64748B] mx-auto mb-3" />
-                <p className="text-[#64748B] font-ui mb-3">
-                  {searchQuery ? `No threads matching "${searchQuery}"` : "No threads yet"}
-                </p>
-                <button
-                  onClick={handleNewChat}
-                  className="text-sm text-[#20B8CD] hover:underline font-ui"
-                >
-                  Start a new thread
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {filteredThreads.map((thread: any) => {
-                  const firstMessage = thread.messages?.[0]
-                  const preview = firstMessage?.content?.slice(0, 150) || ""
-
-                  return (
-                    <div
-                      key={thread.id}
-                      className="group p-4 bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] rounded-xl hover:border-[#20B8CD] dark:hover:border-[#20B8CD] transition-colors cursor-pointer"
-                      onClick={() => handleThreadClick(thread.id)}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-base font-medium text-[#13343B] dark:text-[#e7e7e2] font-ui mb-1 truncate">
-                            {thread.title || "Untitled Thread"}
-                          </h3>
-                          {preview && (
-                            <p className="text-sm text-[#64748B] line-clamp-2 mb-2 font-ui">
-                              {preview}...
-                            </p>
-                          )}
-                          <div className="flex items-center gap-1.5 text-xs text-[#94A3B8]">
-                            <Clock className="w-3 h-3" />
-                            <span>{formatRelativeTime(thread.updatedAt)}</span>
-                          </div>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            className="p-1.5 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2] rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a] md:opacity-0 md:group-hover:opacity-100 transition-opacity touch-manipulation"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreHorizontal className="w-4 h-4" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] rounded-xl"
-                          >
-                            <DropdownMenuItem
-                              className="text-red-600 cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setThreadToDelete(thread.id)
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )
+          ) : filteredThreads.length === 0 ? (
+            <div className="p-8 bg-[#F5F5F5] dark:bg-[#1f2121] rounded-xl text-center">
+              <ListFilter className="w-10 h-10 text-[#64748B] mx-auto mb-3" />
+              <p className="text-[#64748B] font-ui mb-3">
+                {searchQuery ? `No threads matching "${searchQuery}"` : "No threads yet"}
+              </p>
+              <button
+                onClick={handleNewChat}
+                className="text-sm text-[#20B8CD] hover:underline font-ui"
+              >
+                Start a new thread
+              </button>
+            </div>
           ) : (
-            // Pages Grid
-            filteredPages.length === 0 ? (
-              <div className="p-8 bg-[#F5F5F5] dark:bg-[#1f2121] rounded-xl text-center">
-                <FileText className="w-10 h-10 text-[#64748B] mx-auto mb-3" />
-                <p className="text-[#64748B] font-ui mb-3">
-                  {searchQuery ? `No pages matching "${searchQuery}"` : "No pages yet"}
-                </p>
-                <button
-                  onClick={handleCreatePage}
-                  className="text-sm text-[#20B8CD] hover:underline font-ui"
-                >
-                  Create your first page
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {filteredPages.map((page: any) => (
+            <div className="space-y-2">
+              {filteredThreads.map((thread: any) => {
+                const firstMessage = thread.messages?.[0]
+                const preview = firstMessage?.content?.slice(0, 150) || ""
+
+                return (
                   <div
-                    key={page.id}
+                    key={thread.id}
                     className="group p-4 bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] rounded-xl hover:border-[#20B8CD] dark:hover:border-[#20B8CD] transition-colors cursor-pointer"
-                    onClick={() => handlePageClick(page.id)}
+                    onClick={() => handleThreadClick(thread.id)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <h3 className="text-base font-medium text-[#13343B] dark:text-[#e7e7e2] font-ui mb-1 truncate">
-                          {page.title || "Untitled Page"}
+                          {thread.title || "Untitled Thread"}
                         </h3>
-                        {page.summary && (
+                        {preview && (
                           <p className="text-sm text-[#64748B] line-clamp-2 mb-2 font-ui">
-                            {page.summary}
+                            {preview}...
                           </p>
                         )}
-                        <div className="flex items-center gap-3 text-xs text-[#94A3B8]">
-                          <div className="flex items-center gap-1.5">
-                            <Clock className="w-3 h-3" />
-                            <span>{formatRelativeTime(page.updatedAt)}</span>
-                          </div>
-                          {page.isPublic ? (
-                            <div className="flex items-center gap-1 text-[#64748B]">
-                              <Globe className="w-3 h-3" />
-                              <span>{page.viewCount || 0} views</span>
-                            </div>
-                          ) : (
-                            <span className="px-2 py-0.5 text-[#64748B] bg-[#F5F5F5] dark:bg-[#2a2a2a] rounded font-ui">
-                              Draft
-                            </span>
-                          )}
+                        <div className="flex items-center gap-1.5 text-xs text-[#94A3B8]">
+                          <Clock className="w-3 h-3" />
+                          <span>{formatRelativeTime(thread.updatedAt)}</span>
                         </div>
                       </div>
                       <DropdownMenu>
@@ -419,7 +254,7 @@ function LibraryPageContent() {
                             className="text-red-600 cursor-pointer"
                             onClick={(e) => {
                               e.stopPropagation()
-                              setPageToDelete(page.id)
+                              setThreadToDelete(thread.id)
                             }}
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
@@ -429,9 +264,9 @@ function LibraryPageContent() {
                       </DropdownMenu>
                     </div>
                   </div>
-                ))}
-              </div>
-            )
+                )
+              })}
+            </div>
           )}
         </div>
 
@@ -456,36 +291,6 @@ function LibraryPageContent() {
                   if (threadToDelete) {
                     handleDeleteThread(threadToDelete)
                     setThreadToDelete(null)
-                  }
-                }}
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* Delete Page Confirmation Dialog */}
-        <AlertDialog open={!!pageToDelete} onOpenChange={() => setPageToDelete(null)}>
-          <AlertDialogContent className="bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a]">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-[#13343B] dark:text-[#e7e7e2]">
-                Delete this page?
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-[#64748B]">
-                This action cannot be undone. This will permanently delete this page and all its content.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="border-[#E5E5E5] dark:border-[#2a2a2a]">
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-red-600 hover:bg-red-700 text-white"
-                onClick={() => {
-                  if (pageToDelete) {
-                    handleDeletePage(pageToDelete)
-                    setPageToDelete(null)
                   }
                 }}
               >

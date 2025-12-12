@@ -14,7 +14,6 @@ import {
   Moon,
   Sun,
   Home,
-  Sparkles,
   Library,
   Command,
   ChevronRight,
@@ -442,21 +441,6 @@ function LeftSidebar({
                 />
 
                 <NavItem
-                  icon={Sparkles}
-                  label="Spaces"
-                  isExpanded={isExpanded}
-                  onClick={() => {}}
-                />
-
-                {isExpanded && (
-                  <div className="ml-10 pl-3 border-l border-[#E5E5E5] dark:border-[#2a2a2a]">
-                    <button className="text-sm text-[#64748B] dark:text-[#9a9a95] hover:text-[#13343B] dark:hover:text-[#e7e7e2] py-1.5 text-left w-full truncate transition-colors touch-manipulation">
-                      Create a Space
-                    </button>
-                  </div>
-                )}
-
-                <NavItem
                   href="/library"
                   icon={Library}
                   label="Library"
@@ -567,13 +551,6 @@ function LeftSidebar({
                   isActive={isHomeActive}
                   isExpanded={isExpanded}
                   onNavigate={closeSidebarOnMobile}
-                />
-
-                <NavItem
-                  icon={Sparkles}
-                  label="Spaces"
-                  isExpanded={isExpanded}
-                  onClick={openAuthDialog}
                 />
 
                 <NavItem

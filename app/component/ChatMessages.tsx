@@ -386,6 +386,7 @@ const ChatMessages = memo(function ChatMessages({
   isSharedPage,
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLElement | Window | null>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const { pinned } = useSidebarPin()
@@ -395,53 +396,86 @@ const ChatMessages = memo(function ChatMessages({
   // Get the model name for display
   const modelName = (selectedModelObj?.name as string) || ""
 
-  const scrollToBottom = (behavior: "smooth" | "auto" = "smooth") => {
-    if (behavior === "smooth") {
-      window.scrollTo({
-        top: document.documentElement.scrollHeight,
-        behavior: "smooth",
-      })
-    } else {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: "auto" })
+  // Find the scroll container - look for parent with overflow-y-auto
+  const findScrollContainer = useCallback((): HTMLElement | Window => {
+    if (messagesEndRef.current) {
+      let parent = messagesEndRef.current.parentElement
+      while (parent) {
+        const style = window.getComputedStyle(parent)
+        if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+          return parent
+        }
+        parent = parent.parentElement
       }
     }
-  }
+    return window
+  }, [])
 
-  // This effect now correctly listens to the window scroll events and tracks active message
+  const scrollToBottom = useCallback((behavior: "smooth" | "auto" = "smooth") => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior, block: "end" })
+    }
+  }, [])
+
+  // This effect listens to scroll events and tracks active message for TOC
   useEffect(() => {
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = document.documentElement
+    const handleScroll = (e?: Event) => {
+      // Get scroll info from either the scroll container or window
+      const target = e?.target as HTMLElement | null
+      const container = target || document.documentElement
+      const scrollTop = container === document.documentElement ? container.scrollTop : (container as HTMLElement).scrollTop
+      const scrollHeight = container === document.documentElement ? container.scrollHeight : (container as HTMLElement).scrollHeight
+      const clientHeight = container === document.documentElement ? container.clientHeight : (container as HTMLElement).clientHeight
+
       const isScrolledUp = scrollHeight - scrollTop - clientHeight > 300
       setShowScrollButton(isScrolledUp)
       setIsAtBottom(!isScrolledUp)
 
       // Track which user message is currently in view
       const userMsgs = messages.filter(m => m.role === "user")
-      let foundActive = false
-      for (let i = userMsgs.length - 1; i >= 0; i--) {
+      if (userMsgs.length === 0) return
+
+      // Find the user message that is currently most visible
+      // We look for the last message whose top has scrolled past a threshold near the top of viewport
+      const threshold = 120 // pixels from top of viewport
+
+      let activeMsg: Message | null = null
+
+      // Iterate forward through messages to find which section we're in
+      for (let i = 0; i < userMsgs.length; i++) {
         const msg = userMsgs[i]
         const element = document.getElementById(`message-${msg.id}`)
         if (element) {
           const rect = element.getBoundingClientRect()
-          if (rect.top <= 150) {
-            setActiveMessageId(msg.id)
-            foundActive = true
+          // If this message's top is above our threshold, it's a candidate
+          if (rect.top <= threshold) {
+            activeMsg = msg
+          } else {
+            // Once we find a message below threshold, stop
+            // The previous message (if any) is our active one
             break
           }
         }
       }
-      // If no message found (scrolled to top), set first message as active
-      if (!foundActive && userMsgs.length > 0) {
-        setActiveMessageId(userMsgs[0].id)
+
+      // If no message found above threshold, use the first one
+      if (!activeMsg && userMsgs.length > 0) {
+        activeMsg = userMsgs[0]
+      }
+
+      if (activeMsg) {
+        setActiveMessageId(activeMsg.id)
       }
     }
 
-    window.addEventListener("scroll", handleScroll, { passive: true })
+    const scrollContainer = findScrollContainer()
+    scrollContainerRef.current = scrollContainer
+
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true })
     handleScroll() // Initial check on mount
 
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [messages])
+    return () => scrollContainer.removeEventListener("scroll", handleScroll)
+  }, [messages, findScrollContainer])
 
   // This effect ensures that if a new message arrives, we scroll down
   useEffect(() => {
