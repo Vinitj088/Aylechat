@@ -65,27 +65,69 @@ export function useAyleChat({
   initialMessages = [],
   onThreadCreated,
 }: UseAyleChatOptions) {
+  // Generate a new ID each time the hook is called with no threadId
+  // This ensures a fresh thread when navigating to homepage
+  const [chatKey, setChatKey] = useState(() => initialThreadId || id());
   const isNewThread = useRef(!initialThreadId);
-  const currentThreadId = useRef(initialThreadId || id());
+  const currentThreadId = useRef(chatKey);
   const [citations, setCitations] = useState<Citation[]>([]);
   const [mediaData, setMediaData] = useState<MediaData | null>(null);
   const [weatherData, setWeatherData] = useState<any>(null);
   const startTimeRef = useRef<number | null>(null);
+
+  // Store initial message extras (citations, mediaData, etc.) by message ID
+  const initialMessageExtrasRef = useRef<Map<string, Partial<Message>>>(new Map());
+
+  // Populate extras from initial messages
+  useEffect(() => {
+    const extras = new Map<string, Partial<Message>>();
+    for (const msg of initialMessages) {
+      if (msg.citations || msg.mediaData || msg.weatherData || msg.tps || msg.startTime || msg.endTime || msg.quotedText || msg.attachments || msg.images) {
+        extras.set(msg.id, {
+          citations: msg.citations,
+          mediaData: msg.mediaData,
+          weatherData: msg.weatherData,
+          tps: msg.tps,
+          startTime: msg.startTime,
+          endTime: msg.endTime,
+          quotedText: msg.quotedText,
+          attachments: msg.attachments,
+          images: msg.images,
+          provider: msg.provider,
+        });
+      }
+    }
+    initialMessageExtrasRef.current = extras;
+  }, [initialMessages]);
+
+  // Update refs when chatKey changes
+  useEffect(() => {
+    currentThreadId.current = chatKey;
+    isNewThread.current = !initialThreadId;
+  }, [chatKey, initialThreadId]);
 
   // Determine API endpoint based on model
   const apiEndpoint = selectedModel === 'exa' ? '/api/chat/exa' : '/api/chat';
 
   const chat = useChat({
     api: apiEndpoint,
-    id: currentThreadId.current, // Use thread ID for chat state isolation
+    id: chatKey, // Use chatKey for chat state isolation - ensures fresh state on new chats
+    streamProtocol: 'data', // Use data stream protocol for streaming
     body: {
       model: selectedModel,
     },
     initialMessages: initialMessages.map(convertToAIMessage),
+    // Experimental: Keep the last message while streaming for smoother updates
+    experimental_throttle: 50, // Throttle updates to reduce re-renders
 
-    onResponse: () => {
+    onResponse: (response) => {
       // Track when streaming starts
       startTimeRef.current = Date.now();
+      // Check for streaming headers
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('text/plain')) {
+        console.log('[Streaming] Started with data stream');
+      }
     },
 
     onFinish: async (message) => {
@@ -236,9 +278,23 @@ export function useAyleChat({
     await submit(message.content);
   }, [submit]);
 
+  // Reset chat to start a fresh conversation
+  const reset = useCallback(() => {
+    const newId = id();
+    setChatKey(newId);
+    setCitations([]);
+    setMediaData(null);
+    setWeatherData(null);
+    chat.setMessages([]);
+    chat.setInput('');
+  }, [chat]);
+
   // Convert AI SDK messages to our Message format with extra data
   const messages: Message[] = chat.messages.map((msg, index) => {
     const isLastAssistant = msg.role === 'assistant' && index === chat.messages.length - 1;
+
+    // Get stored extras from initial messages (preserves citations, mediaData, etc. from DB)
+    const storedExtras = initialMessageExtrasRef.current.get(msg.id) || {};
 
     // Extract tool results if available
     let toolMediaData: MediaData | undefined;
@@ -260,9 +316,19 @@ export function useAyleChat({
 
     return convertToAppMessage(msg, {
       completed: !chat.isLoading || !isLastAssistant,
-      citations: isLastAssistant ? citations : undefined,
-      mediaData: toolMediaData || (isLastAssistant && mediaData ? mediaData : undefined),
-      weatherData: toolWeatherData || (isLastAssistant ? weatherData : undefined),
+      // Use stored citations from DB, or current streaming citations for last message
+      citations: storedExtras.citations || (isLastAssistant ? citations : undefined),
+      // Use stored mediaData/weatherData from DB, or current tool results, or streaming data
+      mediaData: storedExtras.mediaData || toolMediaData || (isLastAssistant && mediaData ? mediaData : undefined),
+      weatherData: storedExtras.weatherData || toolWeatherData || (isLastAssistant ? weatherData : undefined),
+      // Preserve other extras from DB
+      tps: storedExtras.tps,
+      startTime: storedExtras.startTime,
+      endTime: storedExtras.endTime,
+      quotedText: storedExtras.quotedText,
+      attachments: storedExtras.attachments,
+      images: storedExtras.images,
+      provider: storedExtras.provider,
     });
   });
 
@@ -280,6 +346,7 @@ export function useAyleChat({
     weatherData,
     submit,
     append,
+    reset,
     threadId: currentThreadId.current,
     handleInputChange: chat.handleInputChange,
   };

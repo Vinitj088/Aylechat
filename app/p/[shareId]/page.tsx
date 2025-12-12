@@ -48,13 +48,13 @@ export default function PublicPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#F0F0ED] dark:bg-[#0F1516]">
+      <div className="min-h-screen bg-[#F0F0ED] dark:bg-[#191a1a]">
         <div className="max-w-3xl mx-auto px-4 py-12 animate-pulse">
-          <div className="h-10 bg-[#E5E5E5] dark:bg-[#333] rounded w-2/3 mb-8" />
+          <div className="h-10 bg-[#E5E5E5] dark:bg-[#2a2a2a] rounded w-2/3 mb-8" />
           <div className="space-y-4">
-            <div className="h-6 bg-[#E5E5E5] dark:bg-[#333] rounded w-full" />
-            <div className="h-6 bg-[#E5E5E5] dark:bg-[#333] rounded w-4/5" />
-            <div className="h-6 bg-[#E5E5E5] dark:bg-[#333] rounded w-3/4" />
+            <div className="h-6 bg-[#E5E5E5] dark:bg-[#2a2a2a] rounded w-full" />
+            <div className="h-6 bg-[#E5E5E5] dark:bg-[#2a2a2a] rounded w-4/5" />
+            <div className="h-6 bg-[#E5E5E5] dark:bg-[#2a2a2a] rounded w-3/4" />
           </div>
         </div>
       </div>
@@ -63,10 +63,10 @@ export default function PublicPage() {
 
   if (!page) {
     return (
-      <div className="min-h-screen bg-[#F0F0ED] dark:bg-[#0F1516] flex items-center justify-center">
+      <div className="min-h-screen bg-[#F0F0ED] dark:bg-[#191a1a] flex items-center justify-center">
         <div className="text-center">
           <FileText className="w-12 h-12 text-[#64748B] mx-auto mb-4" />
-          <h2 className="text-xl font-medium text-[#13343B] dark:text-[#F8F8F7] font-ui mb-2">
+          <h2 className="text-xl font-medium text-[#13343B] dark:text-[#e7e7e2] font-ui mb-2">
             Page not found
           </h2>
           <p className="text-[#64748B] text-sm mb-4">
@@ -82,10 +82,10 @@ export default function PublicPage() {
 
   if (!page.isPublic) {
     return (
-      <div className="min-h-screen bg-[#F0F0ED] dark:bg-[#0F1516] flex items-center justify-center">
+      <div className="min-h-screen bg-[#F0F0ED] dark:bg-[#191a1a] flex items-center justify-center">
         <div className="text-center">
           <Lock className="w-12 h-12 text-[#64748B] mx-auto mb-4" />
-          <h2 className="text-xl font-medium text-[#13343B] dark:text-[#F8F8F7] font-ui mb-2">
+          <h2 className="text-xl font-medium text-[#13343B] dark:text-[#e7e7e2] font-ui mb-2">
             This page is private
           </h2>
           <p className="text-[#64748B] text-sm mb-4">
@@ -103,13 +103,13 @@ export default function PublicPage() {
   const authorName = page.user?.profile?.firstName || "Anonymous"
 
   return (
-    <div className="min-h-screen bg-[#F0F0ED] dark:bg-[#0F1516]">
+    <div className="min-h-screen bg-[#F0F0ED] dark:bg-[#191a1a]">
       {/* Header */}
-      <div className="border-b border-[#E5E5E5] dark:border-[#333] bg-white dark:bg-[#0F1516]">
+      <div className="border-b border-[#E5E5E5] dark:border-[#2a2a2a] bg-white dark:bg-[#191a1a]">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link
             href="/"
-            className="text-xl text-[#13343B] dark:text-[#F8F8F7]"
+            className="text-xl text-[#13343B] dark:text-[#e7e7e2]"
             style={{ fontFamily: "Gebuk, system-ui, sans-serif", letterSpacing: "0.02em" }}
           >
             Ayle
@@ -126,7 +126,7 @@ export default function PublicPage() {
         {/* Icon & Title */}
         <header className="mb-8">
           {page.icon && <span className="text-5xl mb-4 block">{page.icon}</span>}
-          <h1 className="text-4xl font-medium text-[#13343B] dark:text-[#F8F8F7] font-ui mb-4">
+          <h1 className="text-4xl font-medium text-[#13343B] dark:text-[#e7e7e2] font-ui mb-4">
             {page.title || "Untitled"}
           </h1>
           <div className="flex items-center gap-3 text-sm text-[#64748B]">
@@ -144,7 +144,7 @@ export default function PublicPage() {
                 return (
                   <h1
                     key={block.id}
-                    className="text-3xl font-semibold text-[#13343B] dark:text-[#F8F8F7] mt-8 mb-4 font-ui"
+                    className="text-3xl font-semibold text-[#13343B] dark:text-[#e7e7e2] mt-8 mb-4 font-ui"
                   >
                     {block.content}
                   </h1>
@@ -153,7 +153,7 @@ export default function PublicPage() {
                 return (
                   <h2
                     key={block.id}
-                    className="text-2xl font-semibold text-[#13343B] dark:text-[#F8F8F7] mt-6 mb-3 font-ui"
+                    className="text-2xl font-semibold text-[#13343B] dark:text-[#e7e7e2] mt-6 mb-3 font-ui"
                   >
                     {block.content}
                   </h2>
@@ -162,7 +162,7 @@ export default function PublicPage() {
                 return (
                   <h3
                     key={block.id}
-                    className="text-xl font-semibold text-[#13343B] dark:text-[#F8F8F7] mt-5 mb-2 font-ui"
+                    className="text-xl font-semibold text-[#13343B] dark:text-[#e7e7e2] mt-5 mb-2 font-ui"
                   >
                     {block.content}
                   </h3>
@@ -180,7 +180,7 @@ export default function PublicPage() {
                 return (
                   <li
                     key={block.id}
-                    className="text-[#13343B] dark:text-[#F8F8F7] ml-6 list-disc font-body"
+                    className="text-[#13343B] dark:text-[#e7e7e2] ml-6 list-disc font-body"
                   >
                     {block.content}
                   </li>
@@ -189,13 +189,13 @@ export default function PublicPage() {
                 return (
                   <li
                     key={block.id}
-                    className="text-[#13343B] dark:text-[#F8F8F7] ml-6 list-decimal font-body"
+                    className="text-[#13343B] dark:text-[#e7e7e2] ml-6 list-decimal font-body"
                   >
                     {block.content}
                   </li>
                 )
               case "divider":
-                return <hr key={block.id} className="border-[#E5E5E5] dark:border-[#333] my-8" />
+                return <hr key={block.id} className="border-[#E5E5E5] dark:border-[#2a2a2a] my-8" />
               case "image":
                 return block.imageUrl ? (
                   <img
@@ -209,7 +209,7 @@ export default function PublicPage() {
                 return (
                   <p
                     key={block.id}
-                    className="text-[#13343B] dark:text-[#F8F8F7] leading-relaxed my-4 font-body"
+                    className="text-[#13343B] dark:text-[#e7e7e2] leading-relaxed my-4 font-body"
                   >
                     {block.content}
                   </p>
@@ -220,7 +220,7 @@ export default function PublicPage() {
       </article>
 
       {/* Footer */}
-      <footer className="border-t border-[#E5E5E5] dark:border-[#333] mt-16">
+      <footer className="border-t border-[#E5E5E5] dark:border-[#2a2a2a] mt-16">
         <div className="max-w-3xl mx-auto px-4 py-8 text-center">
           <p className="text-sm text-[#64748B] mb-4">
             Created with{" "}

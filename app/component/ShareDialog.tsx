@@ -36,9 +36,9 @@ export default function ShareDialog({ isOpen, onClose, shareUrl }: ShareDialogPr
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[95vw] max-w-sm sm:max-w-md bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] shadow-lg rounded-xl p-4 sm:p-6">
+      <DialogContent className="w-[95vw] max-w-sm sm:max-w-md bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] shadow-lg rounded-xl p-4 sm:p-6">
         <DialogHeader className="mb-2 sm:mb-3">
-          <DialogTitle className="flex items-center gap-2 text-[#13343B] dark:text-[#F8F8F7] text-base sm:text-lg">
+          <DialogTitle className="flex items-center gap-2 text-[#13343B] dark:text-[#e7e7e2] text-base sm:text-lg">
             <Share2 className="h-4 w-4 text-[#20B8CD]" />
             Share Conversation
           </DialogTitle>
@@ -53,7 +53,7 @@ export default function ShareDialog({ isOpen, onClose, shareUrl }: ShareDialogPr
               ref={inputRef}
               value={shareUrl}
               readOnly
-              className="w-full h-8 sm:h-9 font-mono text-[10px] sm:text-xs border-[#E5E5E5] dark:border-[#333] bg-[#F5F5F5] dark:bg-[#2A2A2A] text-[#13343B] dark:text-[#F8F8F7] px-2 rounded-lg focus:ring-[#20B8CD] focus:border-[#20B8CD]"
+              className="w-full h-8 sm:h-9 font-mono text-[10px] sm:text-xs border-[#E5E5E5] dark:border-[#2a2a2a] bg-[#F5F5F5] dark:bg-[#2a2a2a] text-[#13343B] dark:text-[#e7e7e2] px-2 rounded-lg focus:ring-[#20B8CD] focus:border-[#20B8CD]"
               onClick={(e) => e.currentTarget.select()}
             />
           </div>
@@ -61,7 +61,7 @@ export default function ShareDialog({ isOpen, onClose, shareUrl }: ShareDialogPr
             type="button"
             variant="outline"
             size="sm"
-            className="h-8 px-2 sm:px-3 min-w-[2.5rem] sm:min-w-[4rem] border-[#E5E5E5] dark:border-[#333] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7]"
+            className="h-8 px-2 sm:px-3 min-w-[2.5rem] sm:min-w-[4rem] border-[#E5E5E5] dark:border-[#2a2a2a] hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a] text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2]"
             onClick={handleCopy}
           >
             {copied ? (

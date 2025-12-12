@@ -1,23 +1,26 @@
 'use client';
 
-import { useState, useRef, useEffect, Suspense, useCallback } from 'react';
+import { useState, useRef, useEffect, Suspense, useCallback, useMemo, memo } from 'react';
 import { Message, Model, ModelType } from '../../types';
 import Header from '../../component/Header';
-import LeftSidebar from '../../component/LeftSidebar';
-import ChatMessages from '../../component/ChatMessages';
-import ChatInput, { ChatInputHandle } from '../../component/ChatInput';
+import dynamic from 'next/dynamic';
+import { useSidebarContext } from '@/context/SidebarContext';
+import { ChatInputHandle } from '../../component/ChatInput';
 import { useAyleChat } from '../../hooks/useAyleChat';
 import modelsData from '../../../models.json';
 import { AuthDialog } from '@/components/AuthDialog';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import React from 'react';
-import { cn } from '@/lib/utils';
 import { QueryEnhancerProvider } from '@/context/QueryEnhancerContext';
 import { db } from '@/lib/db';
-import { User, Clock, Link2, MoreHorizontal, Check, Pencil } from 'lucide-react';
+import { User, Clock, Pencil } from 'lucide-react';
 import ShareButton from '../../component/ShareButton';
 import { toast } from 'sonner';
+
+// Lazy load heavy components
+const ChatMessages = dynamic(() => import('../../component/ChatMessages'), { ssr: false });
+const ChatInput = dynamic(() => import('../../component/ChatInput'), { ssr: false });
 
 function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const { data, isLoading: isThreadLoading } = db.useQuery({
@@ -46,7 +49,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   }));
 
   // Local state
-  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
+  const [selectedModel, setSelectedModel] = useState<ModelType>('openai/gpt-oss-20b');
   const [models, setModels] = useState<Model[]>([]);
   const { user, isLoading: authLoading, openAuthDialog } = useAuth();
   const router = useRouter();
@@ -55,8 +58,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   const [activeChatFiles, setActiveChatFiles] = useState<Array<{ name: string; type: string; uri: string }>>([]);
   const [chatInputHeightOffset, setChatInputHeightOffset] = useState(0);
   const [quotedText, setQuotedText] = useState('');
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [sidebarMounted, setSidebarMounted] = useState(false);
+  const { isExpanded, setIsExpanded } = useSidebarContext();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -78,22 +80,6 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     }
   }, [isThreadLoading, dbMessages]);
 
-  // Load sidebar state from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('sidebarExpanded');
-    if (saved) {
-      setIsExpanded(JSON.parse(saved));
-    }
-    setSidebarMounted(true);
-  }, []);
-
-  // Persist sidebar expanded state
-  useEffect(() => {
-    if (sidebarMounted) {
-      localStorage.setItem('sidebarExpanded', JSON.stringify(isExpanded));
-    }
-  }, [isExpanded, sidebarMounted]);
-
   // Update document title when thread title is available
   useEffect(() => {
     if (!isThreadLoading && thread) {
@@ -105,25 +91,23 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     }
   }, [thread, isThreadLoading]);
 
+  // Memoize models to prevent recalculation
+  // Filter out models that don't support mid-thread switching (Exa, Sonar)
+  const allModels = useMemo(() => {
+    const providerOrder = ['perplexity', 'google', 'cerebras', 'inception', 'groq', 'openrouter', 'together'];
+    return providerOrder.flatMap(providerId =>
+      modelsData.models.filter(model =>
+        model.providerId === providerId &&
+        model.enabled &&
+        !model.noMidThreadSwitch
+      )
+    ) as Model[];
+  }, []);
+
   // Load models
   useEffect(() => {
-    const providerOrder = ['perplexity', 'google', 'cerebras', 'inception', 'groq', 'openrouter', 'together'];
-    const allModels = [
-      {
-        id: 'exa',
-        name: 'Exa Search',
-        provider: 'Exa',
-        providerId: 'exa',
-        enabled: true,
-        toolCallType: 'native',
-        searchMode: true
-      },
-      ...providerOrder.flatMap(providerId =>
-        modelsData.models.filter(model => model.providerId === providerId && model.enabled)
-      )
-    ];
     setModels(allModels);
-  }, []);
+  }, [allModels]);
 
   // Set model from thread when loaded
   useEffect(() => {
@@ -170,17 +154,29 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [chat.isLoading]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement> | string) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement> | string) => {
     const value = typeof e === 'string' ? e : e.target.value;
     chat.setInput(value);
-  };
+  }, [chat]);
 
-  const handleModelChange = (modelId: string) => {
+  const handleModelChange = useCallback(async (modelId: string) => {
     setSelectedModel(modelId as ModelType);
-  };
+
+    // Update thread model in database when changed mid-conversation
+    if (threadId && !isThreadLoading) {
+      try {
+        await db.transact(db.tx.threads[threadId].update({
+          model: modelId,
+          updatedAt: new Date().toISOString(),
+        }));
+      } catch (error) {
+        console.error('Failed to update thread model:', error);
+      }
+    }
+  }, [threadId, isThreadLoading]);
 
   // Main submit handler using AI SDK
-  const handleSubmit = async (e: React.FormEvent, files?: File[]) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent, files?: File[]) => {
     e.preventDefault();
     if ((!chat.input.trim() && (!files || files.length === 0)) || chat.isLoading) return;
     if (!isAuthenticated) {
@@ -198,12 +194,12 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
 
     // Clear quoted text after submit
     setQuotedText('');
-  };
+  }, [chat, isAuthenticated, openAuthDialog, quotedText]);
 
-  const handleNewChat = () => {
+  const handleNewChat = useCallback(() => {
     router.push('/');
     setActiveChatFiles([]);
-  };
+  }, [router]);
 
   // Start editing title
   const handleStartEditTitle = () => {
@@ -253,133 +249,21 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   // Prefer hook messages when streaming, fall back to DB messages
   const displayMessages = chat.messages.length > 0 ? chat.messages : dbMessages;
 
-  // Sort messages by createdAt ascending
-  const sortedMessages = [...displayMessages].sort((a, b) => {
-    const aDate = new Date(a.createdAt || 0).getTime();
-    const bDate = new Date(b.createdAt || 0).getTime();
-    return aDate - bDate;
-  });
+  // Memoize sorted messages
+  const sortedMessages = useMemo(() =>
+    [...displayMessages].sort((a, b) => {
+      const aDate = new Date(a.createdAt || 0).getTime();
+      const bDate = new Date(b.createdAt || 0).getTime();
+      return aDate - bDate;
+    }),
+    [displayMessages]
+  );
 
-  if (isThreadLoading || authLoading) {
-    return (
-      <>
-        {/* Mobile Header */}
-        <div className="md:hidden">
-          <Header onToggleSidebar={() => setIsExpanded(true)} />
-        </div>
-
-        {/* Desktop & Tablet Layout */}
-        <div className="hidden md:block h-screen overflow-hidden">
-          {isAuthenticated && (
-            <LeftSidebar
-              onNewChat={handleNewChat}
-              isExpanded={isExpanded}
-              setIsExpanded={setIsExpanded}
-              isHydrating={!sidebarMounted}
-            />
-          )}
-
-          <div className={cn(
-            "h-screen flex flex-col transition-all duration-300",
-            isAuthenticated ? (isExpanded ? "ml-64" : "ml-14") : "ml-0"
-          )}>
-            <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 h-full flex flex-col">
-              <div className="relative flex-1 flex flex-col overflow-hidden">
-                {/* Top fade gradient */}
-                <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[var(--secondary-default)] to-transparent z-10 pointer-events-none" />
-
-                <div className="flex-1 overflow-y-auto no-scrollbar">
-                  {/* Loading skeleton */}
-                </div>
-
-                {/* Bottom fade gradient */}
-                <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--secondary-default)] via-[var(--secondary-default)]/80 to-transparent z-10 pointer-events-none" />
-
-                <div className="absolute bottom-0 left-0 right-0 z-20">
-                  <ChatInput
-                    ref={chatInputRef}
-                    input={chat.input}
-                    handleInputChange={handleInputChange}
-                    handleSubmit={(e) => handleSubmit(e, attachments)}
-                    isLoading={true}
-                    selectedModel={selectedModel}
-                    handleModelChange={handleModelChange}
-                    models={models}
-                    isExa={isExa}
-                    onNewChat={handleNewChat}
-                    onAttachmentsChange={setAttachments}
-                    activeChatFiles={activeChatFiles}
-                    removeActiveFile={removeActiveFile}
-                    onActiveFilesHeightChange={handleActiveFilesHeightChange}
-                    quotedText={quotedText}
-                    setQuotedText={setQuotedText}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Content */}
-        <div className="md:hidden h-screen flex flex-col overflow-hidden relative">
-          {isAuthenticated && (
-            <LeftSidebar
-              onNewChat={handleNewChat}
-              isExpanded={isExpanded}
-              setIsExpanded={setIsExpanded}
-              isHydrating={!sidebarMounted}
-            />
-          )}
-
-          {isExpanded && isAuthenticated && (
-            <div
-              className="fixed inset-0 bg-black/50 z-40"
-              onClick={() => setIsExpanded(false)}
-            />
-          )}
-
-          <div className="relative flex-1 flex flex-col overflow-hidden">
-            {/* Top fade gradient */}
-            <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[var(--secondary-default)] to-transparent z-10 pointer-events-none" />
-
-            <div className="flex-1 overflow-y-auto no-scrollbar">
-              {/* Loading skeleton */}
-            </div>
-
-            {/* Bottom fade gradient */}
-            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[var(--secondary-default)] via-[var(--secondary-default)]/80 to-transparent z-10 pointer-events-none" />
-
-            <div className="absolute bottom-0 left-0 right-0 z-20">
-              <ChatInput
-                ref={chatInputRef}
-                input={chat.input}
-                handleInputChange={handleInputChange}
-                handleSubmit={(e) => handleSubmit(e, attachments)}
-                isLoading={true}
-                selectedModel={selectedModel}
-                handleModelChange={handleModelChange}
-                models={models}
-                isExa={isExa}
-                onNewChat={handleNewChat}
-                onAttachmentsChange={setAttachments}
-                activeChatFiles={activeChatFiles}
-                removeActiveFile={removeActiveFile}
-                onActiveFilesHeightChange={handleActiveFilesHeightChange}
-                quotedText={quotedText}
-                setQuotedText={setQuotedText}
-              />
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  // Format time ago
-  const getTimeAgo = (date: Date | string | undefined) => {
-    if (!date) return '';
+  // Memoize time ago calculation
+  const timeAgo = useMemo(() => {
+    if (!thread?.createdAt) return '';
     const now = new Date();
-    const then = new Date(date);
+    const then = new Date(thread.createdAt);
     const diffMs = now.getTime() - then.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins < 1) return 'just now';
@@ -388,44 +272,68 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
     if (diffHours < 24) return `${diffHours} hr. ago`;
     const diffDays = Math.floor(diffHours / 24);
     return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-  };
+  }, [thread?.createdAt]);
+
+  // Memoize toggle handler
+  const handleToggleSidebar = useCallback(() => setIsExpanded(true), [setIsExpanded]);
+
+  if (isThreadLoading || authLoading) {
+    return (
+      <>
+        <div className="md:hidden">
+          <Header onToggleSidebar={handleToggleSidebar} />
+        </div>
+        <div className="h-[100dvh] bg-[#F0F0ED] dark:bg-[#191a1a] flex flex-col">
+          <div className="flex-1" />
+          <div className="z-20 safe-area-bottom">
+            <ChatInput
+              ref={chatInputRef}
+              input={chat.input}
+              handleInputChange={handleInputChange}
+              handleSubmit={(e) => handleSubmit(e, attachments)}
+              isLoading={false}
+              selectedModel={selectedModel}
+              handleModelChange={handleModelChange}
+              models={models}
+              isExa={isExa}
+              onNewChat={handleNewChat}
+              onAttachmentsChange={setAttachments}
+              activeChatFiles={activeChatFiles}
+              removeActiveFile={removeActiveFile}
+              onActiveFilesHeightChange={handleActiveFilesHeightChange}
+              quotedText={quotedText}
+              setQuotedText={setQuotedText}
+            />
+          </div>
+        </div>
+      </>
+    )
+  }
 
   return (
     <>
       {/* Mobile Header */}
       <div className="md:hidden">
-        <Header onToggleSidebar={() => setIsExpanded(true)} />
+        <Header onToggleSidebar={handleToggleSidebar} />
       </div>
 
       {/* Desktop & Tablet Layout */}
-      <div className="hidden md:block h-screen overflow-hidden bg-[#F0F0ED] dark:bg-[#0F1516]">
-        {isAuthenticated && (
-          <LeftSidebar
-            onNewChat={handleNewChat}
-            isExpanded={isExpanded}
-            setIsExpanded={setIsExpanded}
-            isHydrating={!sidebarMounted}
-          />
-        )}
-
-        <div className={cn(
-          "h-screen flex flex-col transition-all duration-300",
-          isAuthenticated ? (isExpanded ? "ml-64" : "ml-14") : "ml-0"
-        )}>
+      <div className="hidden md:block h-screen overflow-hidden bg-[#F0F0ED] dark:bg-[#191a1a] contain-layout">
+        <div className="h-screen flex flex-col">
           {/* Top Header Bar */}
-          <div className="flex-shrink-0 h-12 bg-[#F0F0ED] dark:bg-[#0F1516] flex items-center justify-between px-4">
+          <div className="flex-shrink-0 h-12 bg-[#F0F0ED] dark:bg-[#191a1a] flex items-center justify-between px-4">
             <div className="flex items-center gap-3 text-sm text-[#64748B]">
               <div className="flex items-center gap-1.5">
                 <div className="w-5 h-5 rounded-full bg-[#20B8CD] flex items-center justify-center">
                   <User className="w-3 h-3 text-white" />
                 </div>
-                <span className="font-medium text-[#13343B] dark:text-[#F8F8F7]">
+                <span className="font-medium text-[#13343B] dark:text-[#e7e7e2]">
                   {user?.email?.split('@')[0] || 'User'}
                 </span>
               </div>
               <div className="flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
-                <span>{getTimeAgo(thread?.createdAt)}</span>
+                <span>{timeAgo}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -438,13 +346,13 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
                     onChange={(e) => setEditedTitle(e.target.value)}
                     onKeyDown={handleTitleKeyDown}
                     onBlur={handleSaveTitle}
-                    className="text-sm text-[#13343B] dark:text-[#F8F8F7] font-medium bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] rounded px-2 py-1 outline-none focus:border-[#20B8CD] max-w-[300px]"
+                    className="text-sm text-[#13343B] dark:text-[#e7e7e2] font-medium bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] rounded px-2 py-1 outline-none focus:border-[#20B8CD] max-w-[300px]"
                   />
                 </div>
               ) : (
                 <button
                   onClick={handleStartEditTitle}
-                  className="flex items-center gap-1.5 text-sm text-[#13343B] dark:text-[#F8F8F7] font-medium truncate max-w-[300px] hover:bg-[#E5E5E5] dark:hover:bg-[#2A2A2A] px-2 py-1 rounded transition-colors group"
+                  className="flex items-center gap-1.5 text-sm text-[#13343B] dark:text-[#e7e7e2] font-medium truncate max-w-[300px] hover:bg-[#E5E5E5] dark:hover:bg-[#2a2a2a] px-2 py-1 rounded transition-colors group"
                 >
                   <span className="truncate">{thread?.title || 'New Chat'}</span>
                   <Pencil className="w-3 h-3 text-[#64748B] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
@@ -459,10 +367,10 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="relative flex-1 flex flex-col overflow-hidden">
               {/* Top fade gradient */}
-              <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[#F0F0ED] dark:from-[#0F1516] to-transparent z-10 pointer-events-none" />
+              <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[#F0F0ED] dark:from-[#191a1a] to-transparent z-10 pointer-events-none" />
 
               {/* Messages area */}
-              <div className="flex-1 overflow-y-auto no-scrollbar">
+              <div className="flex-1 overflow-y-auto no-scrollbar overscroll-contain">
                 <div className="pt-8 max-w-4xl mx-auto px-4">
                   <ChatMessages
                     messages={sortedMessages}
@@ -480,7 +388,7 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
               </div>
 
               {/* Bottom fade gradient */}
-              <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#F0F0ED] dark:from-[#0F1516] via-[#F0F0ED]/80 dark:via-[#0F1516]/80 to-transparent z-10 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#F0F0ED] dark:from-[#191a1a] via-[#F0F0ED]/80 dark:via-[#191a1a]/80 to-transparent z-10 pointer-events-none" />
 
               <div className="absolute bottom-0 left-0 right-0 z-20">
                 <ChatInput
@@ -509,29 +417,13 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
       </div>
 
       {/* Mobile Content */}
-      <div className="md:hidden h-screen flex flex-col overflow-hidden relative bg-[#F0F0ED] dark:bg-[#0F1516]">
-        {isAuthenticated && (
-          <LeftSidebar
-            onNewChat={handleNewChat}
-            isExpanded={isExpanded}
-            setIsExpanded={setIsExpanded}
-            isHydrating={!sidebarMounted}
-          />
-        )}
-
-        {isExpanded && isAuthenticated && (
-          <div
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={() => setIsExpanded(false)}
-          />
-        )}
-
+      <div className="md:hidden h-[100dvh] flex flex-col overflow-hidden relative bg-[#F0F0ED] dark:bg-[#191a1a] contain-layout">
         <div className="relative flex-1 flex flex-col overflow-hidden">
           {/* Top fade gradient */}
-          <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[#F0F0ED] dark:from-[#0F1516] to-transparent z-10 pointer-events-none" />
+          <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[#F0F0ED] dark:from-[#191a1a] to-transparent z-10 pointer-events-none" />
 
-          {/* Messages area */}
-          <div className="flex-1 overflow-y-auto no-scrollbar">
+          {/* Messages area - optimized for mobile scrolling */}
+          <div className="flex-1 overflow-y-auto no-scrollbar overscroll-contain -webkit-overflow-scrolling-touch">
             <div className="pt-6 pb-24 px-4">
               <ChatMessages
                 messages={sortedMessages}
@@ -549,9 +441,9 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
           </div>
 
           {/* Bottom fade gradient */}
-          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#F0F0ED] dark:from-[#0F1516] via-[#F0F0ED]/80 dark:via-[#0F1516]/80 to-transparent z-10 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#F0F0ED] dark:from-[#191a1a] via-[#F0F0ED]/80 dark:via-[#191a1a]/80 to-transparent z-10 pointer-events-none" />
 
-          <div className="absolute bottom-0 left-0 right-0 z-20">
+          <div className="absolute bottom-0 left-0 right-0 z-20 safe-area-bottom">
             <ChatInput
               ref={chatInputRef}
               input={chat.input}
@@ -581,12 +473,15 @@ function ChatThreadPageContent({ threadId }: { threadId: string }) {
   );
 }
 
+// Memoize the content component
+const MemoizedChatThreadPageContent = memo(ChatThreadPageContent);
+
 export default function ChatThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = React.use(params);
   return (
     <QueryEnhancerProvider>
-      <Suspense fallback={<div>Loading...</div>}>
-        <ChatThreadPageContent threadId={threadId} />
+      <Suspense fallback={null}>
+        <MemoizedChatThreadPageContent threadId={threadId} />
       </Suspense>
     </QueryEnhancerProvider>
   );

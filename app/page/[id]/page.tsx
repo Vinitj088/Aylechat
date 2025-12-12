@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useAuth } from "@/context/AuthContext"
 import { db } from "@/lib/db"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import LeftSidebar from "@/app/component/LeftSidebar"
+import { useSidebarContext } from "@/context/SidebarContext"
 import {
   FileText,
   Share2,
@@ -73,15 +73,14 @@ const formatRelativeTime = (date: Date | number | undefined): string => {
   return then.toLocaleDateString()
 }
 
-export default function PageEditor() {
+function PageEditorContent() {
   const router = useRouter()
   const params = useParams()
   const pageId = params?.id as string
   const { user, openAuthDialog } = useAuth()
 
   // UI State
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [sidebarMounted, setSidebarMounted] = useState(false)
+  const { setIsExpanded } = useSidebarContext()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [mode, setMode] = useState<"editing" | "preview">("editing")
   const [isGenerating, setIsGenerating] = useState(false)
@@ -99,20 +98,6 @@ export default function PageEditor() {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const hasInitializedRef = useRef(false)
   const contentRef = useRef({ title, coverImage, sections, summary, isPublic })
-
-  // Load sidebar state
-  useEffect(() => {
-    const saved = localStorage.getItem("sidebarExpanded")
-    if (saved) setIsExpanded(JSON.parse(saved))
-    setSidebarMounted(true)
-  }, [])
-
-  // Persist sidebar state
-  useEffect(() => {
-    if (sidebarMounted) {
-      localStorage.setItem("sidebarExpanded", JSON.stringify(isExpanded))
-    }
-  }, [isExpanded, sidebarMounted])
 
   // Query page data with user profile
   const { data, isLoading } = db.useQuery(
@@ -270,15 +255,15 @@ export default function PageEditor() {
     }
   }, [title, coverImage, sections, summary, isPublic, saveChanges])
 
-  const handleNewChat = () => {
+  const handleNewChat = useCallback(() => {
     router.push("/")
-  }
+  }, [router])
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     router.push("/library")
-  }
+  }, [router])
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (!pageId) return
 
     try {
@@ -289,9 +274,13 @@ export default function PageEditor() {
       console.error("Error deleting page:", error)
       toast.error("Failed to delete page")
     }
-  }
+  }, [pageId, router])
 
-  const handlePublish = async () => {
+  // Section handlers - memoize these first
+  const generateId = useCallback(() => Math.random().toString(36).substring(2, 9), [])
+  const generateShareId = useCallback(() => Math.random().toString(36).substring(2, 12), [])
+
+  const handlePublish = useCallback(async () => {
     if (!pageId) return
 
     try {
@@ -313,9 +302,9 @@ export default function PageEditor() {
       console.error("Error publishing page:", error)
       toast.error("Failed to publish page")
     }
-  }
+  }, [pageId, page?.shareId, generateShareId])
 
-  const handleMakePrivate = async () => {
+  const handleMakePrivate = useCallback(async () => {
     if (!pageId) return
 
     try {
@@ -331,47 +320,47 @@ export default function PageEditor() {
       console.error("Error making page private:", error)
       toast.error("Failed to update page")
     }
-  }
+  }, [pageId])
 
-  // Section handlers
-  const generateId = () => Math.random().toString(36).substring(2, 9)
-  const generateShareId = () => Math.random().toString(36).substring(2, 12)
-
-  const addSection = (afterId?: string) => {
+  const addSection = useCallback((afterId?: string) => {
     const newSection: Section = { id: generateId(), title: "New Section", content: "", showPromptInput: true }
     if (afterId) {
-      const index = sections.findIndex((s) => s.id === afterId)
-      const newSections = [...sections]
-      newSections.splice(index + 1, 0, newSection)
-      setSections(newSections)
+      setSections(prev => {
+        const index = prev.findIndex((s) => s.id === afterId)
+        const newSections = [...prev]
+        newSections.splice(index + 1, 0, newSection)
+        return newSections
+      })
     } else {
-      setSections([...sections, newSection])
+      setSections(prev => [...prev, newSection])
     }
-  }
+  }, [generateId])
 
-  const updateSection = (id: string, updates: Partial<Section>) => {
+  const updateSection = useCallback((id: string, updates: Partial<Section>) => {
     setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)))
-  }
+  }, [])
 
-  const deleteSection = (id: string) => {
-    if (sections.length <= 1) {
-      toast.error("Cannot delete the only section")
-      return
-    }
-    setSections((prev) => prev.filter((s) => s.id !== id))
-  }
+  const deleteSection = useCallback((id: string) => {
+    setSections((prev) => {
+      if (prev.length <= 1) {
+        toast.error("Cannot delete the only section")
+        return prev
+      }
+      return prev.filter((s) => s.id !== id)
+    })
+  }, [])
 
   // Auto-resize textarea
-  const autoResize = (textarea: HTMLTextAreaElement) => {
+  const autoResize = useCallback((textarea: HTMLTextAreaElement) => {
     textarea.style.height = "auto"
     textarea.style.height = `${textarea.scrollHeight}px`
-  }
+  }, [])
 
   // Scroll to section
-  const scrollToSection = (id: string) => {
+  const scrollToSection = useCallback((id: string) => {
     const element = document.getElementById(`section-${id}`)
     element?.scrollIntoView({ behavior: "smooth", block: "start" })
-  }
+  }, [])
 
   // Auth check
   useEffect(() => {
@@ -382,131 +371,61 @@ export default function PageEditor() {
 
   if (!user) {
     return (
-      <>
-        <div className="hidden md:block">
-          <LeftSidebar
-            onNewChat={handleNewChat}
-            isExpanded={isExpanded}
-            setIsExpanded={setIsExpanded}
-            isHydrating={!sidebarMounted}
-          />
+      <div className="flex-1 flex items-center justify-center bg-[#F0F0ED] dark:bg-[#191a1a] min-h-screen">
+        <div className="text-center">
+          <FileText className="w-12 h-12 text-[#64748B] mx-auto mb-4" />
+          <h2 className="text-xl font-medium text-[#13343B] dark:text-[#e7e7e2] font-ui mb-2">
+            Sign in to view this page
+          </h2>
         </div>
-        <div
-          className={cn(
-            "flex-1 flex items-center justify-center bg-[#F0F0ED] dark:bg-[#0F1516] min-h-screen transition-all duration-300",
-            "md:ml-14",
-            isExpanded && "md:ml-64"
-          )}
-        >
-          <div className="text-center">
-            <FileText className="w-12 h-12 text-[#64748B] mx-auto mb-4" />
-            <h2 className="text-xl font-medium text-[#13343B] dark:text-[#F8F8F7] font-ui mb-2">
-              Sign in to view this page
-            </h2>
-          </div>
-        </div>
-      </>
+      </div>
     )
   }
 
   if (isLoading) {
     return (
-      <>
-        <div className="hidden md:block">
-          <LeftSidebar
-            onNewChat={handleNewChat}
-            isExpanded={isExpanded}
-            setIsExpanded={setIsExpanded}
-            isHydrating={!sidebarMounted}
-          />
-        </div>
-        <div
-          className={cn(
-            "flex-1 bg-[#F0F0ED] dark:bg-[#0F1516] min-h-screen transition-all duration-300",
-            "md:ml-14",
-            isExpanded && "md:ml-64"
-          )}
-        >
-          <div className="max-w-4xl mx-auto px-4 py-8 animate-pulse">
-            <div className="h-48 bg-[#E5E5E5] dark:bg-[#333] rounded-xl mb-8" />
-            <div className="h-12 bg-[#E5E5E5] dark:bg-[#333] rounded w-2/3 mb-8" />
-            <div className="space-y-4">
-              <div className="h-6 bg-[#E5E5E5] dark:bg-[#333] rounded w-full" />
-              <div className="h-6 bg-[#E5E5E5] dark:bg-[#333] rounded w-4/5" />
-              <div className="h-6 bg-[#E5E5E5] dark:bg-[#333] rounded w-3/4" />
-            </div>
+      <div className="flex-1 bg-[#F0F0ED] dark:bg-[#191a1a] min-h-screen">
+        <div className="max-w-4xl mx-auto px-4 py-8 animate-pulse">
+          <div className="h-48 bg-[#E5E5E5] dark:bg-[#2a2a2a] rounded-xl mb-8" />
+          <div className="h-12 bg-[#E5E5E5] dark:bg-[#2a2a2a] rounded w-2/3 mb-8" />
+          <div className="space-y-4">
+            <div className="h-6 bg-[#E5E5E5] dark:bg-[#2a2a2a] rounded w-full" />
+            <div className="h-6 bg-[#E5E5E5] dark:bg-[#2a2a2a] rounded w-4/5" />
+            <div className="h-6 bg-[#E5E5E5] dark:bg-[#2a2a2a] rounded w-3/4" />
           </div>
         </div>
-      </>
+      </div>
     )
   }
 
   if (!page) {
     return (
-      <>
-        <div className="hidden md:block">
-          <LeftSidebar
-            onNewChat={handleNewChat}
-            isExpanded={isExpanded}
-            setIsExpanded={setIsExpanded}
-            isHydrating={!sidebarMounted}
-          />
+      <div className="flex-1 flex items-center justify-center bg-[#F0F0ED] dark:bg-[#191a1a] min-h-screen">
+        <div className="text-center">
+          <FileText className="w-12 h-12 text-[#64748B] mx-auto mb-4" />
+          <h2 className="text-xl font-medium text-[#13343B] dark:text-[#e7e7e2] font-ui mb-2">
+            Page not found
+          </h2>
+          <button onClick={handleBack} className="text-[#20B8CD] hover:underline font-ui">
+            Back to Library
+          </button>
         </div>
-        <div
-          className={cn(
-            "flex-1 flex items-center justify-center bg-[#F0F0ED] dark:bg-[#0F1516] min-h-screen transition-all duration-300",
-            "md:ml-14",
-            isExpanded && "md:ml-64"
-          )}
-        >
-          <div className="text-center">
-            <FileText className="w-12 h-12 text-[#64748B] mx-auto mb-4" />
-            <h2 className="text-xl font-medium text-[#13343B] dark:text-[#F8F8F7] font-ui mb-2">
-              Page not found
-            </h2>
-            <button onClick={handleBack} className="text-[#20B8CD] hover:underline font-ui">
-              Back to Library
-            </button>
-          </div>
-        </div>
-      </>
+      </div>
     )
   }
 
+  // Memoize time display
+  const timeAgo = useMemo(() => formatRelativeTime(page?.updatedAt as number | undefined), [page?.updatedAt])
+
+  // Memoize mode handlers
+  const handleModePreview = useCallback(() => setMode("preview"), [])
+  const handleModeEditing = useCallback(() => setMode("editing"), [])
+  const handleShowDeleteDialog = useCallback(() => setShowDeleteDialog(true), [])
+
   return (
-    <>
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block">
-        <LeftSidebar
-          onNewChat={handleNewChat}
-          isExpanded={isExpanded}
-          setIsExpanded={setIsExpanded}
-          isHydrating={!sidebarMounted}
-        />
-      </div>
-
-      {/* Mobile Sidebar with overlay */}
-      <div className="md:hidden">
-        <LeftSidebar
-          onNewChat={handleNewChat}
-          isExpanded={isExpanded}
-          setIsExpanded={setIsExpanded}
-          isHydrating={!sidebarMounted}
-        />
-        {isExpanded && (
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setIsExpanded(false)} />
-        )}
-      </div>
-
-      <div
-        className={cn(
-          "flex-1 bg-[#F0F0ED] dark:bg-[#0F1516] min-h-screen transition-all duration-300",
-          "md:ml-14",
-          isExpanded && "md:ml-64"
-        )}
-      >
+    <div className="flex-1 bg-[#F0F0ED] dark:bg-[#191a1a] min-h-[100dvh] contain-layout">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-[#F0F0ED] dark:bg-[#0F1516] border-b border-[#E5E5E5] dark:border-[#333]">
+        <div className="sticky top-0 z-10 bg-[#F0F0ED] dark:bg-[#191a1a] border-b border-[#E5E5E5] dark:border-[#2a2a2a]">
           <div className="max-w-6xl mx-auto px-4 py-3">
             <div className="flex items-center justify-between">
               {/* Left: Status */}
@@ -517,7 +436,7 @@ export default function PageEditor() {
                     Writing...
                   </span>
                 ) : (
-                  <span className="px-3 py-1 text-sm text-[#64748B] bg-[#E5E5E5] dark:bg-[#2A2A2A] rounded-full font-ui">
+                  <span className="px-3 py-1 text-sm text-[#64748B] bg-[#E5E5E5] dark:bg-[#2a2a2a] rounded-full font-ui">
                     {isPublic ? "Published" : "Draft Page"}
                   </span>
                 )}
@@ -526,12 +445,12 @@ export default function PageEditor() {
               {/* Right: Actions */}
               <div className="flex items-center gap-2">
                 <DropdownMenu>
-                  <DropdownMenuTrigger className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] rounded-lg hover:bg-[#E5E5E5] dark:hover:bg-[#2A2A2A]">
+                  <DropdownMenuTrigger className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2] rounded-lg hover:bg-[#E5E5E5] dark:hover:bg-[#2a2a2a]">
                     <MoreHorizontal className="w-5 h-5" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className="bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] rounded-xl"
+                    className="bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] rounded-xl"
                   >
                     {isPublic && (
                       <>
@@ -554,7 +473,7 @@ export default function PageEditor() {
                     )}
                     <DropdownMenuItem
                       className="text-red-600"
-                      onClick={() => setShowDeleteDialog(true)}
+                      onClick={handleShowDeleteDialog}
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete page
@@ -564,16 +483,16 @@ export default function PageEditor() {
 
                 {mode === "editing" ? (
                   <button
-                    onClick={() => setMode("preview")}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] font-ui"
+                    onClick={handleModePreview}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2] font-ui touch-manipulation"
                   >
                     <Eye className="w-4 h-4" />
                     Preview
                   </button>
                 ) : (
                   <button
-                    onClick={() => setMode("editing")}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] font-ui"
+                    onClick={handleModeEditing}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2] font-ui touch-manipulation"
                   >
                     <Edit3 className="w-4 h-4" />
                     Continue Editing
@@ -599,7 +518,7 @@ export default function PageEditor() {
             {/* Main Content */}
             <div className="flex-1 max-w-3xl">
               {/* Cover Image */}
-              <div className="relative h-56 bg-gradient-to-br from-[#E5E5E5] to-[#D5D5D5] dark:from-[#2A2A2A] dark:to-[#1A1A1A] rounded-xl mb-6 overflow-hidden group">
+              <div className="relative h-56 bg-gradient-to-br from-[#E5E5E5] to-[#D5D5D5] dark:from-[#2a2a2a] dark:to-[#191a1a] rounded-xl mb-6 overflow-hidden group">
                 {coverImage ? (
                   <img src={coverImage} alt="" className="w-full h-full object-cover" />
                 ) : (
@@ -628,11 +547,11 @@ export default function PageEditor() {
                       autoResize(e.target)
                     }}
                     placeholder="Page Title"
-                    className="w-full text-4xl font-semibold text-[#13343B] dark:text-[#F8F8F7] bg-transparent border-none outline-none resize-none placeholder:text-[#94A3B8] font-ui"
+                    className="w-full text-4xl font-semibold text-[#13343B] dark:text-[#e7e7e2] bg-transparent border-none outline-none resize-none placeholder:text-[#94A3B8] font-ui"
                     rows={1}
                   />
                 ) : (
-                  <h1 className="text-4xl font-semibold text-[#13343B] dark:text-[#F8F8F7] font-ui">
+                  <h1 className="text-4xl font-semibold text-[#13343B] dark:text-[#e7e7e2] font-ui">
                     {title || "Untitled"}
                   </h1>
                 )}
@@ -647,7 +566,7 @@ export default function PageEditor() {
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5" />
-                    <span>{formatRelativeTime(page.updatedAt)}</span>
+                    <span>{timeAgo}</span>
                   </div>
                 </div>
               </div>
@@ -663,11 +582,11 @@ export default function PageEditor() {
                         autoResize(e.target)
                       }}
                       placeholder="Write a brief introduction or summary..."
-                      className="w-full text-lg text-[#13343B] dark:text-[#F8F8F7] leading-relaxed bg-transparent border-none outline-none resize-none placeholder:text-[#94A3B8] font-body"
+                      className="w-full text-lg text-[#13343B] dark:text-[#e7e7e2] leading-relaxed bg-transparent border-none outline-none resize-none placeholder:text-[#94A3B8] font-body"
                       rows={3}
                     />
                   ) : (
-                    <p className="text-lg text-[#13343B] dark:text-[#F8F8F7] leading-relaxed font-body">
+                    <p className="text-lg text-[#13343B] dark:text-[#e7e7e2] leading-relaxed font-body">
                       {summary}
                     </p>
                   )}
@@ -681,7 +600,7 @@ export default function PageEditor() {
                     {/* Insert Section button */}
                     {mode === "editing" && index > 0 && (
                       <div className="flex items-center gap-2 my-4 group/insert">
-                        <div className="flex-1 h-px bg-[#E5E5E5] dark:bg-[#333]" />
+                        <div className="flex-1 h-px bg-[#E5E5E5] dark:bg-[#2a2a2a]" />
                         <button
                           onClick={() => addSection(sections[index - 1]?.id)}
                           className="flex items-center gap-1 px-3 py-1 text-xs text-[#64748B] hover:text-[#20B8CD] opacity-0 group-hover/insert:opacity-100 transition-opacity font-ui"
@@ -689,7 +608,7 @@ export default function PageEditor() {
                           <Plus className="w-3 h-3" />
                           Insert Section
                         </button>
-                        <div className="flex-1 h-px bg-[#E5E5E5] dark:bg-[#333]" />
+                        <div className="flex-1 h-px bg-[#E5E5E5] dark:bg-[#2a2a2a]" />
                       </div>
                     )}
 
@@ -729,7 +648,7 @@ export default function PageEditor() {
                         <>
                           {/* AI Prompt Input */}
                           {section.showPromptInput && (
-                            <div className="mb-4 p-4 bg-[#F5F5F5] dark:bg-[#1A1A1A] rounded-xl border border-[#E5E5E5] dark:border-[#333]">
+                            <div className="mb-4 p-4 bg-[#F5F5F5] dark:bg-[#1f2121] rounded-xl border border-[#E5E5E5] dark:border-[#2a2a2a]">
                               <div className="flex items-center gap-2 mb-3 text-sm text-[#20B8CD]">
                                 <Sparkles className="w-4 h-4" />
                                 <span className="font-ui font-medium">Generate with AI</span>
@@ -746,7 +665,7 @@ export default function PageEditor() {
                                     }
                                   }}
                                   placeholder="Describe what you want to write about..."
-                                  className="flex-1 px-3 py-2 text-sm text-[#13343B] dark:text-[#F8F8F7] bg-white dark:bg-[#0F1516] border border-[#E5E5E5] dark:border-[#333] rounded-lg placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#20B8CD] font-ui"
+                                  className="flex-1 px-3 py-2 text-sm text-[#13343B] dark:text-[#e7e7e2] bg-white dark:bg-[#191a1a] border border-[#E5E5E5] dark:border-[#2a2a2a] rounded-lg placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#20B8CD] font-ui"
                                 />
                                 <button
                                   onClick={() => generateSectionContent(section.id, section.prompt || "")}
@@ -759,7 +678,7 @@ export default function PageEditor() {
                               </div>
                               <button
                                 onClick={() => togglePromptInput(section.id)}
-                                className="mt-2 text-xs text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] font-ui"
+                                className="mt-2 text-xs text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2] font-ui"
                               >
                                 or write manually
                               </button>
@@ -780,7 +699,7 @@ export default function PageEditor() {
                               autoResize(e.target)
                             }}
                             placeholder="Write your content here..."
-                            className="w-full text-base text-[#13343B] dark:text-[#F8F8F7] leading-relaxed bg-transparent border-none outline-none resize-none placeholder:text-[#94A3B8] font-body"
+                            className="w-full text-base text-[#13343B] dark:text-[#e7e7e2] leading-relaxed bg-transparent border-none outline-none resize-none placeholder:text-[#94A3B8] font-body"
                             rows={4}
                           />
 
@@ -795,14 +714,14 @@ export default function PageEditor() {
                                 Generate with AI
                               </button>
                             )}
-                            <button className="flex items-center gap-2 px-4 py-2 text-sm text-[#64748B] bg-[#F5F5F5] dark:bg-[#2A2A2A] rounded-lg hover:text-[#20B8CD] transition-colors font-ui">
+                            <button className="flex items-center gap-2 px-4 py-2 text-sm text-[#64748B] bg-[#F5F5F5] dark:bg-[#2a2a2a] rounded-lg hover:text-[#20B8CD] transition-colors font-ui">
                               <ImageIcon className="w-4 h-4" />
                               Add Media
                             </button>
                           </div>
                         </>
                       ) : (
-                        <p className="text-base text-[#13343B] dark:text-[#F8F8F7] leading-relaxed whitespace-pre-wrap font-body">
+                        <p className="text-base text-[#13343B] dark:text-[#e7e7e2] leading-relaxed whitespace-pre-wrap font-body">
                           {section.content}
                         </p>
                       )}
@@ -826,7 +745,7 @@ export default function PageEditor() {
             {/* Table of Contents - Desktop only */}
             <div className="hidden lg:block w-56 flex-shrink-0">
               <div className="sticky top-24">
-                <h3 className="text-sm font-medium text-[#13343B] dark:text-[#F8F8F7] mb-3 font-ui">
+                <h3 className="text-sm font-medium text-[#13343B] dark:text-[#e7e7e2] mb-3 font-ui">
                   Contents
                 </h3>
                 <nav className="space-y-1">
@@ -845,14 +764,13 @@ export default function PageEditor() {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Stop button while generating */}
       {isGenerating && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
           <button
             onClick={() => setIsGenerating(false)}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-[#13343B] bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] rounded-full shadow-lg hover:shadow-xl transition-shadow font-ui"
+            className="flex items-center gap-2 px-4 py-2 text-sm text-[#13343B] bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] rounded-full shadow-lg hover:shadow-xl transition-shadow font-ui"
           >
             <Square className="w-3.5 h-3.5" />
             Stop
@@ -862,9 +780,9 @@ export default function PageEditor() {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333]">
+        <AlertDialogContent className="bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[#13343B] dark:text-[#F8F8F7]">
+            <AlertDialogTitle className="text-[#13343B] dark:text-[#e7e7e2]">
               Delete this page?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-[#64748B]">
@@ -872,13 +790,20 @@ export default function PageEditor() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-[#E5E5E5] dark:border-[#333]">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="border-[#E5E5E5] dark:border-[#2a2a2a]">Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDelete}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   )
+}
+
+// Memoize and export
+const MemoizedPageEditor = memo(PageEditorContent)
+
+export default function PageEditor() {
+  return <MemoizedPageEditor />
 }

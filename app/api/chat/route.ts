@@ -1,9 +1,13 @@
-import { streamText, convertToCoreMessages, CoreMessage } from 'ai';
+import { streamText, convertToCoreMessages, CoreMessage, smoothStream } from 'ai';
 import { getProviderModel, getProviderId, isImageGenerationModel } from '@/lib/ai-providers';
 import { aiTools } from '@/lib/ai-tools';
 import { selectSystemPrompt } from '@/lib/context-manager';
 
-export const maxDuration = 60; // Allow streaming for up to 60 seconds
+// Allow streaming for up to 60 seconds
+export const maxDuration = 60;
+
+// Use edge runtime for faster cold starts and streaming
+export const runtime = 'edge';
 
 export async function POST(req: Request) {
   try {
@@ -50,8 +54,8 @@ export async function POST(req: Request) {
     // Convert messages to core format
     const coreMessages = convertToCoreMessages(messages);
 
-    // Stream the response
-    const result = await streamText({
+    // Stream the response with smooth streaming for better UX
+    const result = streamText({
       model: aiModel,
       system: systemPrompt,
       messages: coreMessages,
@@ -63,15 +67,23 @@ export async function POST(req: Request) {
       ...(providerId === 'perplexity' && {
         // Perplexity-specific options - they handle search internally
       }),
-      experimental_telemetry: { isEnabled: false },
+      // Smooth streaming for better perceived performance
+      experimental_transform: smoothStream({
+        delayInMs: 10, // Small delay for smoother text appearance
+      }),
       onFinish: ({ text, usage, finishReason }) => {
         // Optional: Log completion for debugging
         console.log(`[Chat] Model: ${modelId}, Finish: ${finishReason}, Tokens: ${usage?.totalTokens || 'N/A'}`);
       },
     });
 
-    // Return the data stream response
-    return result.toDataStreamResponse();
+    // Return the data stream response with proper headers for streaming
+    return result.toDataStreamResponse({
+      headers: {
+        'X-Accel-Buffering': 'no', // Disable nginx buffering
+        'Cache-Control': 'no-cache, no-transform',
+      },
+    });
   } catch (error) {
     console.error('[Chat API Error]', error);
 

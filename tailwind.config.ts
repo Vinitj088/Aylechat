@@ -135,7 +135,10 @@ const config: Config = {
   			}
   		},
   		animation: {
-  			'fade-up': 'fade-up 0.5s ease-out forwards'
+  			'fade-up': 'fade-up 0.5s ease-out forwards',
+  			'wave': 'wave 1.2s ease-in-out infinite',
+  			'shimmer': 'shimmer 2s linear infinite',
+  			'loading-dots': 'loading-dots 1.4s infinite',
   		},
   		keyframes: {
   			'fade-up': {
@@ -146,6 +149,30 @@ const config: Config = {
   				'100%': {
   					opacity: '1',
   					transform: 'translateY(0)'
+  				}
+  			},
+  			'wave': {
+  				'0%, 100%': {
+  					transform: 'scaleY(1)'
+  				},
+  				'50%': {
+  					transform: 'scaleY(0.5)'
+  				}
+  			},
+  			'shimmer': {
+  				'0%': {
+  					backgroundPosition: '200% 50%'
+  				},
+  				'100%': {
+  					backgroundPosition: '-200% 50%'
+  				}
+  			},
+  			'loading-dots': {
+  				'0%, 100%': {
+  					opacity: '0'
+  				},
+  				'50%': {
+  					opacity: '1'
   				}
   			}
   		},
@@ -279,7 +306,17 @@ const config: Config = {
   },
   plugins: [
     require("tailwindcss-animate"),
-    require('@tailwindcss/typography'),
+    require('@tailwindcss/typography')({
+      className: 'prose',
+    }),
+    function({ addBase }: { addBase: Function }) {
+      addBase({
+        '.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6': {
+          fontFamily: "'FK Grotesk Neue', system-ui, sans-serif",
+          fontWeight: '500',
+        },
+      })
+    },
   ],
 };
 export default config;

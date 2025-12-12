@@ -1,34 +1,23 @@
 'use client';
 
-import { useState, useRef, useEffect, Suspense, useCallback } from 'react';
+import { useState, useRef, useEffect, Suspense, useCallback, useMemo, memo } from 'react';
 import { Message, Model, ModelType } from './types';
 import Header from './component/Header';
 import dynamic from 'next/dynamic';
 import { ChatInputHandle } from './component/ChatInput';
-import MobileSearchUI from './component/MobileSearchUI';
-import DesktopSearchUI from './component/DesktopSearchUI';
-import LeftSidebar from './component/LeftSidebar';
 import { useAyleChat } from './hooks/useAyleChat';
+import { useSidebarContext } from '@/context/SidebarContext';
 import modelsData from '../models.json';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { QueryEnhancerProvider } from '@/context/QueryEnhancerContext';
-import { cn } from '@/lib/utils';
 
-// Lazy load heavy components
-const ChatMessages = dynamic(() => import('./component/ChatMessages'), {
-  loading: () => (
-    <div className="flex items-center justify-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-  ),
-  ssr: false
-});
-
-const DynamicChatInput = dynamic(() => import('./component/ChatInput'), {
-  ssr: false
-});
+// Lazy load heavy components with no loading spinners for faster perceived performance
+const ChatMessages = dynamic(() => import('./component/ChatMessages'), { ssr: false });
+const DynamicChatInput = dynamic(() => import('./component/ChatInput'), { ssr: false });
+const MobileSearchUI = dynamic(() => import('./component/MobileSearchUI'), { ssr: false });
+const DesktopSearchUI = dynamic(() => import('./component/DesktopSearchUI'), { ssr: false });
 
 // Helper function to get provider description
 const getProviderDescription = (providerName: string | undefined): string => {
@@ -52,11 +41,10 @@ function PageContent() {
   const { user, isLoading: authLoading, openAuthDialog } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isExpanded, setIsExpanded, sidebarMounted } = useSidebarContext();
 
   // UI State
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [sidebarMounted, setSidebarMounted] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<ModelType>('gemini-2.0-flash');
+  const [selectedModel, setSelectedModel] = useState<ModelType>('openai/gpt-oss-20b');
   const [models, setModels] = useState<Model[]>([]);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [quotedText, setQuotedText] = useState('');
@@ -81,14 +69,16 @@ function PageContent() {
     selectedModel,
     initialMessages: [],
     onThreadCreated: (threadId) => {
-      window.history.pushState({}, '', `/chat/${threadId}`);
+      // Use router.replace to navigate to the chat page without adding to history
+      // This ensures the page component actually changes
+      router.replace(`/chat/${threadId}`);
     },
   });
 
-  // Initialize models
-  useEffect(() => {
+  // Memoize models to prevent recalculation
+  const allModels = useMemo(() => {
     const providerOrder = ['perplexity', 'google', 'cerebras', 'inception', 'groq', 'openrouter', 'together'];
-    const allModels: Model[] = [
+    return [
       {
         id: 'exa',
         name: 'Exa Search',
@@ -101,15 +91,17 @@ function PageContent() {
       ...providerOrder.flatMap(providerId =>
         modelsData.models.filter(model => model.providerId === providerId && model.enabled)
       )
-    ];
-    setModels(allModels);
+    ] as Model[];
+  }, []);
 
-    // Check URL for model param
+  // Initialize models
+  useEffect(() => {
+    setModels(allModels);
     const modelParam = searchParams?.get('model');
     if (modelParam) {
       setSelectedModel(modelParam as ModelType);
     }
-  }, [searchParams]);
+  }, [searchParams, allModels]);
 
   // Handle URL search queries (browser search engine integration)
   useEffect(() => {
@@ -130,20 +122,6 @@ function PageContent() {
       }
     }
   }, [searchParams, chat.messages.length, chat.isLoading, isGuest]);
-
-  // Load sidebar state
-  useEffect(() => {
-    const saved = localStorage.getItem('sidebarExpanded');
-    if (saved) setIsExpanded(JSON.parse(saved));
-    setSidebarMounted(true);
-  }, []);
-
-  // Persist sidebar state
-  useEffect(() => {
-    if (sidebarMounted) {
-      localStorage.setItem('sidebarExpanded', JSON.stringify(isExpanded));
-    }
-  }, [isExpanded, sidebarMounted]);
 
   // Set document title
   useEffect(() => {
@@ -246,10 +224,10 @@ function PageContent() {
   }, [chat, attachments, quotedText, isGuest, isAuthenticated, guestMessageCount, openAuthDialog]);
 
   const handleNewChat = useCallback(() => {
-    window.scrollTo(0, 0);
-    window.history.pushState({}, '', '/');
-    window.location.reload(); // Clean state
-  }, []);
+    // Reset chat state and navigate to home
+    chat.reset();
+    router.push('/');
+  }, [chat, router]);
 
   const handleActiveFilesHeightChange = useCallback((height: number) => {
     setChatInputHeightOffset(height > 0 ? height + 8 : 0);
@@ -275,17 +253,23 @@ function PageContent() {
     ? 'Exa search uses embeddings to understand meaning.'
     : getProviderDescription(providerName);
 
-  // Guest model filtering
-  const guestModels = models.filter(
-    model => model.id === 'gemini-2.0-flash' || model.id === 'gemini-2.5-flash' || model.providerId === 'cerebras'
+  // Memoize guest models and sorted messages
+  const guestModels = useMemo(() =>
+    models.filter(model => model.id === 'openai/gpt-oss-20b' || model.id === 'gemini-2.5-flash' || model.providerId === 'cerebras'),
+    [models]
   );
 
-  // Sort messages
-  const sortedMessages = [...chat.messages].sort((a, b) => {
-    const aDate = typeof a.createdAt === 'string' ? a.createdAt : a.createdAt?.toISOString?.() || '';
-    const bDate = typeof b.createdAt === 'string' ? b.createdAt : b.createdAt?.toISOString?.() || '';
-    return new Date(aDate).getTime() - new Date(bDate).getTime();
-  });
+  const sortedMessages = useMemo(() =>
+    [...chat.messages].sort((a, b) => {
+      const aDate = typeof a.createdAt === 'string' ? a.createdAt : a.createdAt?.toISOString?.() || '';
+      const bDate = typeof b.createdAt === 'string' ? b.createdAt : b.createdAt?.toISOString?.() || '';
+      return new Date(aDate).getTime() - new Date(bDate).getTime();
+    }),
+    [chat.messages]
+  );
+
+  // Memoize which models to show
+  const displayModels = isGuest ? guestModels : models;
 
   return (
     <>
@@ -295,119 +279,91 @@ function PageContent() {
       </div>
 
       {/* Desktop & Tablet Layout */}
-      <div className="hidden md:block min-h-screen">
-        <LeftSidebar
-          onNewChat={handleNewChat}
-          isExpanded={isExpanded}
-          setIsExpanded={setIsExpanded}
-          isHydrating={!sidebarMounted}
-        />
+      <div className="hidden md:flex md:flex-col h-screen">
+        {!hasMessages ? (
+          <DesktopSearchUI
+            input={chat.input}
+            handleInputChange={handleInputChange}
+            handleSubmit={handleSubmit}
+            isLoading={chat.isLoading}
+            selectedModel={selectedModel}
+            handleModelChange={handleModelChange}
+            models={displayModels}
+            setInput={chat.setInput}
+            description={description}
+            messages={chat.messages}
+            onAttachmentsChange={setAttachments}
+            isGuest={isGuest}
+            guestMessageCount={guestMessageCount}
+            guestMessageLimit={GUEST_MESSAGE_LIMIT}
+            openAuthDialog={openAuthDialog}
+          />
+        ) : (
+          <div className="relative flex-1 flex flex-col overflow-hidden bg-[#F0F0ED] dark:bg-[#191a1a] contain-layout">
+            {/* Top fade gradient */}
+            <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[#F0F0ED] dark:from-[#191a1a] to-transparent z-10 pointer-events-none" />
 
-        <div className={cn(
-          "h-screen flex flex-col transition-all duration-300",
-          isExpanded ? "ml-64" : "ml-14"
-        )}>
-          <div className="flex-1 flex flex-col">
-            {!hasMessages ? (
-              <DesktopSearchUI
-                input={chat.input}
-                handleInputChange={handleInputChange}
-                handleSubmit={handleSubmit}
-                isLoading={chat.isLoading}
-                selectedModel={selectedModel}
-                handleModelChange={handleModelChange}
-                models={isGuest ? guestModels : models}
-                setInput={chat.setInput}
-                description={description}
-                messages={chat.messages}
-                onAttachmentsChange={setAttachments}
-                isGuest={isGuest}
-                guestMessageCount={guestMessageCount}
-                guestMessageLimit={GUEST_MESSAGE_LIMIT}
-                openAuthDialog={openAuthDialog}
-              />
+            {/* Messages area */}
+            <div className="flex-1 overflow-y-auto no-scrollbar overscroll-contain">
+              <div className="pt-8">
+                <ChatMessages
+                  messages={sortedMessages}
+                  isLoading={chat.isLoading}
+                  selectedModel={selectedModel}
+                  selectedModelObj={selectedModelObj}
+                  isExa={isExa}
+                  currentThreadId={chat.threadId}
+                  bottomPadding={chatInputHeightOffset + 24}
+                  onQuote={setQuotedText}
+                  onRetry={handleRetryMessage}
+                />
+              </div>
+            </div>
+
+            {/* Bottom fade gradient */}
+            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#F0F0ED] dark:from-[#191a1a] via-[#F0F0ED]/80 dark:via-[#191a1a]/80 to-transparent z-10 pointer-events-none" />
+
+            {(!isGuest || guestMessageCount < GUEST_MESSAGE_LIMIT) ? (
+              <div className="absolute bottom-0 left-0 right-0 z-20">
+                <DynamicChatInput
+                  ref={chatInputRef}
+                  input={chat.input}
+                  handleInputChange={handleInputChange}
+                  handleSubmit={handleSubmit}
+                  isLoading={chat.isLoading}
+                  selectedModel={selectedModel}
+                  handleModelChange={handleModelChange}
+                  models={displayModels}
+                  isExa={isExa}
+                  onNewChat={handleNewChat}
+                  onAttachmentsChange={setAttachments}
+                  activeChatFiles={activeChatFiles}
+                  removeActiveFile={removeActiveFile}
+                  onActiveFilesHeightChange={handleActiveFilesHeightChange}
+                  quotedText={quotedText}
+                  setQuotedText={setQuotedText}
+                  onStop={chat.stop}
+                />
+              </div>
             ) : (
-              <div className="relative flex-1 flex flex-col overflow-hidden bg-[#F0F0ED] dark:bg-[#0F1516]">
-                {/* Top fade gradient */}
-                <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-[#F0F0ED] dark:from-[#0F1516] to-transparent z-10 pointer-events-none" />
-
-                {/* Messages area */}
-                <div className="flex-1 overflow-y-auto no-scrollbar">
-                  <div className="pt-8">
-                    <ChatMessages
-                      messages={sortedMessages}
-                      isLoading={chat.isLoading}
-                      selectedModel={selectedModel}
-                      selectedModelObj={selectedModelObj}
-                      isExa={isExa}
-                      currentThreadId={chat.threadId}
-                      bottomPadding={chatInputHeightOffset + 24}
-                      onQuote={setQuotedText}
-                      onRetry={handleRetryMessage}
-                    />
-                  </div>
-                </div>
-
-                {/* Bottom fade gradient */}
-                <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#F0F0ED] dark:from-[#0F1516] via-[#F0F0ED]/80 dark:via-[#0F1516]/80 to-transparent z-10 pointer-events-none" />
-
-                {(!isGuest || guestMessageCount < GUEST_MESSAGE_LIMIT) ? (
-                  <div className="absolute bottom-0 left-0 right-0 z-20">
-                    <DynamicChatInput
-                      ref={chatInputRef}
-                      input={chat.input}
-                      handleInputChange={handleInputChange}
-                      handleSubmit={handleSubmit}
-                      isLoading={chat.isLoading}
-                      selectedModel={selectedModel}
-                      handleModelChange={handleModelChange}
-                      models={isGuest ? guestModels : models}
-                      isExa={isExa}
-                      onNewChat={handleNewChat}
-                      onAttachmentsChange={setAttachments}
-                      activeChatFiles={activeChatFiles}
-                      removeActiveFile={removeActiveFile}
-                      onActiveFilesHeightChange={handleActiveFilesHeightChange}
-                      quotedText={quotedText}
-                      setQuotedText={setQuotedText}
-                      onStop={chat.stop}
-                    />
-                  </div>
-                ) : (
-                  <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center justify-center py-8 px-4 text-center bg-[#F0F0ED] dark:bg-[#0F1516]">
-                    <p className="text-lg font-semibold mb-2 text-[#64748B]">
-                      Sign in to unlock unlimited messages and advanced features
-                    </p>
-                    <button
-                      className="px-4 py-2 text-sm font-medium text-white bg-[#13343B] hover:bg-[#0d2529] rounded-lg transition-colors"
-                      onClick={openAuthDialog}
-                    >
-                      Sign In
-                    </button>
-                  </div>
-                )}
+              <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center justify-center py-8 px-4 text-center bg-[#F0F0ED] dark:bg-[#191a1a]">
+                <p className="text-base font-medium mb-2 text-[#64748B]">
+                  Sign in to unlock unlimited messages
+                </p>
+                <button
+                  className="px-4 py-2 text-sm font-medium text-white bg-[#13343B] active:bg-[#0d2529] rounded-lg touch-manipulation"
+                  onClick={openAuthDialog}
+                >
+                  Sign In
+                </button>
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Mobile Content */}
-      <div className="md:hidden h-screen flex flex-col relative">
-        <LeftSidebar
-          onNewChat={handleNewChat}
-          isExpanded={isExpanded}
-          setIsExpanded={setIsExpanded}
-          isHydrating={!sidebarMounted}
-        />
-
-        {isExpanded && (
-          <div
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={() => setIsExpanded(false)}
-          />
-        )}
-
+      <div className="md:hidden flex flex-col h-[100dvh] relative">
         {!hasMessages ? (
           <MobileSearchUI
             input={chat.input}
@@ -416,7 +372,7 @@ function PageContent() {
             isLoading={chat.isLoading}
             selectedModel={selectedModel}
             handleModelChange={handleModelChange}
-            models={isGuest ? guestModels : models}
+            models={displayModels}
             setInput={chat.setInput}
             messages={chat.messages}
             description={description}
@@ -427,12 +383,12 @@ function PageContent() {
             openAuthDialog={openAuthDialog}
           />
         ) : (
-          <div className="relative flex-1 flex flex-col overflow-hidden bg-[#F0F0ED] dark:bg-[#0F1516]">
+          <div className="relative flex-1 flex flex-col overflow-hidden bg-[#F0F0ED] dark:bg-[#191a1a] contain-layout">
             {/* Top fade gradient */}
-            <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[#F0F0ED] dark:from-[#0F1516] to-transparent z-10 pointer-events-none" />
+            <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[#F0F0ED] dark:from-[#191a1a] to-transparent z-10 pointer-events-none" />
 
-            {/* Messages area */}
-            <div className="flex-1 overflow-y-auto no-scrollbar">
+            {/* Messages area - optimized for mobile scrolling */}
+            <div className="flex-1 overflow-y-auto no-scrollbar overscroll-contain -webkit-overflow-scrolling-touch">
               <div className="pt-6 pb-24">
                 <ChatMessages
                   messages={sortedMessages}
@@ -446,9 +402,9 @@ function PageContent() {
             </div>
 
             {/* Bottom fade gradient */}
-            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#F0F0ED] dark:from-[#0F1516] via-[#F0F0ED]/80 dark:via-[#0F1516]/80 to-transparent z-10 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#F0F0ED] dark:from-[#191a1a] via-[#F0F0ED]/80 dark:via-[#191a1a]/80 to-transparent z-10 pointer-events-none" />
 
-            <div className="absolute bottom-0 left-0 right-0 z-20">
+            <div className="absolute bottom-0 left-0 right-0 z-20 safe-area-bottom">
               <DynamicChatInput
                 ref={chatInputRef}
                 input={chat.input}
@@ -457,7 +413,7 @@ function PageContent() {
                 isLoading={chat.isLoading}
                 selectedModel={selectedModel}
                 handleModelChange={handleModelChange}
-                models={isGuest ? guestModels : models}
+                models={displayModels}
                 isExa={isExa}
                 onNewChat={handleNewChat}
                 onAttachmentsChange={setAttachments}
@@ -471,12 +427,12 @@ function PageContent() {
             </div>
 
             {isGuest && guestMessageCount >= GUEST_MESSAGE_LIMIT && (
-              <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center justify-center py-8 px-4 text-center bg-[#F0F0ED] dark:bg-[#0F1516]">
-                <p className="text-lg font-semibold mb-2 text-[#64748B]">
-                  Sign in to unlock unlimited messages and advanced features
+              <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center justify-center py-6 px-4 text-center bg-[#F0F0ED] dark:bg-[#191a1a] safe-area-bottom">
+                <p className="text-base font-medium mb-2 text-[#64748B]">
+                  Sign in to unlock unlimited messages
                 </p>
                 <button
-                  className="px-4 py-2 text-sm font-medium text-white bg-[#13343B] hover:bg-[#0d2529] rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-white bg-[#13343B] active:bg-[#0d2529] rounded-lg touch-manipulation"
                   onClick={openAuthDialog}
                 >
                   Sign In

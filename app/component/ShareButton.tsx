@@ -65,7 +65,7 @@ export default function ShareButton({ threadId }: ShareButtonProps) {
             </button>
           </TooltipTrigger>
           {!threadId && (
-            <TooltipContent side="bottom" className="text-xs bg-[#1A1A1A] text-[#F8F8F7] border-[#333]">
+            <TooltipContent side="bottom" className="text-xs bg-[#1f2121] text-[#e7e7e2] border-[#2a2a2a]">
               <p>Send a message to enable sharing</p>
             </TooltipContent>
           )}

@@ -1,104 +1,20 @@
 {
   "models": [
     {
-      "id": "mistralai/mistral-small-3.2-24b-instruct:free",
-      "name": "Mistral Small 3.2 24B",
-      "provider": "OpenRouter",
-      "providerId": "openrouter",
-      "avatarType": "mistral",
-      "enabled": true,
-      "toolCallType": "openrouter"
-    },
-    {
-      "id": "deepseek/deepseek-r1:free",
-      "name": "DeepSeek R1",
-      "provider": "OpenRouter",
-      "providerId": "openrouter",
-      "avatarType": "deepseek",
-      "enabled": true,
-      "toolCallType": "openrouter"
-    },
-    {
-      "id": "deepseek/deepseek-chat-v3-0324:free",
-      "name": "DeepSeek Chat v3",
-      "provider": "OpenRouter",
-      "providerId": "openrouter",
-      "avatarType": "deepseek",
-      "enabled": true,
-      "toolCallType": "openrouter"
-    },
-    {
-      "id": "google/gemma-3-27b-it:free",
-      "name": "Gemma 3 27B (Openrouter)",
-      "provider": "OpenRouter",
-      "providerId": "openrouter",
-      "avatarType": "gemma",
-      "enabled": true,
-      "toolCallType": "openrouter"
-    },
-    {
-      "id": "meta-llama/llama-4-maverick:free",
-      "name": "LLaMA 4 Maverick",
-      "provider": "OpenRouter",
-      "providerId": "openrouter",
-      "avatarType": "meta",
-      "enabled": true,
-      "toolCallType": "openrouter"
-    },
-    {
-      "id": "gemini-2.0-flash",
-      "name": "Gemini 2.0 Flash",
-      "provider": "Google Generative AI",
-      "providerId": "google",
-      "avatarType": "google",
-      "enabled": true,
-      "toolCallType": "native",
-      "searchMode": true
-    },
-    {
-      "id": "gemini-2.0-flash-exp-image-generation",
-      "name": "Gemini 2.0 Flash Image Gen",
-      "provider": "Google Generative AI",
-      "providerId": "google",
-      "avatarType": "google",
-      "enabled": false,
-      "toolCallType": "native",
-      "imageGenerationMode": true,
-      "experimental": true
-    },
-    {
-      "id": "gemini-2.0-flash-thinking-exp-01-21",
-      "name": "Gemini 2.0 Flash Thinking (Exp)",
-      "provider": "Google Generative AI",
-      "providerId": "google",
-      "avatarType": "google",
-      "enabled": false,
-      "toolCallType": "native"
-    },
-    {
-      "id": "moonshotai/kimi-k2-instruct",
-      "name": "Kimi K2",
+      "id": "openai/gpt-oss-20b",
+      "name": "GPT-OSS 20B (Groq)",
       "provider": "Groq",
       "providerId": "groq",
-      "avatarType": "moonshotai",
+      "avatarType": "groq",
       "enabled": true,
       "toolCallType": "manual"
     },
     {
-      "id": "deepseek-r1-distill-llama-70b",
-      "name": "DeepSeek R1 Distill LLaMA 70B",
+      "id": "openai/gpt-oss-120b",
+      "name": "GPT-OSS 120B (Groq)",
       "provider": "Groq",
       "providerId": "groq",
-      "avatarType": "deepseek",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
-    {
-      "id": "gemma2-9b-it",
-      "name": "Gemma 2 9B IT",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "google",
+      "avatarType": "groq",
       "enabled": true,
       "toolCallType": "manual"
     },
@@ -111,7 +27,6 @@
       "enabled": true,
       "toolCallType": "manual"
     },
-    
     {
       "id": "llama-3.3-70b-versatile",
       "name": "LLaMA 3.3 70B Versatile",
@@ -120,34 +35,6 @@
       "avatarType": "meta",
       "enabled": true,
       "toolCallType": "manual"
-    },
-    {
-      "id": "qwen-qwq-32b",
-      "name": "QWEN QWQ 32B",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "qwen",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
-    {
-      "id": "meta-llama/llama-4-scout-17b-16e-instruct",
-      "name": "LLaMA 4 Scout 17B",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "meta",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
-    {
-      "id": "gemini-2.5-flash-lite-preview-06-17",
-      "name": "Gemini 2.5 Flash Lite",
-      "provider": "Google Generative AI",
-      "providerId": "google",
-      "avatarType": "google",
-      "enabled": true,
-      "toolCallType": "native",
-      "searchMode": true
     },
     {
       "id": "gemini-2.5-flash",
@@ -160,11 +47,11 @@
       "searchMode": true
     },
     {
-      "id": "llama3.1-8b",
-      "name": "LLaMA 3.1 8B (Cerebras)",
+      "id": "gpt-oss-120b",
+      "name": "GPT-OSS 120B (Cerebras)",
       "provider": "Cerebras",
       "providerId": "cerebras",
-      "avatarType": "meta",
+      "avatarType": "openrouter",
       "enabled": true,
       "toolCallType": "manual"
     },
@@ -178,8 +65,8 @@
       "toolCallType": "manual"
     },
     {
-      "id": "llama-4-scout-17b-16e-instruct",
-      "name": "LLaMA 4 Scout 17B",
+      "id": "llama3.1-8b",
+      "name": "LLaMA 3.1 8B (Cerebras)",
       "provider": "Cerebras",
       "providerId": "cerebras",
       "avatarType": "meta",
@@ -187,15 +74,95 @@
       "toolCallType": "manual"
     },
     {
-      "id": "qwen-3-32b",
-      "name": "QWEN 3 32B",
+      "id": "qwen-3-235b-a22b-instruct-2507",
+      "name": "QWEN 3 235B (Cerebras)",
       "provider": "Cerebras",
       "providerId": "cerebras",
-      "avatarType": "meta",
+      "avatarType": "qwen",
       "enabled": true,
       "toolCallType": "manual"
     },
-    
+    {
+      "id": "qwen-3-32b",
+      "name": "QWEN 3 32B (Cerebras)",
+      "provider": "Cerebras",
+      "providerId": "cerebras",
+      "avatarType": "qwen",
+      "enabled": true,
+      "toolCallType": "manual"
+    },
+    {
+      "id": "zai-glm-4.6",
+      "name": "ZAI GLM 4.6 (Cerebras)",
+      "provider": "Cerebras",
+      "providerId": "cerebras",
+      "avatarType": "deepseek",
+      "enabled": true,
+      "toolCallType": "manual"
+    },
+    {
+      "id": "tngtech/deepseek-r1t2-chimera:free",
+      "name": "DeepSeek R1T2 Chimera",
+      "provider": "OpenRouter",
+      "providerId": "openrouter",
+      "avatarType": "deepseek",
+      "enabled": true,
+      "toolCallType": "openrouter"
+    },
+    {
+      "id": "kwaipilot/kat-coder-pro:free",
+      "name": "Kat Coder Pro",
+      "provider": "OpenRouter",
+      "providerId": "openrouter",
+      "avatarType": "openrouter",
+      "enabled": true,
+      "toolCallType": "openrouter"
+    },
+    {
+      "id": "mistralai/devstral-2512:free",
+      "name": "Devstral",
+      "provider": "OpenRouter",
+      "providerId": "openrouter",
+      "avatarType": "mistral",
+      "enabled": true,
+      "toolCallType": "openrouter"
+    },
+    {
+      "id": "nvidia/nemotron-nano-12b-v2-vl:free",
+      "name": "Nemotron Nano 12B VL",
+      "provider": "OpenRouter",
+      "providerId": "openrouter",
+      "avatarType": "openrouter",
+      "enabled": true,
+      "toolCallType": "openrouter"
+    },
+    {
+      "id": "tngtech/deepseek-r1t-chimera:free",
+      "name": "DeepSeek R1T Chimera",
+      "provider": "OpenRouter",
+      "providerId": "openrouter",
+      "avatarType": "deepseek",
+      "enabled": true,
+      "toolCallType": "openrouter"
+    },
+    {
+      "id": "z-ai/glm-4.5-air:free",
+      "name": "GLM 4.5 Air",
+      "provider": "OpenRouter",
+      "providerId": "openrouter",
+      "avatarType": "openrouter",
+      "enabled": true,
+      "toolCallType": "openrouter"
+    },
+    {
+      "id": "amazon/nova-2-lite-v1:free",
+      "name": "Nova 2 Lite",
+      "provider": "OpenRouter",
+      "providerId": "openrouter",
+      "avatarType": "openrouter",
+      "enabled": true,
+      "toolCallType": "openrouter"
+    },
     {
       "id": "grok-3-mini-beta",
       "name": "Grok 3 Mini",
@@ -204,45 +171,6 @@
       "avatarType": "xai",
       "enabled": true,
       "toolCallType": "manual"
-    },
-    {
-      "id": "black-forest-labs/FLUX.1-schnell-Free",
-      "name": "FLUX.1 Schnell",
-      "provider": "Together AI",
-      "providerId": "together",
-      "avatarType": "together",
-      "enabled": true,
-      "toolCallType": "native",
-      "imageGenerationMode": true
-    },
-    {
-      "id": "meta-llama/llama-4-maverick-17b-128e-instruct",
-      "name": "LLaMA 4 Maverick 17B 128E Instruct",
-      "provider": "Groq",
-      "providerId": "groq",
-      "avatarType": "meta",
-      "enabled": true,
-      "toolCallType": "manual"
-    },
-    {
-      "id": "sonar",
-      "name": "Sonar",
-      "provider": "Perplexity",
-      "providerId": "perplexity",
-      "avatarType": "perplexity",
-      "enabled": true,
-      "toolCallType": "native",
-      "searchMode": true
-    },
-    {
-      "id": "sonar-pro",
-      "name": "Sonar Pro",
-      "provider": "Perplexity",
-      "providerId": "perplexity",
-      "avatarType": "perplexity",
-      "enabled": true,
-      "toolCallType": "native",
-      "searchMode": true
     },
     {
       "id": "mercury",
@@ -261,6 +189,38 @@
       "avatarType": "inception",
       "enabled": true,
       "toolCallType": "native"
+    },
+    {
+      "id": "black-forest-labs/FLUX.1-schnell-Free",
+      "name": "FLUX.1 Schnell",
+      "provider": "Together AI",
+      "providerId": "together",
+      "avatarType": "together",
+      "enabled": true,
+      "toolCallType": "native",
+      "imageGenerationMode": true
+    },
+    {
+      "id": "sonar",
+      "name": "Sonar",
+      "provider": "Perplexity",
+      "providerId": "perplexity",
+      "avatarType": "perplexity",
+      "enabled": true,
+      "toolCallType": "native",
+      "searchMode": true,
+      "noMidThreadSwitch": true
+    },
+    {
+      "id": "sonar-pro",
+      "name": "Sonar Pro",
+      "provider": "Perplexity",
+      "providerId": "perplexity",
+      "avatarType": "perplexity",
+      "enabled": true,
+      "toolCallType": "native",
+      "searchMode": true,
+      "noMidThreadSwitch": true
     }
   ]
 }

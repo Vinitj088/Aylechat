@@ -255,7 +255,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
           {activeChatFiles.map((file) => (
             <div
               key={file.uri}
-              className="flex items-center gap-1.5 bg-[#F5F5F5] dark:bg-[#2A2A2A] text-[#13343B] dark:text-[#F8F8F7] text-xs px-2.5 py-1.5 rounded-full"
+              className="flex items-center gap-1.5 bg-[#F5F5F5] dark:bg-[#2a2a2a] text-[#13343B] dark:text-[#e7e7e2] text-xs px-2.5 py-1.5 rounded-full"
             >
               <Paperclip className="h-3 w-3" />
               <span className="truncate max-w-[120px]">{file.name}</span>
@@ -273,7 +273,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
 
       {/* Quote Block */}
       {quotedText && quotedText.trim().length > 0 && (
-        <div className="mb-2 flex items-start bg-[#F5F5F5] dark:bg-[#2A2A2A] border-l-4 border-[#20B8CD] rounded-r-lg p-3 relative">
+        <div className="mb-2 flex items-start bg-[#F5F5F5] dark:bg-[#2a2a2a] border-l-4 border-[#20B8CD] rounded-r-lg p-3 relative">
           <span className="text-[#64748B] text-sm flex-1 line-clamp-3">
             {quotedText}
           </span>
@@ -281,7 +281,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
             <button
               type="button"
               onClick={() => setQuotedText('')}
-              className="ml-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7]"
+              className="ml-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2]"
             >
               <X className="h-4 w-4" />
             </button>
@@ -290,14 +290,14 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
       )}
 
       {/* Main Input Container */}
-      <div className="relative bg-white dark:bg-[#1A1A1A] rounded-2xl border border-[#E5E5E5] dark:border-[#333] shadow-sm">
+      <div className="relative bg-white dark:bg-[#1f2121] rounded-2xl border border-[#E5E5E5] dark:border-[#2a2a2a] shadow-sm">
         {/* Attachments Preview */}
         {attachments.length > 0 && (
           <div className="px-4 pt-3 flex flex-wrap gap-2">
             {attachments.map((attachment, index) => (
               <div key={index} className="relative">
                 {attachment.previewUrl ? (
-                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-[#E5E5E5] dark:border-[#333]">
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-[#E5E5E5] dark:border-[#2a2a2a]">
                     <img
                       src={attachment.previewUrl}
                       alt=""
@@ -312,15 +312,15 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                     </button>
                   </div>
                 ) : (
-                  <div className="relative flex items-center gap-2 bg-[#F5F5F5] dark:bg-[#2A2A2A] rounded-lg px-3 py-2">
+                  <div className="relative flex items-center gap-2 bg-[#F5F5F5] dark:bg-[#2a2a2a] rounded-lg px-3 py-2">
                     <Paperclip className="h-4 w-4 text-[#64748B]" />
-                    <span className="text-xs text-[#13343B] dark:text-[#F8F8F7] max-w-[100px] truncate">
+                    <span className="text-xs text-[#13343B] dark:text-[#e7e7e2] max-w-[100px] truncate">
                       {attachment.file.name}
                     </span>
                     <button
                       type="button"
                       onClick={() => removeAttachment(index)}
-                      className="text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7]"
+                      className="text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2]"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -344,7 +344,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
             disabled={isLoading}
             className={cn(
               "w-full resize-none bg-transparent border-none outline-none",
-              "text-[#13343B] dark:text-[#F8F8F7] placeholder:text-[#94A3B8]",
+              "text-[#13343B] dark:text-[#e7e7e2] placeholder:text-[#94A3B8]",
               "text-base leading-relaxed min-h-[24px] max-h-[200px]",
               "focus:ring-0 focus:outline-none focus:border-none"
             )}
@@ -363,8 +363,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                   type="button"
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors",
-                    "text-[#13343B] dark:text-[#F8F8F7] border-[#E5E5E5] dark:border-[#333]",
-                    "hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A]"
+                    "text-[#13343B] dark:text-[#e7e7e2] border-[#E5E5E5] dark:border-[#2a2a2a]",
+                    "hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a]"
                   )}
                 >
                   {selectedModelObj && getProviderIcon(selectedModelObj.avatarType || selectedModelObj.providerId, 14)}
@@ -374,7 +374,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                 </button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-64 p-0 bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] shadow-lg rounded-xl"
+                className="w-64 p-0 bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] shadow-lg rounded-xl"
                 align="start"
                 sideOffset={8}
               >
@@ -395,14 +395,14 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                           className={cn(
                             "w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors",
                             selectedModel === model.id
-                              ? "bg-[#F0F0ED] dark:bg-[#2A2A2A]"
-                              : "hover:bg-[#F8F8F7] dark:hover:bg-[#2A2A2A]"
+                              ? "bg-[#F0F0ED] dark:bg-[#2a2a2a]"
+                              : "hover:bg-[#F8F8F7] dark:hover:bg-[#2a2a2a]"
                           )}
                         >
                           <div className="flex-shrink-0">
                             {getProviderIcon(model.avatarType || model.providerId, 18)}
                           </div>
-                          <span className="flex-1 text-sm text-[#13343B] dark:text-[#F8F8F7] truncate">
+                          <span className="flex-1 text-sm text-[#13343B] dark:text-[#e7e7e2] truncate">
                             {model.name}
                           </span>
                           {selectedModel === model.id && (
@@ -425,7 +425,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                 type="button"
                 onClick={handleFileButtonClick}
                 disabled={isLoading}
-                className="p-2 rounded-full text-[#64748B] hover:text-[#13343B] hover:bg-[#F5F5F5] dark:hover:text-[#F8F8F7] dark:hover:bg-[#2A2A2A] transition-colors disabled:opacity-50"
+                className="p-2 rounded-full text-[#64748B] hover:text-[#13343B] hover:bg-[#F5F5F5] dark:hover:text-[#e7e7e2] dark:hover:bg-[#2a2a2a] transition-colors disabled:opacity-50"
                 title="Attach files"
               >
                 <Paperclip className="h-5 w-5" />
@@ -452,7 +452,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({
                   "h-8 w-8 rounded-full transition-all",
                   input.trim() || attachments.length > 0
                     ? "bg-[#20B8CD] hover:bg-[#1AA3B6]"
-                    : "bg-[#E5E5E5] dark:bg-[#333] cursor-not-allowed"
+                    : "bg-[#E5E5E5] dark:bg-[#2a2a2a] cursor-not-allowed"
                 )}
               >
                 <ArrowUp className={cn(

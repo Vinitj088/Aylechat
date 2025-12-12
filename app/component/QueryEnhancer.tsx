@@ -18,7 +18,7 @@ async function enhanceQuery(query: string): Promise<string> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'gemini-2.0-flash', // Using Google model as it's always available
+      model: 'gemini-2.5-flash', // Using Google model as it's always available
       messages: [{
         role: 'user',
         content: `Rewrite this query to be clearer and more effective for an AI search. Only return the improved query, nothing else:\n\n"${query}"`

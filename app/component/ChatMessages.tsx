@@ -130,7 +130,7 @@ const ChatMessage = memo(
           {/* Quoted text if present */}
           {message.quotedText && message.quotedText.trim().length > 0 && (
             <div className="mb-2">
-              <div className="border-l-4 border-[#20B8CD] bg-[#F5F5F5] dark:bg-[#2A2A2A] rounded-r-lg px-3 py-2 text-[#64748B] text-sm max-w-full">
+              <div className="border-l-4 border-[#20B8CD] bg-[#F5F5F5] dark:bg-[#2a2a2a] rounded-r-lg px-3 py-2 text-[#64748B] text-sm max-w-full">
                 {(() => {
                   const words = message.quotedText.split(/\s+/)
                   return words.length > 40 ? words.slice(0, 40).join(" ") + " ..." : message.quotedText
@@ -139,11 +139,11 @@ const ChatMessage = memo(
             </div>
           )}
           {/* User question as title */}
-          <h1 className="text-2xl md:text-3xl font-medium text-[#13343B] dark:text-[#F8F8F7] leading-tight font-ui tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-medium text-[#13343B] dark:text-[#e7e7e2] leading-tight font-ui tracking-tight">
             {message.content}
           </h1>
           {/* Separator line */}
-          <div className="mt-6 border-b border-[#E5E5E5] dark:border-[#333]" />
+          <div className="mt-6 border-b border-[#E5E5E5] dark:border-[#2a2a2a]" />
         </div>
       )
     }
@@ -156,11 +156,11 @@ const ChatMessage = memo(
         {/* Sources tab header - like Perplexity */}
         {hasCitations && (
           <div className="mb-4">
-            <div className="flex items-center gap-4 mb-3 border-b border-[#E5E5E5] dark:border-[#333]">
-              <button className="flex items-center gap-1.5 px-1 py-2 text-sm font-medium text-[#13343B] dark:text-[#F8F8F7] border-b-2 border-[#20B8CD] font-ui">
+            <div className="flex items-center gap-4 mb-3 border-b border-[#E5E5E5] dark:border-[#2a2a2a]">
+              <button className="flex items-center gap-1.5 px-1 py-2 text-sm font-medium text-[#13343B] dark:text-[#e7e7e2] border-b-2 border-[#20B8CD] font-ui">
                 <Sparkles className="w-4 h-4" />
                 Sources
-                <span className="ml-1 px-1.5 py-0.5 text-xs bg-[#F5F5F5] dark:bg-[#2A2A2A] rounded-full text-[#64748B]">
+                <span className="ml-1 px-1.5 py-0.5 text-xs bg-[#F5F5F5] dark:bg-[#2a2a2a] rounded-full text-[#64748B]">
                   {message.citations?.length}
                 </span>
               </button>
@@ -183,7 +183,7 @@ const ChatMessage = memo(
         )}
 
         {/* Main content */}
-        <div className="text-[#13343B] dark:text-[#F8F8F7] text-base leading-relaxed font-ui font-light">
+        <div className="text-[#13343B] dark:text-[#e7e7e2] text-base leading-relaxed font-ui font-light">
           <MessageContent
             content={message.content || ""}
             role={message.role}
@@ -197,36 +197,51 @@ const ChatMessage = memo(
 
         {/* Action row - Perplexity style */}
         {!isSharedPage && message.content && message.content.length > 0 && (
-          <div className="mt-6 pt-4 border-t border-[#E5E5E5] dark:border-[#333] flex items-center justify-between font-ui">
-            {/* Left actions - Share, Export */}
+          <div className="mt-6 pt-4 border-t border-[#E5E5E5] dark:border-[#2a2a2a] flex items-center justify-between font-ui">
+            {/* Left actions - Export */}
             <div className="flex items-center gap-1">
               <button
                 onClick={handleExportPdf}
                 disabled={isExporting}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] rounded-lg transition-colors text-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2] hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a] rounded-lg transition-colors text-sm"
               >
                 <Download className={`w-4 h-4 ${isExporting ? 'animate-pulse' : ''}`} />
                 <span>Export</span>
               </button>
             </div>
 
-            {/* Right actions - Reactions, Copy, More */}
+            {/* Right actions - TPS, Reactions, Copy, More */}
             <div className="flex items-center gap-1">
+              {/* TPS indicator */}
+              {message.completed && typeof message.tps === "number" && message.tps > 0 && (
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-xs text-[#94A3B8] cursor-help px-2 py-1.5">
+                        {message.tps.toFixed(1)} t/s
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-[#1f2121] text-[#e7e7e2] border-[#2a2a2a]">
+                      <p>Frontend-perceived throughput.<br />Includes network and processing time.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
               <button
-                className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] rounded-lg transition-colors"
+                className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2] hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a] rounded-lg transition-colors"
                 title="Good response"
               >
                 <ThumbsUp className="w-4 h-4" />
               </button>
               <button
-                className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] rounded-lg transition-colors"
+                className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2] hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a] rounded-lg transition-colors"
                 title="Bad response"
               >
                 <ThumbsDown className="w-4 h-4" />
               </button>
               <button
                 onClick={handleCopyMessage}
-                className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] rounded-lg transition-colors"
+                className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2] hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a] rounded-lg transition-colors"
                 title="Copy"
               >
                 {copySuccess ? (
@@ -236,30 +251,12 @@ const ChatMessage = memo(
                 )}
               </button>
               <button
-                className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] rounded-lg transition-colors"
+                className="p-2 text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2] hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a] rounded-lg transition-colors"
                 title="More options"
               >
                 <MoreHorizontal className="w-4 h-4" />
               </button>
             </div>
-          </div>
-        )}
-
-        {/* TPS indicator */}
-        {message.completed && typeof message.tps === "number" && message.tps > 0 && (
-          <div className="mt-2">
-            <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-xs text-[#94A3B8] cursor-help">
-                    {message.tps.toFixed(1)} tokens/s
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent className="bg-[#1A1A1A] text-[#F8F8F7] border-[#333]">
-                  <p>Frontend-perceived throughput.<br />Includes network and processing time.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           </div>
         )}
       </div>
@@ -269,16 +266,47 @@ const ChatMessage = memo(
 
 ChatMessage.displayName = "ChatMessage"
 
-const LoadingIndicator = memo(({ isExa, modelName }: { isExa: boolean; modelName: string }) => (
-  <div className="flex items-center gap-2 text-[#64748B] animate-pulse">
-    <div className="w-2 h-2 rounded-full bg-[#20B8CD] animate-[bounce_1s_infinite]"></div>
-    <div className="w-2 h-2 rounded-full bg-[#20B8CD] animate-[bounce_1s_infinite_200ms]"></div>
-    <div className="w-2 h-2 rounded-full bg-[#20B8CD] animate-[bounce_1s_infinite_400ms]"></div>
-    <span className="text-sm font-medium text-[#13343B] dark:text-[#F8F8F7]">
-      {isExa ? "Searching with Exa..." : `Thinking with ${modelName || "AI"}...`}
-    </span>
-  </div>
-))
+const LoadingIndicator = memo(({ isExa, modelName }: { isExa: boolean; modelName: string }) => {
+  const text = isExa ? "Searching with Exa" : `Thinking with ${modelName || "AI"}`;
+
+  return (
+    <div className="flex items-center gap-3 py-4">
+      {/* Animated wave bars */}
+      <div className="flex items-center gap-0.5 h-4">
+        {[...Array(4)].map((_, i) => (
+          <div
+            key={i}
+            className="w-0.5 bg-[#20B8CD] rounded-full animate-[wave_1.2s_ease-in-out_infinite]"
+            style={{
+              animationDelay: `${i * 0.15}s`,
+              height: `${8 + (i % 2) * 4}px`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Shimmer text */}
+      <span
+        className="text-sm font-medium bg-gradient-to-r from-[#13343B] via-[#20B8CD] to-[#13343B] dark:from-[#e7e7e2] dark:via-[#20B8CD] dark:to-[#e7e7e2] bg-[length:200%_100%] bg-clip-text text-transparent animate-[shimmer_2s_linear_infinite]"
+      >
+        {text}
+      </span>
+
+      {/* Animated dots */}
+      <span className="inline-flex text-[#20B8CD]">
+        {[...Array(3)].map((_, i) => (
+          <span
+            key={i}
+            className="animate-[loading-dots_1.4s_infinite] opacity-0"
+            style={{ animationDelay: `${i * 0.2}s` }}
+          >
+            .
+          </span>
+        ))}
+      </span>
+    </div>
+  );
+})
 
 LoadingIndicator.displayName = "LoadingIndicator"
 
@@ -303,8 +331,8 @@ const TableOfContents = memo(({ messages, activeMessageId }: { messages: Message
 
   return (
     <div className="hidden xl:block fixed right-8 top-16 w-48 max-h-[70vh] overflow-y-auto no-scrollbar">
-      <div className="bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] rounded-xl p-3 shadow-sm">
-        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-[#E5E5E5] dark:border-[#333]">
+      <div className="bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] rounded-xl p-3 shadow-sm">
+        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-[#E5E5E5] dark:border-[#2a2a2a]">
           <List className="w-3.5 h-3.5 text-[#64748B]" />
           <span className="text-xs font-medium text-[#64748B] font-ui uppercase tracking-wide">Contents</span>
         </div>
@@ -315,9 +343,9 @@ const TableOfContents = memo(({ messages, activeMessageId }: { messages: Message
               onClick={() => scrollToMessage(msg.id)}
               className={cn(
                 "w-full text-left px-2 py-1.5 rounded-lg text-xs font-ui transition-colors",
-                "hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A]",
+                "hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a]",
                 activeMessageId === msg.id
-                  ? "text-[#20B8CD] bg-[#F0FDFA] dark:bg-[#0D3D3D]"
+                  ? "text-[#20B8CD] bg-[#F0FDFA] dark:bg-[#2a3a3a]"
                   : "text-[#64748B]"
               )}
             >
@@ -326,7 +354,7 @@ const TableOfContents = memo(({ messages, activeMessageId }: { messages: Message
                   "flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-medium",
                   activeMessageId === msg.id
                     ? "bg-[#20B8CD] text-white"
-                    : "bg-[#E5E5E5] dark:bg-[#333] text-[#64748B]"
+                    : "bg-[#E5E5E5] dark:bg-[#2a2a2a] text-[#64748B]"
                 )}>
                   {idx + 1}
                 </span>
@@ -488,10 +516,10 @@ const ChatMessages = memo(function ChatMessages({
         >
           <button
             onClick={() => scrollToBottom("smooth")}
-            className="px-3 py-1.5 rounded-full shadow-lg bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] flex items-center justify-center gap-1.5 transition-colors"
+            className="px-3 py-1.5 rounded-full shadow-lg bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a] flex items-center justify-center gap-1.5 transition-colors"
             aria-label="Scroll to bottom"
           >
-            <span className="text-xs text-[#13343B] dark:text-[#F8F8F7] font-medium">
+            <span className="text-xs text-[#13343B] dark:text-[#e7e7e2] font-medium">
               Scroll down
             </span>
             <ChevronDown className="h-3.5 w-3.5 text-[#64748B]" />

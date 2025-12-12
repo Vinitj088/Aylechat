@@ -68,6 +68,7 @@ export interface Model {
   toolCallType: string;
   searchMode?: boolean;
   imageGenerationMode?: boolean;
+  noMidThreadSwitch?: boolean; // Models that don't support switching mid-conversation (e.g., Exa, Sonar)
 }
 
 // Define model types

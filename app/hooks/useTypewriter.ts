@@ -1,58 +1,86 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 
+/**
+ * Optimized typewriter hook for smooth streaming text display.
+ * Uses batched updates and adaptive speed for better performance.
+ */
 const useTypewriter = (text: string, enabled = true) => {
   const [displayedText, setDisplayedText] = useState(enabled ? "" : text)
   const charIndexRef = useRef(0)
+  const rafIdRef = useRef<number | null>(null)
+  const lastUpdateTimeRef = useRef(0)
 
+  // Adaptive speed: characters per frame based on stream speed
+  const getCharsToAdd = useCallback((remaining: number) => {
+    // Fast catch-up for large gaps, smooth for small gaps
+    if (remaining > 100) return Math.min(remaining, 20) // Fast catch-up
+    if (remaining > 50) return Math.min(remaining, 10)  // Medium speed
+    if (remaining > 20) return Math.min(remaining, 5)   // Moderate speed
+    return Math.min(remaining, 3)                        // Smooth typing
+  }, [])
+
+  // Reset when text shrinks (new message)
   useEffect(() => {
-    // Immediately set the full text if the effect is disabled.
     if (!enabled) {
       setDisplayedText(text)
+      charIndexRef.current = text.length
       return
     }
 
-    // Reset if the text content shrinks, indicating a new message
-    if (text.length < displayedText.length) {
+    if (text.length < charIndexRef.current) {
       charIndexRef.current = 0
       setDisplayedText("")
     }
-  }, [text, displayedText.length, enabled])
+  }, [text, enabled])
 
+  // Main animation loop
   useEffect(() => {
-    // Don't run the effect if it's disabled.
-    if (!enabled) {
-      return
-    }
+    if (!enabled) return
 
-    // If we're already up to date, do nothing.
+    // Already caught up
     if (charIndexRef.current >= text.length) {
-      // Ensure the final text is accurate
       if (displayedText !== text) {
         setDisplayedText(text)
       }
       return
     }
 
-    const animate = () => {
-      // Determine how many characters to add in this frame.
-      // This creates a "catch-up" effect if the stream is fast.
-      const charsToAdd = Math.max(1, Math.floor((text.length - charIndexRef.current) / 10))
+    const animate = (timestamp: number) => {
+      // Throttle updates to ~60fps for performance
+      const elapsed = timestamp - lastUpdateTimeRef.current
+      if (elapsed < 16) {
+        rafIdRef.current = requestAnimationFrame(animate)
+        return
+      }
+      lastUpdateTimeRef.current = timestamp
 
+      const remaining = text.length - charIndexRef.current
+      if (remaining <= 0) {
+        setDisplayedText(text)
+        return
+      }
+
+      const charsToAdd = getCharsToAdd(remaining)
       const newIndex = Math.min(text.length, charIndexRef.current + charsToAdd)
-      const newDisplayedText = text.substring(0, newIndex)
 
       charIndexRef.current = newIndex
-      setDisplayedText(newDisplayedText)
+      setDisplayedText(text.substring(0, newIndex))
+
+      // Continue if not caught up
+      if (newIndex < text.length) {
+        rafIdRef.current = requestAnimationFrame(animate)
+      }
     }
 
-    const animationFrameId = requestAnimationFrame(animate)
+    rafIdRef.current = requestAnimationFrame(animate)
 
     return () => {
-      cancelAnimationFrame(animationFrameId)
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current)
+        rafIdRef.current = null
+      }
     }
-    // This effect runs on every frame as long as we're not caught up.
-    // The dependency on displayedText and text creates this loop.
-  }, [displayedText, text, enabled])
+  }, [displayedText, text, enabled, getCharsToAdd])
 
   return displayedText
 }

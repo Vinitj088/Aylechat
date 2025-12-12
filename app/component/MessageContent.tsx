@@ -616,42 +616,42 @@ export const markdownOptions = {
     },
     h1: {
       component: ({ children, ...props }: any) => (
-        <h1 className="text-2xl font-bold mt-8 mb-4" {...props}>
+        <h1 className="text-2xl font-medium mt-8 mb-4" style={{ fontFamily: "var(--font-body)" }} {...props}>
           {children}
         </h1>
       ),
     },
     h2: {
       component: ({ children, ...props }: any) => (
-        <h2 className="text-xl font-bold mt-7 mb-3" {...props}>
+        <h2 className="text-xl font-medium mt-7 mb-3" style={{ fontFamily: "var(--font-body)" }} {...props}>
           {children}
         </h2>
       ),
     },
     h3: {
       component: ({ children, ...props }: any) => (
-        <h3 className="text-lg font-bold mt-6 mb-3" {...props}>
+        <h3 className="text-lg font-medium mt-6 mb-3" style={{ fontFamily: "var(--font-body)" }} {...props}>
           {children}
         </h3>
       ),
     },
     h4: {
       component: ({ children, ...props }: any) => (
-        <h4 className="text-base font-bold mt-5 mb-2" {...props}>
+        <h4 className="text-base font-medium mt-5 mb-2" style={{ fontFamily: "var(--font-body)" }} {...props}>
           {children}
         </h4>
       ),
     },
     h5: {
       component: ({ children, ...props }: any) => (
-        <h5 className="text-sm font-bold mt-4 mb-2" {...props}>
+        <h5 className="text-sm font-medium mt-4 mb-2" style={{ fontFamily: "var(--font-body)" }} {...props}>
           {children}
         </h5>
       ),
     },
     h6: {
       component: ({ children, ...props }: any) => (
-        <h6 className="text-xs font-bold mt-3 mb-2" {...props}>
+        <h6 className="text-xs font-medium mt-3 mb-2" style={{ fontFamily: "var(--font-body)" }} {...props}>
           {children}
         </h6>
       ),

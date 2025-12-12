@@ -1,36 +1,59 @@
 "use client";
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
 interface SidebarContextType {
-  isSidebarOpen: boolean;
+  isExpanded: boolean;
+  setIsExpanded: (expanded: boolean) => void;
   toggleSidebar: () => void;
-  closeSidebar: () => void;
+  sidebarMounted: boolean;
 }
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 export const SidebarProvider = ({ children }: { children: ReactNode }) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isExpanded, setIsExpandedState] = useState(false);
+  const [sidebarMounted, setSidebarMounted] = useState(false);
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(prev => !prev);
-  };
+  // Load from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('sidebarExpanded');
+    if (saved) {
+      setIsExpandedState(JSON.parse(saved));
+    }
+    setSidebarMounted(true);
+  }, []);
 
-  const closeSidebar = () => {
-    setIsSidebarOpen(false);
-  }
+  // Persist to localStorage
+  const setIsExpanded = useCallback((expanded: boolean) => {
+    setIsExpandedState(expanded);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebarExpanded', JSON.stringify(expanded));
+    }
+  }, []);
+
+  const toggleSidebar = useCallback(() => {
+    setIsExpanded(!isExpanded);
+  }, [isExpanded, setIsExpanded]);
 
   return (
-    <SidebarContext.Provider value={{ isSidebarOpen, toggleSidebar, closeSidebar }}>
+    <SidebarContext.Provider value={{
+      isExpanded,
+      setIsExpanded,
+      toggleSidebar,
+      sidebarMounted
+    }}>
       {children}
     </SidebarContext.Provider>
   );
 };
 
-export const useSidebar = () => {
+export const useSidebarContext = () => {
   const context = useContext(SidebarContext);
   if (!context) {
-    throw new Error('useSidebar must be used within a SidebarProvider');
+    throw new Error('useSidebarContext must be used within a SidebarProvider');
   }
   return context;
 };
+
+// Keep old hook for backwards compatibility
+export const useSidebar = useSidebarContext;

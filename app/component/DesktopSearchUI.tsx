@@ -230,12 +230,12 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
   ];
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-4 relative bg-[#F0F0ED] dark:bg-[#0F1516]">
+    <div className="flex-1 flex flex-col items-center justify-center px-4 relative bg-[#F0F0ED] dark:bg-[#191a1a]">
       <div className="w-full max-w-2xl mx-auto relative z-10">
         {/* Header - Perplexity style */}
         <div className="text-center mb-8">
           <h1
-            className="text-3xl md:text-4xl text-[#13343B] dark:text-[#F8F8F7] font-medium"
+            className="text-3xl md:text-4xl text-[#13343B] dark:text-[#e7e7e2] font-medium"
             style={{ fontFamily: 'var(--font-heading)', letterSpacing: '-0.02em' }}
           >
             What do you want to know?
@@ -243,15 +243,15 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
         </div>
 
         {/* Main Input Container - White box like Perplexity */}
-        <div className="relative bg-white dark:bg-[#1A1A1A] rounded-2xl border border-[#E5E5E5] dark:border-[#333] shadow-sm mb-6">
+        <div className="relative bg-white dark:bg-[#1f2121] rounded-2xl border border-[#E5E5E5] dark:border-[#2a2a2a] shadow-sm mb-6">
           {/* Attachments Preview */}
           {attachments.length > 0 && (
             <div className="px-4 pt-3 flex flex-wrap gap-2">
               {attachments.map((file, index) => (
-                <div key={index} className="flex items-center gap-2 bg-[#F5F5F5] dark:bg-[#2A2A2A] rounded-lg px-3 py-2">
+                <div key={index} className="flex items-center gap-2 bg-[#F5F5F5] dark:bg-[#2a2a2a] rounded-lg px-3 py-2">
                   <Paperclip className="h-4 w-4 text-[#64748B]" />
-                  <span className="text-xs text-[#13343B] dark:text-[#F8F8F7] max-w-[100px] truncate">{file.name}</span>
-                  <button type="button" onClick={() => removeAttachment(index)} className="text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7]">
+                  <span className="text-xs text-[#13343B] dark:text-[#e7e7e2] max-w-[100px] truncate">{file.name}</span>
+                  <button type="button" onClick={() => removeAttachment(index)} className="text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2]">
                     <X className="h-3 w-3" />
                   </button>
                 </div>
@@ -274,7 +274,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
               disabled={disableInput || isLoading}
               className={cn(
                 "w-full resize-none bg-transparent border-none outline-none",
-                "text-[#13343B] dark:text-[#F8F8F7] placeholder:text-[#94A3B8]",
+                "text-[#13343B] dark:text-[#e7e7e2] placeholder:text-[#94A3B8]",
                 "text-base leading-relaxed min-h-[24px] max-h-[200px]",
                 "focus:ring-0 focus:outline-none focus:border-none"
               )}
@@ -293,8 +293,8 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                     type="button"
                     className={cn(
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors",
-                      "text-[#13343B] dark:text-[#F8F8F7] border-[#E5E5E5] dark:border-[#333]",
-                      "hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A]"
+                      "text-[#13343B] dark:text-[#e7e7e2] border-[#E5E5E5] dark:border-[#2a2a2a]",
+                      "hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a]"
                     )}
                   >
                     {selectedModelObj && getProviderIcon(selectedModelObj.avatarType || selectedModelObj.providerId, 14)}
@@ -304,7 +304,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                   </button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-64 p-0 bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#333] shadow-lg rounded-xl"
+                  className="w-64 p-0 bg-white dark:bg-[#1f2121] border border-[#E5E5E5] dark:border-[#2a2a2a] shadow-lg rounded-xl"
                   align="start"
                   sideOffset={8}
                 >
@@ -319,11 +319,11 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                             onClick={() => { handleModelChange(model.id); setModelSelectorOpen(false); }}
                             className={cn(
                               "w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left transition-colors",
-                              selectedModel === model.id ? "bg-[#F0F0ED] dark:bg-[#2A2A2A]" : "hover:bg-[#F8F8F7] dark:hover:bg-[#2A2A2A]"
+                              selectedModel === model.id ? "bg-[#F0F0ED] dark:bg-[#2a2a2a]" : "hover:bg-[#F8F8F7] dark:hover:bg-[#2a2a2a]"
                             )}
                           >
                             <div className="flex-shrink-0">{getProviderIcon(model.avatarType || model.providerId, 18)}</div>
-                            <span className="flex-1 text-sm text-[#13343B] dark:text-[#F8F8F7] truncate">{model.name}</span>
+                            <span className="flex-1 text-sm text-[#13343B] dark:text-[#e7e7e2] truncate">{model.name}</span>
                             {selectedModel === model.id && <Check className="h-4 w-4 text-[#20B8CD] flex-shrink-0" />}
                           </button>
                         ))}
@@ -339,7 +339,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
               {/* Web search indicator */}
               <button
                 type="button"
-                className="p-2 rounded-full text-[#64748B] hover:text-[#13343B] hover:bg-[#F5F5F5] dark:hover:text-[#F8F8F7] dark:hover:bg-[#2A2A2A] transition-colors"
+                className="p-2 rounded-full text-[#64748B] hover:text-[#13343B] hover:bg-[#F5F5F5] dark:hover:text-[#e7e7e2] dark:hover:bg-[#2a2a2a] transition-colors"
                 title="Web search enabled"
               >
                 <Globe className="h-5 w-5" />
@@ -351,7 +351,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                   type="button"
                   onClick={handleFileButtonClick}
                   disabled={isLoading}
-                  className="p-2 rounded-full text-[#64748B] hover:text-[#13343B] hover:bg-[#F5F5F5] dark:hover:text-[#F8F8F7] dark:hover:bg-[#2A2A2A] transition-colors disabled:opacity-50"
+                  className="p-2 rounded-full text-[#64748B] hover:text-[#13343B] hover:bg-[#F5F5F5] dark:hover:text-[#e7e7e2] dark:hover:bg-[#2a2a2a] transition-colors disabled:opacity-50"
                   title="Attach files"
                 >
                   <Paperclip className="h-5 w-5" />
@@ -367,7 +367,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                   "h-8 w-8 rounded-full flex items-center justify-center transition-all",
                   input.trim() || attachments.length > 0
                     ? "bg-[#20B8CD] hover:bg-[#1AA3B6]"
-                    : "bg-[#E5E5E5] dark:bg-[#333] cursor-not-allowed"
+                    : "bg-[#E5E5E5] dark:bg-[#2a2a2a] cursor-not-allowed"
                 )}
               >
                 <ArrowUp className={cn(
@@ -383,7 +383,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
           {/* Suggestions Dropdown with smooth transition */}
           <div
             className={cn(
-              "border-t border-[#E5E5E5] dark:border-[#333] overflow-hidden transition-all duration-300 ease-in-out",
+              "border-t border-[#E5E5E5] dark:border-[#2a2a2a] overflow-hidden transition-all duration-300 ease-in-out",
               showSuggestions && suggestions.length > 0
                 ? "max-h-[400px] opacity-100"
                 : "max-h-0 opacity-0 border-t-0"
@@ -398,10 +398,10 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
                     setInput(suggestion);
                     textareaRef.current?.focus();
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[#F5F5F5] dark:hover:bg-[#2A2A2A] transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a] transition-colors"
                 >
                   <Search className="h-4 w-4 text-[#94A3B8] flex-shrink-0" />
-                  <span className="text-sm text-[#13343B] dark:text-[#F8F8F7] font-ui">
+                  <span className="text-sm text-[#13343B] dark:text-[#e7e7e2] font-ui">
                     {input.trim() && suggestion.toLowerCase().includes(input.toLowerCase()) ? (
                       // Highlight matching text
                       <>
@@ -432,7 +432,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
               href="https://github.com/Vinitj088/Aylechat"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-[#13343B] dark:hover:text-[#F8F8F7] transition-colors"
+              className="hover:text-[#13343B] dark:hover:text-[#e7e7e2] transition-colors"
             >
               GitHub
             </a>
@@ -440,7 +440,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
               href="https://github.com/Vinitj088/Aylechat/issues"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-[#13343B] dark:hover:text-[#F8F8F7] transition-colors"
+              className="hover:text-[#13343B] dark:hover:text-[#e7e7e2] transition-colors"
             >
               Support
             </a>
@@ -448,7 +448,7 @@ const DesktopSearchUI: React.FC<DesktopSearchUIProps> = ({
               href="https://github.com/Vinitj088/Aylechat#readme"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-[#13343B] dark:hover:text-[#F8F8F7] transition-colors"
+              className="hover:text-[#13343B] dark:hover:text-[#e7e7e2] transition-colors"
             >
               About
             </a>

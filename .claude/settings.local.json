@@ -11,7 +11,8 @@
       "Bash(npx tsc:*)",
       "WebFetch(domain:live.standards.site)",
       "Bash(npx instant-cli:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

@@ -209,11 +209,11 @@ function AuthDialogContent({ isOpen, onClose, onSuccess }: AuthDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#F8F8F7] dark:bg-[#0F1516]">
+    <div className="fixed inset-0 z-50 bg-[#F8F8F7] dark:bg-[#191A1A]">
       {/* Close button in top right */}
       <button
         onClick={handleClose}
-        className="absolute top-4 right-4 p-2 rounded-full hover:bg-[#E8E8E5] dark:hover:bg-[#1A2426] text-[#64748B] transition-colors"
+        className="absolute top-4 right-4 p-2 rounded-full hover:bg-[#E8E8E5] dark:hover:bg-[#252727] text-[#64748B] transition-colors"
         aria-label="Close"
       >
         <X className="h-5 w-5" />
@@ -289,10 +289,10 @@ function EmailStep({
     <div className="w-full max-w-md">
       {/* Header - Perplexity style with serif italic */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl md:text-4xl text-[#13343B] dark:text-[#F8F8F7] mb-2">
+        <h1 className="text-3xl md:text-4xl text-[#13343B] dark:text-[#E8E8E8] mb-2">
           Sign up below to <em className="font-serif italic">unlock</em> the full
         </h1>
-        <h1 className="text-3xl md:text-4xl text-[#13343B] dark:text-[#F8F8F7]">
+        <h1 className="text-3xl md:text-4xl text-[#13343B] dark:text-[#E8E8E8]">
           potential of Ayle
         </h1>
       </div>
@@ -306,7 +306,7 @@ function EmailStep({
 
       {/* Processing Profile Message */}
       {isProcessingProfile && (
-        <div className="mb-4 p-3 bg-[#F8F8F7] dark:bg-[#1A2426] border border-[#E5E5E5] dark:border-[#333] rounded-lg text-[#13343B] dark:text-[#F8F8F7] text-sm text-center flex items-center justify-center gap-2">
+        <div className="mb-4 p-3 bg-[#F8F8F7] dark:bg-[#1A1B1B] border border-[#E5E5E5] dark:border-[#2D2F2F] rounded-lg text-[#13343B] dark:text-[#E8E8E8] text-sm text-center flex items-center justify-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />
           Setting up your profile...
         </div>
@@ -340,7 +340,7 @@ function EmailStep({
       {/* Divider */}
       <div className="relative my-6">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-[#E5E5E5] dark:border-[#333]"></div>
+          <div className="w-full border-t border-[#E5E5E5] dark:border-[#2D2F2F]"></div>
         </div>
       </div>
 
@@ -354,7 +354,7 @@ function EmailStep({
           placeholder="Enter your email"
           required
           autoFocus
-          className="w-full px-4 py-3 bg-[#F0F0ED] dark:bg-[#1A2426] border border-[#E5E5E5] dark:border-[#333] rounded-lg text-[#13343B] dark:text-[#F8F8F7] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#20B8CD] focus:border-transparent"
+          className="w-full px-4 py-3 bg-[#F0F0ED] dark:bg-[#1A1B1B] border border-[#E5E5E5] dark:border-[#2D2F2F] rounded-lg text-[#13343B] dark:text-[#E8E8E8] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#20B8CD] focus:border-transparent"
         />
 
         <button
@@ -362,8 +362,8 @@ function EmailStep({
           disabled={isLoading || !isEmailValid}
           className={`w-full px-4 py-3 rounded-lg font-medium transition-all ${
             isEmailValid
-              ? 'bg-[#E8E8E5] dark:bg-[#2A3638] text-[#13343B] dark:text-[#F8F8F7] hover:bg-[#DEDEDE] dark:hover:bg-[#333]'
-              : 'bg-[#F0F0ED] dark:bg-[#1A2426] text-[#94A3B8] cursor-not-allowed'
+              ? 'bg-[#E8E8E5] dark:bg-[#2A3638] text-[#13343B] dark:text-[#E8E8E8] hover:bg-[#DEDEDE] dark:hover:bg-[#333]'
+              : 'bg-[#F0F0ED] dark:bg-[#1A1B1B] text-[#94A3B8] cursor-not-allowed'
           } disabled:opacity-50`}
         >
           {isLoading ? (
@@ -409,7 +409,7 @@ function CodeStep({
   return (
     <div className="w-full max-w-md">
       {/* Card Container - Perplexity style */}
-      <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-lg border border-[#E5E5E5] dark:border-[#333] p-8">
+      <div className="bg-white dark:bg-[#202222] rounded-2xl shadow-lg border border-[#E5E5E5] dark:border-[#2D2F2F] p-8">
         {/* Email Icon */}
         <div className="flex justify-center mb-6">
           <div className="w-14 h-14 rounded-full bg-[#F0F0ED] dark:bg-[#2A2A2A] flex items-center justify-center">
@@ -419,7 +419,7 @@ function CodeStep({
 
         {/* Header */}
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-semibold text-[#13343B] dark:text-[#F8F8F7] mb-2">
+          <h2 className="text-2xl font-semibold text-[#13343B] dark:text-[#E8E8E8] mb-2">
             Check your email
           </h2>
           <p className="text-[#64748B] text-sm">
@@ -444,7 +444,7 @@ function CodeStep({
             placeholder="Enter Code"
             required
             autoFocus
-            className="w-full px-4 py-3 bg-[#F0F0ED] dark:bg-[#2A2A2A] border border-[#E5E5E5] dark:border-[#333] rounded-lg text-[#13343B] dark:text-[#F8F8F7] placeholder:text-[#94A3B8] font-mono text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-[#20B8CD] focus:border-transparent"
+            className="w-full px-4 py-3 bg-[#F0F0ED] dark:bg-[#2A2A2A] border border-[#E5E5E5] dark:border-[#2D2F2F] rounded-lg text-[#13343B] dark:text-[#E8E8E8] placeholder:text-[#94A3B8] font-mono text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-[#20B8CD] focus:border-transparent"
           />
 
           <button

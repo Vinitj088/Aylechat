@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from "next/navigation";
 import { useTheme } from 'next-themes';
@@ -69,9 +69,9 @@ export default function SettingsPage() {
 
   if (!user) {
     return (
-      <main className="flex flex-col items-center justify-center min-h-screen bg-[#F8F8F7] dark:bg-[#0F1516]">
-        <div className="w-full max-w-md bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-sm p-8 border border-[#E5E5E5] dark:border-[#333] text-center">
-          <h1 className="text-2xl font-semibold mb-4 text-[#13343B] dark:text-[#F8F8F7]">Settings</h1>
+      <main className="flex flex-col items-center justify-center min-h-screen bg-[#F8F8F7] dark:bg-[#191a1a]">
+        <div className="w-full max-w-md bg-white dark:bg-[#1f2121] rounded-2xl shadow-sm p-8 border border-[#E5E5E5] dark:border-[#2a2a2a] text-center">
+          <h1 className="text-2xl font-semibold mb-4 text-[#13343B] dark:text-[#e7e7e2]">Settings</h1>
           <p className="text-[#64748B] mb-6">You must be signed in to access settings.</p>
           <button
             onClick={() => router.push("/")}
@@ -90,36 +90,36 @@ export default function SettingsPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#F8F8F7] dark:bg-[#0F1516]">
+    <main className="min-h-[100dvh] bg-[#F8F8F7] dark:bg-[#191a1a]">
       {/* Header */}
-      <div className="border-b border-[#E5E5E5] dark:border-[#2A3638] bg-white dark:bg-[#0F1516]">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-4">
+      <div className="sticky top-0 z-10 border-b border-[#E5E5E5] dark:border-[#2a2a2a] bg-white dark:bg-[#191a1a]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">
           <button
             onClick={() => router.back()}
-            className="p-2 rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7] transition-colors"
+            className="p-2 rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a] text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2] transition-colors touch-manipulation"
             aria-label="Go back"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-xl font-semibold text-[#13343B] dark:text-[#F8F8F7]">Settings</h1>
+          <h1 className="text-xl font-semibold text-[#13343B] dark:text-[#e7e7e2]">Settings</h1>
         </div>
       </div>
 
       {/* Content */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <div className="flex gap-8">
-          {/* Left Sidebar Navigation */}
-          <nav className="w-48 flex-shrink-0">
-            <ul className="space-y-1">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+          {/* Tab Navigation - Horizontal on mobile, Sidebar on desktop */}
+          <nav className="md:w-48 flex-shrink-0">
+            <ul className="flex md:flex-col gap-1 overflow-x-auto no-scrollbar pb-2 md:pb-0">
               {tabs.map((tab) => (
-                <li key={tab.id}>
+                <li key={tab.id} className="flex-shrink-0">
                   <button
                     onClick={() => setActiveTab(tab.id)}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left",
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left whitespace-nowrap touch-manipulation",
                       activeTab === tab.id
-                        ? "bg-[#F0F0ED] dark:bg-[#1A2426] text-[#13343B] dark:text-[#F8F8F7]"
-                        : "text-[#64748B] hover:bg-[#F5F5F5] dark:hover:bg-[#1A2426] hover:text-[#13343B] dark:hover:text-[#F8F8F7]"
+                        ? "bg-[#F0F0ED] dark:bg-[#2a2a2a] text-[#13343B] dark:text-[#e7e7e2]"
+                        : "text-[#64748B] hover:bg-[#F5F5F5] dark:hover:bg-[#2a2a2a] hover:text-[#13343B] dark:hover:text-[#e7e7e2]"
                     )}
                   >
                     <tab.icon className="h-4 w-4" />
@@ -135,15 +135,15 @@ export default function SettingsPage() {
             {activeTab === 'account' && (
               <div className="space-y-6">
                 {/* Account Info Card */}
-                <div className="bg-white dark:bg-[#1A1A1A] rounded-xl border border-[#E5E5E5] dark:border-[#333] p-6">
-                  <h2 className="text-lg font-semibold text-[#13343B] dark:text-[#F8F8F7] mb-4">Account</h2>
+                <div className="bg-white dark:bg-[#1f2121] rounded-xl border border-[#E5E5E5] dark:border-[#2a2a2a] p-4 sm:p-6">
+                  <h2 className="text-lg font-semibold text-[#13343B] dark:text-[#e7e7e2] mb-4">Account</h2>
 
                   <div className="space-y-4">
                     {/* Email */}
-                    <div className="flex items-center justify-between py-3 border-b border-[#E5E5E5] dark:border-[#333]">
-                      <div>
-                        <p className="text-sm font-medium text-[#13343B] dark:text-[#F8F8F7]">Email</p>
-                        <p className="text-sm text-[#64748B]">{user.email}</p>
+                    <div className="flex items-center justify-between py-3 border-b border-[#E5E5E5] dark:border-[#2a2a2a]">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[#13343B] dark:text-[#e7e7e2]">Email</p>
+                        <p className="text-sm text-[#64748B] truncate">{user.email}</p>
                       </div>
                     </div>
 
@@ -151,7 +151,7 @@ export default function SettingsPage() {
                     <div className="pt-2">
                       <button
                         onClick={handleSignOut}
-                        className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors touch-manipulation"
                       >
                         Sign out
                       </button>
@@ -164,49 +164,49 @@ export default function SettingsPage() {
             {activeTab === 'appearance' && (
               <div className="space-y-6">
                 {/* Theme Card */}
-                <div className="bg-white dark:bg-[#1A1A1A] rounded-xl border border-[#E5E5E5] dark:border-[#333] p-6">
-                  <h2 className="text-lg font-semibold text-[#13343B] dark:text-[#F8F8F7] mb-4">Theme</h2>
+                <div className="bg-white dark:bg-[#1f2121] rounded-xl border border-[#E5E5E5] dark:border-[#2a2a2a] p-4 sm:p-6">
+                  <h2 className="text-lg font-semibold text-[#13343B] dark:text-[#e7e7e2] mb-4">Theme</h2>
 
-                  <div className="flex gap-3">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     {mounted && (
                       <>
                         <button
                           onClick={() => setTheme('light')}
                           className={cn(
-                            "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px]",
+                            "flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 transition-all touch-manipulation",
                             theme === 'light'
-                              ? "border-[#20B8CD] bg-[#F0FDFF] dark:bg-[#0F3538]"
-                              : "border-[#E5E5E5] dark:border-[#333] hover:border-[#C5C5C5] dark:hover:border-[#444]"
+                              ? "border-[#20B8CD] bg-[#F0FDFF] dark:bg-[#2a3a3a]"
+                              : "border-[#E5E5E5] dark:border-[#2a2a2a] hover:border-[#C5C5C5] dark:hover:border-[#444]"
                           )}
                         >
-                          <Sun className={cn("h-6 w-6", theme === 'light' ? "text-[#20B8CD]" : "text-[#64748B]")} />
-                          <span className={cn("text-sm font-medium", theme === 'light' ? "text-[#13343B] dark:text-[#F8F8F7]" : "text-[#64748B]")}>Light</span>
+                          <Sun className={cn("h-5 w-5 sm:h-6 sm:w-6", theme === 'light' ? "text-[#20B8CD]" : "text-[#64748B]")} />
+                          <span className={cn("text-xs sm:text-sm font-medium", theme === 'light' ? "text-[#13343B] dark:text-[#e7e7e2]" : "text-[#64748B]")}>Light</span>
                         </button>
 
                         <button
                           onClick={() => setTheme('dark')}
                           className={cn(
-                            "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px]",
+                            "flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 transition-all touch-manipulation",
                             theme === 'dark'
-                              ? "border-[#20B8CD] bg-[#F0FDFF] dark:bg-[#0F3538]"
-                              : "border-[#E5E5E5] dark:border-[#333] hover:border-[#C5C5C5] dark:hover:border-[#444]"
+                              ? "border-[#20B8CD] bg-[#F0FDFF] dark:bg-[#2a3a3a]"
+                              : "border-[#E5E5E5] dark:border-[#2a2a2a] hover:border-[#C5C5C5] dark:hover:border-[#444]"
                           )}
                         >
-                          <Moon className={cn("h-6 w-6", theme === 'dark' ? "text-[#20B8CD]" : "text-[#64748B]")} />
-                          <span className={cn("text-sm font-medium", theme === 'dark' ? "text-[#13343B] dark:text-[#F8F8F7]" : "text-[#64748B]")}>Dark</span>
+                          <Moon className={cn("h-5 w-5 sm:h-6 sm:w-6", theme === 'dark' ? "text-[#20B8CD]" : "text-[#64748B]")} />
+                          <span className={cn("text-xs sm:text-sm font-medium", theme === 'dark' ? "text-[#13343B] dark:text-[#e7e7e2]" : "text-[#64748B]")}>Dark</span>
                         </button>
 
                         <button
                           onClick={() => setTheme('system')}
                           className={cn(
-                            "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all min-w-[100px]",
+                            "flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 transition-all touch-manipulation",
                             theme === 'system'
-                              ? "border-[#20B8CD] bg-[#F0FDFF] dark:bg-[#0F3538]"
-                              : "border-[#E5E5E5] dark:border-[#333] hover:border-[#C5C5C5] dark:hover:border-[#444]"
+                              ? "border-[#20B8CD] bg-[#F0FDFF] dark:bg-[#2a3a3a]"
+                              : "border-[#E5E5E5] dark:border-[#2a2a2a] hover:border-[#C5C5C5] dark:hover:border-[#444]"
                           )}
                         >
-                          <Monitor className={cn("h-6 w-6", theme === 'system' ? "text-[#20B8CD]" : "text-[#64748B]")} />
-                          <span className={cn("text-sm font-medium", theme === 'system' ? "text-[#13343B] dark:text-[#F8F8F7]" : "text-[#64748B]")}>System</span>
+                          <Monitor className={cn("h-5 w-5 sm:h-6 sm:w-6", theme === 'system' ? "text-[#20B8CD]" : "text-[#64748B]")} />
+                          <span className={cn("text-xs sm:text-sm font-medium", theme === 'system' ? "text-[#13343B] dark:text-[#e7e7e2]" : "text-[#64748B]")}>System</span>
                         </button>
                       </>
                     )}
@@ -214,20 +214,20 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Customization Card */}
-                <div className="bg-white dark:bg-[#1A1A1A] rounded-xl border border-[#E5E5E5] dark:border-[#333] p-6">
-                  <h2 className="text-lg font-semibold text-[#13343B] dark:text-[#F8F8F7] mb-4">Customization</h2>
+                <div className="bg-white dark:bg-[#1f2121] rounded-xl border border-[#E5E5E5] dark:border-[#2a2a2a] p-4 sm:p-6">
+                  <h2 className="text-lg font-semibold text-[#13343B] dark:text-[#e7e7e2] mb-4">Customization</h2>
 
                   <div className="space-y-4">
                     {/* Rounded Corners */}
-                    <div className="flex items-center justify-between py-3 border-b border-[#E5E5E5] dark:border-[#333]">
-                      <div>
-                        <p className="text-sm font-medium text-[#13343B] dark:text-[#F8F8F7]">Rounded Corners</p>
-                        <p className="text-sm text-[#64748B]">Enable rounded corners throughout the interface</p>
+                    <div className="flex items-center justify-between gap-4 py-3 border-b border-[#E5E5E5] dark:border-[#2a2a2a]">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-[#13343B] dark:text-[#e7e7e2]">Rounded Corners</p>
+                        <p className="text-xs sm:text-sm text-[#64748B]">Enable rounded corners throughout the interface</p>
                       </div>
                       <button
                         className={cn(
-                          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#20B8CD] focus:ring-offset-2",
-                          rounded ? 'bg-[#20B8CD]' : 'bg-[#E5E5E5] dark:bg-[#333]'
+                          "relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#20B8CD] focus:ring-offset-2 touch-manipulation",
+                          rounded ? 'bg-[#20B8CD]' : 'bg-[#E5E5E5] dark:bg-[#2a2a2a]'
                         )}
                         onClick={handleRoundedToggle}
                         disabled={loading}
@@ -244,20 +244,20 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Font Theme */}
-                    <div className="flex items-center justify-between py-3">
-                      <div>
-                        <p className="text-sm font-medium text-[#13343B] dark:text-[#F8F8F7]">Font Theme</p>
-                        <p className="text-sm text-[#64748B]">Choose your preferred typography style</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[#13343B] dark:text-[#e7e7e2]">Font Theme</p>
+                        <p className="text-xs sm:text-sm text-[#64748B]">Choose your preferred typography style</p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-shrink-0">
                         <button
                           onClick={() => handleFontChange('default')}
                           disabled={loading}
                           className={cn(
-                            "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                            "px-3 sm:px-4 py-2 text-sm font-medium rounded-lg transition-colors touch-manipulation",
                             fontTheme === 'default'
                               ? "bg-[#13343B] text-white"
-                              : "bg-[#F5F5F5] dark:bg-[#2A2A2A] text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7]"
+                              : "bg-[#F5F5F5] dark:bg-[#2a2a2a] text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2]"
                           )}
                         >
                           Default
@@ -266,10 +266,10 @@ export default function SettingsPage() {
                           onClick={() => handleFontChange('alternative')}
                           disabled={loading}
                           className={cn(
-                            "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                            "px-3 sm:px-4 py-2 text-sm font-medium rounded-lg transition-colors touch-manipulation",
                             fontTheme === 'alternative'
                               ? "bg-[#13343B] text-white"
-                              : "bg-[#F5F5F5] dark:bg-[#2A2A2A] text-[#64748B] hover:text-[#13343B] dark:hover:text-[#F8F8F7]"
+                              : "bg-[#F5F5F5] dark:bg-[#2a2a2a] text-[#64748B] hover:text-[#13343B] dark:hover:text-[#e7e7e2]"
                           )}
                         >
                           Alternative

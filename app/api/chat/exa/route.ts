@@ -1,6 +1,7 @@
 import Exa from 'exa-js';
 
 export const maxDuration = 60;
+export const runtime = 'edge'; // Use edge runtime for faster streaming
 export const dynamic = 'force-dynamic';
 
 interface ExaChunk {
@@ -115,6 +116,8 @@ export async function POST(req: Request) {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
         'X-Vercel-AI-Data-Stream': 'v1',
+        'X-Accel-Buffering': 'no', // Disable nginx buffering
+        'Cache-Control': 'no-cache, no-transform',
       },
     });
   } catch (error: unknown) {

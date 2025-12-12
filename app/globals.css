@@ -188,33 +188,33 @@
   --sidebar-border: #E5E5E5;       /* Light gray border */
 }
 
-/* Dark Mode Variables - Perplexity Style */
+/* Dark Mode Variables - Neutral Dark */
 .dark {
-  /* Dark mode using Perplexity Inky Blue base */
-  --brand-default: #1FB8CD;        /* Plex Blue as primary in dark mode */
-  --brand-fainter: #0d2328;        /* Very dark inky */
-  --brand-faint: #13343B;          /* Inky Blue */
-  --brand-subtle: #5ccfde;         /* Lighter plex blue */
-  --brand-muted: #1a5a63;          /* Mid teal */
-  --brand-dark: #17a2b8;           /* Darker plex */
-  --brand-darker: #138496;         /* Darkest plex */
+  /* Brand colors */
+  --brand-default: #2fa9b5;        /* Accent teal */
+  --brand-fainter: #1a1a1a;        /* Very dark */
+  --brand-faint: #1f2121;          /* Dark surface */
+  --brand-subtle: #3fc4d0;         /* Lighter accent */
+  --brand-muted: #268a94;          /* Mid accent */
+  --brand-dark: #2499a4;           /* Darker accent */
+  --brand-darker: #1d8892;         /* Darkest accent */
 
-  /* Dark mode secondary colors - dark inky tones */
-  --secondary-accent: #1FB8CD;     /* Plex Blue */
-  --secondary-accent2x: #5ccfde;   /* Lighter plex */
-  --secondary-dark: #1a2426;       /* Dark surface */
-  --secondary-darker: #141b1d;     /* Darker surface */
-  --secondary-darkest: #2a3638;    /* Border dark */
-  --secondary-default: #0f1516;    /* Main dark bg */
-  --secondary-faint: #1a2426;      /* Elevated surface */
-  --secondary-fainter: #1f2a2c;    /* Higher surface */
+  /* Dark mode secondary colors - neutral dark tones */
+  --secondary-accent: #2fa9b5;     /* Accent */
+  --secondary-accent2x: #3fc4d0;   /* Lighter accent */
+  --secondary-dark: #1f2121;       /* Dark surface */
+  --secondary-darker: #191a1a;     /* Darker surface (main bg) */
+  --secondary-darkest: #2a2a2a;    /* Border dark */
+  --secondary-default: #191a1a;    /* Main dark bg */
+  --secondary-faint: #1f2121;      /* Elevated surface */
+  --secondary-fainter: #252525;    /* Higher surface */
 
-  /* Text colors for dark mode - Vintage White tones */
-  --text-light-default: #F3F3EE;   /* Vintage White */
-  --text-light-muted: #a8a8a3;     /* Muted vintage */
-  --text-light-subtle: #6b6b68;    /* Subtle vintage */
-  --text-light-faint: #3a3a38;     /* Faint vintage */
-  --text-light-link: #1FB8CD;      /* Plex Blue for links */
+  /* Text colors for dark mode */
+  --text-light-default: #e7e7e2;   /* Main text */
+  --text-light-muted: #9a9a95;     /* Muted text */
+  --text-light-subtle: #6b6b68;    /* Subtle text */
+  --text-light-faint: #3a3a38;     /* Faint text */
+  --text-light-link: #2fa9b5;      /* Accent for links */
 
   /* Background and accent for dark mode */
   --background: var(--secondary-default);
@@ -238,9 +238,9 @@
   --accent-maroon-light: #450a0a;
   --accent-maroon-dark: #fca5a5;
 
-  /* Sidebar colors for dark mode - dark inky */
-  --sidebar-bg: #1a2426;
-  --sidebar-border: #2a3638;
+  /* Sidebar colors for dark mode */
+  --sidebar-bg: #1f2121;
+  --sidebar-border: #2a2a2a;
 }
 
 body {
@@ -309,6 +309,8 @@ input:focus {
 .prose {
   max-width: none;
   line-height: 1.4;
+  font-family: 'FK Grotesk Neue', system-ui, sans-serif !important;
+  font-weight: 400 !important;
 }
 
 .prose > * {
@@ -596,6 +598,13 @@ input:focus {
 .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
   margin-top: 0.8em !important;
   margin-bottom: 0.8em !important;
+  font-family: 'FK Grotesk Neue', system-ui, sans-serif !important;
+  font-weight: 500 !important;
+}
+
+.prose b, .prose strong {
+  font-family: 'FK Grotesk Neue', system-ui, sans-serif !important;
+  font-weight: 500 !important;
 }
 
 /* Fix mobile overflow issues */
@@ -859,6 +868,8 @@ pre code {
 .prose {
   max-width: none;
   line-height: 1.4;
+  font-family: 'FK Grotesk Neue', system-ui, sans-serif !important;
+  font-weight: 400 !important;
 }
 
 .prose > * {
@@ -1146,6 +1157,13 @@ pre code {
 .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
   margin-top: 0.8em !important;
   margin-bottom: 0.8em !important;
+  font-family: 'FK Grotesk Neue', system-ui, sans-serif !important;
+  font-weight: 500 !important;
+}
+
+.prose b, .prose strong {
+  font-family: 'FK Grotesk Neue', system-ui, sans-serif !important;
+  font-weight: 500 !important;
 }
 
 /* Fix mobile overflow issues */
