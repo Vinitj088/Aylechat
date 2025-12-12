@@ -1,7 +1,7 @@
 'use client';
 
 import { useChat, Message as AIMessage } from '@ai-sdk/react';
-import { useCallback, useRef, useEffect, useState } from 'react';
+import { useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/db';
 import { id } from '@instantdb/react';
 import { Message, MediaData } from '../types';
@@ -109,6 +109,17 @@ export function useAyleChat({
   // Determine API endpoint based on model
   const apiEndpoint = selectedModel === 'exa' ? '/api/chat/exa' : '/api/chat';
 
+  // Track whether we've done the initial sync for this thread
+  // This prevents DB live query updates from re-syncing messages after user sends a new message
+  const initializedChatKeyRef = useRef<string | null>(null);
+  const hasInitialSyncRef = useRef(false);
+
+  // Reset sync tracking when navigating to a different thread
+  if (initializedChatKeyRef.current !== chatKey) {
+    initializedChatKeyRef.current = chatKey;
+    hasInitialSyncRef.current = false;
+  }
+
   const chat = useChat({
     api: apiEndpoint,
     id: chatKey, // Use chatKey for chat state isolation - ensures fresh state on new chats
@@ -116,7 +127,8 @@ export function useAyleChat({
     body: {
       model: selectedModel,
     },
-    initialMessages: initialMessages.map(convertToAIMessage),
+    // Don't pass initialMessages - we'll sync via setMessages to have better control
+    initialMessages: [],
     // Experimental: Keep the last message while streaming for smoother updates
     experimental_throttle: 50, // Throttle updates to reduce re-renders
 
@@ -174,6 +186,15 @@ export function useAyleChat({
       console.error('Chat error:', error);
     },
   });
+
+  // Sync initial messages from DB only once when they first become available
+  // This prevents duplicate messages when DB live query updates after user sends a message
+  useEffect(() => {
+    if (!hasInitialSyncRef.current && initialMessages.length > 0 && chat.messages.length === 0) {
+      hasInitialSyncRef.current = true;
+      chat.setMessages(initialMessages.map(convertToAIMessage));
+    }
+  }, [initialMessages, chat]);
 
   // Extract citations and tool results from data stream
   useEffect(() => {
