@@ -18,11 +18,12 @@ const nextConfig = {
         allowedOrigins: ["demo.exa.ai"],
         allowedForwardedHosts: ["demo.exa.ai"],
       },
-      outputFileTracingIncludes: {
-        "/api/pdf": ["./node_modules/@sparticuz/chromium-min/**"],
-      },
-      serverComponentsExternalPackages: ["@sparticuz/chromium-min"],
     },
+    // Moved from experimental (Next.js 15+)
+    outputFileTracingIncludes: {
+      "/api/pdf": ["./node_modules/@sparticuz/chromium-min/**"],
+    },
+    serverExternalPackages: ["@sparticuz/chromium-min"],
     transpilePackages: ['@lobehub/icons'],
     webpack: (config, { isServer }) => {
       if (isServer) {
@@ -31,5 +32,5 @@ const nextConfig = {
       return config
     },
   };
-  
+
 export default nextConfig;
